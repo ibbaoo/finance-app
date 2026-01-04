@@ -178,7 +178,7 @@
                 <div class="flex flex-col gap-6">
                     <div class="glass rounded-3xl shadow-sm p-6 flex flex-col animate-float-in">
                         <div class="flex justify-between items-start mb-4"><div><h2 class="text-lg font-bold">Monthly Limit</h2><p class="text-[10px] text-gray-400">General Spending</p></div></div>
-                        <div id="limitControl" class="mb-4 flex gap-2"><input type="text" inputmode="numeric" id="limitInput" onkeyup="formatCurrencyInput(this)" placeholder="Set General Limit" class="flex-grow bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-base focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition"><button onclick="setMonthLimit()" class="bg-ios-blue text-white px-4 rounded-xl text-sm font-semibold hover:bg-blue-600 transition shadow-lg shadow-blue-500/30">Set</button></div>
+                        <div id="limitControl" class="mb-4 flex gap-2"><input type="text" inputmode="numeric" id="limitInput" onkeyup="formatCurrencyInput(this)" placeholder="Set Limit (e.g. 50% or 5.000.000)" class="flex-grow bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-base focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition"><button onclick="setMonthLimit()" class="bg-ios-blue text-white px-4 rounded-xl text-sm font-semibold hover:bg-blue-600 transition shadow-lg shadow-blue-500/30">Set</button></div>
                         <div class="flex-grow flex items-center justify-center relative min-h-[200px]"><div class="relative w-52 h-52"><canvas id="budgetWheel"></canvas><div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-4 text-center"><span class="text-xs text-gray-400 font-medium">Available</span><span class="text-xl font-bold text-ios-blue break-all" id="centerBudgetRemaining">0</span><span class="text-[10px] text-gray-400 mt-1" id="centerLimitLabel">Limit: 0</span></div></div></div>
                     </div>
                     <div class="glass rounded-3xl shadow-sm p-6 animate-float-in">
@@ -423,7 +423,7 @@
 
         // Logic Helpers
         const getMonthKey = (d) => `${d.getFullYear()}-${d.getMonth()}`;
-        function formatCurrencyInput(i) { let v = i.value.replace(/\D/g, ""); i.value = v === "" ? "" : Number(v).toLocaleString('de-DE'); }
+        function formatCurrencyInput(i) { if(i.value.includes('%')) return; let v = i.value.replace(/\D/g, ""); i.value = v === "" ? "" : Number(v).toLocaleString('de-DE'); }
         function parseFormattedNumber(v) { return v ? parseFloat(v.replace(/\./g, '')) : 0; }
         function formatMoney(v) { return appData.currency === 'VND' ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v) : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v / exchangeRate); }
         function showToast(m) { const el = document.getElementById('toast'); document.getElementById('toastMsg').innerText = m; el.classList.remove('opacity-0', 'translate-y-[-10px]'); setTimeout(() => el.classList.add('opacity-0', 'translate-y-[-10px]'), 2500); }
@@ -528,7 +528,37 @@
         }
         function setMonthLimit() { 
             if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
-            const v = parseFormattedNumber(document.getElementById('limitInput').value); if(v>=0) { appData.limits[getMonthKey(viewDate)] = appData.currency === 'USD' ? v * exchangeRate : v; document.getElementById('limitInput').value = ''; saveData(); showToast("Limit set"); } 
+            const input = document.getElementById('limitInput');
+            const rawVal = input.value.trim();
+            let storeVal = 0;
+
+            if (rawVal.endsWith('%')) {
+                const pct = parseFloat(rawVal);
+                if (!isNaN(pct) && pct >= 0) {
+                    const monthIncome = appData.transactions.reduce((acc, t) => {
+                        const d = new Date(t.date);
+                        if (t.type === 'revenue' && d.getMonth() === viewDate.getMonth() && d.getFullYear() === viewDate.getFullYear()) {
+                            return acc + t.amount;
+                        }
+                        return acc;
+                    }, 0);
+                    storeVal = monthIncome * (pct / 100);
+                    showToast(`Limit set to ${pct}% of Income`);
+                } else {
+                    showToast("Invalid percentage");
+                    return;
+                }
+            } else {
+                const val = parseFormattedNumber(input.value);
+                if (isNaN(val) || val < 0) return;
+                storeVal = appData.currency === 'USD' ? val * exchangeRate : val;
+                showToast("Monthly limit updated");
+            }
+
+            appData.limits[getMonthKey(viewDate)] = storeVal;
+            input.value = '';
+            saveData(); 
+            updateUI();
         }
         function saveSubLimit() {
             if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
