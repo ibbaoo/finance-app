@@ -47,8 +47,10 @@
         /* Mobile Safe Area Helpers */
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
         .pt-safe { padding-top: env(safe-area-inset-top); }
-        .pt-safe-offset { padding-top: calc(env(safe-area-inset-top) + 5rem); }
-        .top-safe-offset { top: calc(env(safe-area-inset-top) + 5.5rem); }
+        /* Increased offset to 9rem to account for thicker header + extra padding */
+        .pt-safe-offset { padding-top: calc(env(safe-area-inset-top) + 9rem); }
+        /* Adjusted toast position */
+        .top-safe-offset { top: calc(env(safe-area-inset-top) + 9.5rem); }
         
         /* Animations */
         @keyframes floatIn { 0% { opacity: 0; transform: translateY(15px); } 100% { opacity: 1; transform: translateY(0); } }
@@ -70,11 +72,11 @@
 </head>
 <body class="bg-ios-light dark:bg-black text-slate-900 dark:text-white min-h-screen flex flex-col smooth-transition selection:bg-ios-blue selection:text-white overflow-hidden">
 
-    <!-- Firebase SDKs (Standard CDN Import) -->
+    <!-- Firebase SDKs (Updated to 11.6.1) -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         window.fb = { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut, getFirestore, collection, doc, setDoc, getDoc, onSnapshot, deleteDoc };
         window.dispatchEvent(new Event('firebaseLoaded'));
     </script>
@@ -126,23 +128,26 @@
     <!-- MAIN APP UI -->
     <div id="appUI" class="hidden flex-col h-[100dvh]">
         <!-- Navbar -->
-        <nav class="fixed top-0 w-full z-50 glass border-b border-gray-200 dark:border-gray-800 transition-colors duration-300 pt-safe">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex items-center justify-between h-16">
+        <!-- Added pt-6 (explicit padding) to fix dynamic island overlap issues. Using max-w-3xl for centered UI -->
+        <nav class="fixed top-0 w-full z-50 glass border-b border-gray-200 dark:border-gray-800 transition-colors duration-300 pt-safe pt-6">
+            <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+                <!-- Changed h-16 to h-20 for thicker bar -->
+                <div class="flex items-center justify-between h-20">
                     <div class="flex items-center gap-2 animate-float-in">
                         <div class="w-8 h-8 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center shadow-lg"><i class="fa-solid fa-wallet text-xs"></i></div>
                         <span class="font-bold text-lg tracking-tight hidden md:block">FinTrack</span>
                     </div>
+                    <!-- Center Pill - Positioned Absolute relative to the constrained container -->
                     <div class="absolute left-1/2 transform -translate-x-1/2 flex items-center justify-center animate-float-in w-max">
-                        <div onclick="editExchangeRate()" class="bg-gray-100 dark:bg-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 cursor-pointer hover:bg-gray-200 dark:hover:bg-white/20 transition shadow-sm border border-gray-200 dark:border-gray-700 group">
+                        <div onclick="editExchangeRate()" class="bg-gray-100 dark:bg-white/10 px-4 py-2 rounded-full flex items-center gap-2 cursor-pointer hover:bg-gray-200 dark:hover:bg-white/20 transition shadow-sm border border-gray-200 dark:border-gray-700 group">
                             <i class="fa-solid fa-money-bill-transfer text-ios-blue text-[10px] group-hover:rotate-180 transition-transform duration-500"></i>
                             <span id="rateDisplay" class="font-bold text-xs text-ios-blue">Loading...</span>
                         </div>
                     </div>
                     <div class="flex items-center gap-2 animate-float-in" style="animation-delay: 0.1s;">
-                        <button onclick="toggleCurrency()" class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-[10px] font-bold hover:bg-gray-300 dark:hover:bg-gray-700 transition active:scale-95 text-ios-blue"><span id="currencyLabel">VND</span></button>
+                        <button onclick="toggleCurrency()" class="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-[10px] font-bold hover:bg-gray-300 dark:hover:bg-gray-700 transition active:scale-95 text-ios-blue"><span id="currencyLabel">VND</span></button>
                         <div class="relative" id="userMenuContainer">
-                            <button onclick="toggleUserMenu(event)" class="w-8 h-8 rounded-full bg-gradient-to-br from-ios-blue to-ios-purple text-white flex items-center justify-center hover:opacity-90 transition shadow-md"><i class="fa-solid fa-user text-xs"></i></button>
+                            <button onclick="toggleUserMenu(event)" class="w-9 h-9 rounded-full bg-gradient-to-br from-ios-blue to-ios-purple text-white flex items-center justify-center hover:opacity-90 transition shadow-md"><i class="fa-solid fa-user text-xs"></i></button>
                             <div id="userMenuDropdown" class="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-[#1c1c1e] rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 p-1 opacity-0 pointer-events-none scale-95 transition-all transform origin-top-right z-50">
                                 <div class="px-3 py-2 border-b border-gray-100 dark:border-gray-700 mb-1"><p class="text-[10px] text-gray-400 uppercase font-bold">Signed in as</p><p class="text-sm font-bold truncate text-gray-800 dark:text-white" id="menuUsername">User</p></div>
                                 <button onclick="toggleTheme()" class="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 text-gray-700 dark:text-gray-200"><i id="themeIcon" class="fa-solid fa-moon w-4"></i> Theme</button>
@@ -155,7 +160,9 @@
             </div>
         </nav>
 
-        <main class="flex-grow pt-safe-offset pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full space-y-6 overflow-y-auto custom-scrollbar pb-safe">
+        <!-- Main Content -->
+        <!-- Added max-w-3xl for centered layout -->
+        <main class="flex-grow pt-safe-offset pb-20 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto w-full space-y-6 overflow-y-auto custom-scrollbar pb-safe">
             <div class="flex items-center justify-center gap-2 py-2 animate-float-in">
                 <button onclick="changeMonth(-1)" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 transition active:scale-90"><i class="fa-solid fa-chevron-left text-ios-blue text-xs"></i></button>
                 <h2 id="currentMonthDisplay" class="text-lg font-bold w-36 text-center">October 2023</h2>
@@ -178,7 +185,7 @@
                 <div class="flex flex-col gap-6">
                     <div class="glass rounded-3xl shadow-sm p-6 flex flex-col animate-float-in">
                         <div class="flex justify-between items-start mb-4"><div><h2 class="text-lg font-bold">Monthly Limit</h2><p class="text-[10px] text-gray-400">General Spending</p></div></div>
-                        <div id="limitControl" class="mb-4 flex gap-2"><input type="text" inputmode="numeric" id="limitInput" onkeyup="formatCurrencyInput(this)" placeholder="Set Limit (e.g. 50% or 5.000.000)" class="flex-grow bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-base focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition"><button onclick="setMonthLimit()" class="bg-ios-blue text-white px-4 rounded-xl text-sm font-semibold hover:bg-blue-600 transition shadow-lg shadow-blue-500/30">Set</button></div>
+                        <div id="limitControl" class="mb-4 flex gap-2"><input type="text" inputmode="numeric" id="limitInput" onkeyup="formatCurrencyInput(this)" placeholder="Set General Limit" class="flex-grow bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-base focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition"><button onclick="setMonthLimit()" class="bg-ios-blue text-white px-4 rounded-xl text-sm font-semibold hover:bg-blue-600 transition shadow-lg shadow-blue-500/30">Set</button></div>
                         <div class="flex-grow flex items-center justify-center relative min-h-[200px]"><div class="relative w-52 h-52"><canvas id="budgetWheel"></canvas><div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-4 text-center"><span class="text-xs text-gray-400 font-medium">Available</span><span class="text-xl font-bold text-ios-blue break-all" id="centerBudgetRemaining">0</span><span class="text-[10px] text-gray-400 mt-1" id="centerLimitLabel">Limit: 0</span></div></div></div>
                     </div>
                     <div class="glass rounded-3xl shadow-sm p-6 animate-float-in">
@@ -291,7 +298,7 @@
     </div>
 
     <script>
-        // *** CONFIGURATION ZONE - PASTE YOUR KEYS HERE ***
+        // *** CONFIGURATION ZONE ***
         // 1. Go to console.firebase.google.com -> Settings -> General -> Your Apps -> Config
         const FIREBASE_CONFIG = {
             apiKey: "AIzaSyBLLUnNGyFxJFEJXOTZ42tAgo41rylZEpA",
@@ -303,7 +310,7 @@
         };
 
         // 2. Go to aistudio.google.com/app/apikey -> Create API Key
-        const GEMINI_API_KEY = "AIzaSyALvf9CWoKQSipB3-wOQnSBHkCtBATLZFY";
+        const GEMINI_API_KEY = ""; // Set to empty string for safety; fill if using outside this environment
         // *************************************************
 
         let db, auth, currentUserDocId = null, unsubscribeSnapshot = null;
@@ -423,7 +430,7 @@
 
         // Logic Helpers
         const getMonthKey = (d) => `${d.getFullYear()}-${d.getMonth()}`;
-        function formatCurrencyInput(i) { if(i.value.includes('%')) return; let v = i.value.replace(/\D/g, ""); i.value = v === "" ? "" : Number(v).toLocaleString('de-DE'); }
+        function formatCurrencyInput(i) { let v = i.value.replace(/\D/g, ""); i.value = v === "" ? "" : Number(v).toLocaleString('de-DE'); }
         function parseFormattedNumber(v) { return v ? parseFloat(v.replace(/\./g, '')) : 0; }
         function formatMoney(v) { return appData.currency === 'VND' ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v) : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v / exchangeRate); }
         function showToast(m) { const el = document.getElementById('toast'); document.getElementById('toastMsg').innerText = m; el.classList.remove('opacity-0', 'translate-y-[-10px]'); setTimeout(() => el.classList.add('opacity-0', 'translate-y-[-10px]'), 2500); }
@@ -528,37 +535,7 @@
         }
         function setMonthLimit() { 
             if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
-            const input = document.getElementById('limitInput');
-            const rawVal = input.value.trim();
-            let storeVal = 0;
-
-            if (rawVal.endsWith('%')) {
-                const pct = parseFloat(rawVal);
-                if (!isNaN(pct) && pct >= 0) {
-                    const monthIncome = appData.transactions.reduce((acc, t) => {
-                        const d = new Date(t.date);
-                        if (t.type === 'revenue' && d.getMonth() === viewDate.getMonth() && d.getFullYear() === viewDate.getFullYear()) {
-                            return acc + t.amount;
-                        }
-                        return acc;
-                    }, 0);
-                    storeVal = monthIncome * (pct / 100);
-                    showToast(`Limit set to ${pct}% of Income`);
-                } else {
-                    showToast("Invalid percentage");
-                    return;
-                }
-            } else {
-                const val = parseFormattedNumber(input.value);
-                if (isNaN(val) || val < 0) return;
-                storeVal = appData.currency === 'USD' ? val * exchangeRate : val;
-                showToast("Monthly limit updated");
-            }
-
-            appData.limits[getMonthKey(viewDate)] = storeVal;
-            input.value = '';
-            saveData(); 
-            updateUI();
+            const v = parseFormattedNumber(document.getElementById('limitInput').value); if(v>=0) { appData.limits[getMonthKey(viewDate)] = appData.currency === 'USD' ? v * exchangeRate : v; document.getElementById('limitInput').value = ''; saveData(); showToast("Limit set"); } 
         }
         function saveSubLimit() {
             if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
