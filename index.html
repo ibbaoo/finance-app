@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Finance Tracker</title>
+    
+    <!-- App Icons & PWA Setup -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👛</text></svg>">
+    <link rel="apple-touch-icon" href="https://img.icons8.com/fluency/512/wallet.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="MyFinance">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { -webkit-tap-highlight-color: transparent; }
+        .glass {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+        }
+        .dark .glass {
+            background: rgba(30, 30, 32, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+        .smooth-transition { transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1); }
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.5); border-radius: 20px; }
+        .disabled-overlay { opacity: 0.5; pointer-events: none; filter: grayscale(1); }
+        .loader { border: 3px solid rgba(255,255,255,0.1); border-left-color: #007AFF; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        
+        /* Animations */
+        @keyframes floatIn { 0% { opacity: 0; transform: translateY(15px); } 100% { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }
+        .animate-float-in { animation: floatIn 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+        .animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
+    </style>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['SF Pro Display', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'] },
+                    colors: { ios: { blue: '#007AFF', green: '#34C759', red: '#FF3B30', orange: '#FF9500', purple: '#5856D6', teal: '#30B0C7', gray: '#8E8E93', light: '#F2F2F7' } }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-ios-light dark:bg-black text-slate-900 dark:text-white min-h-screen flex flex-col smooth-transition selection:bg-ios-blue selection:text-white overflow-hidden">
+
+    <!-- Firebase SDKs (Standard CDN Import) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        window.fb = { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut, getFirestore, collection, doc, setDoc, getDoc, onSnapshot, deleteDoc };
+        window.dispatchEvent(new Event('firebaseLoaded'));
+    </script>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed top-20 left-1/2 transform -translate-x-1/2 bg-gray-800/90 dark:bg-white/90 text-white dark:text-black px-6 py-3 rounded-full text-xs font-bold shadow-xl transition-all duration-300 opacity-0 pointer-events-none translate-y-[-10px] z-[200] backdrop-blur-md flex items-center gap-2 w-max max-w-[90%]">
+        <i class="fa-solid fa-circle-info shrink-0"></i> <span id="toastMsg" class="truncate">Notification</span>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div id="confirmModal" class="fixed inset-0 z-[200] hidden flex items-center justify-center bg-black/20 backdrop-blur-sm p-4 transition-all duration-300">
+        <div class="bg-white dark:bg-[#1c1c1e] rounded-2xl w-full max-w-xs p-5 shadow-2xl text-center animate-fade-in border border-gray-200 dark:border-gray-700">
+            <div class="w-12 h-12 rounded-full bg-red-100 dark:bg-red-500/20 text-red-500 flex items-center justify-center mx-auto mb-3">
+                <i class="fa-solid fa-triangle-exclamation text-xl"></i>
+            </div>
+            <h3 class="text-lg font-bold mb-2 dark:text-white">Confirm Action</h3>
+            <p id="confirmMessage" class="text-sm text-gray-500 dark:text-gray-400 mb-6 font-medium">Proceed?</p>
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="closeConfirm(false)" class="bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 py-3 rounded-xl text-sm font-bold hover:bg-gray-200 dark:hover:bg-white/20 transition">Cancel</button>
+                <button id="confirmYesBtn" class="bg-ios-red text-white py-3 rounded-xl text-sm font-bold hover:bg-red-600 transition shadow-lg shadow-red-500/20">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUTH SCREEN -->
+    <div id="authScreen" class="fixed inset-0 z-[100] flex items-center justify-center bg-ios-light dark:bg-black p-6 animate-fade-in">
+        <div class="w-full max-w-sm">
+            <div class="text-center mb-10">
+                <div class="w-20 h-20 rounded-[2rem] bg-gradient-to-br from-ios-blue to-ios-purple text-white flex items-center justify-center shadow-2xl mx-auto mb-6">
+                    <i class="fa-solid fa-wallet text-3xl"></i>
+                </div>
+                <h1 class="text-3xl font-bold tracking-tight mb-2">MyFinance</h1>
+                <p class="text-gray-500 dark:text-gray-400 text-sm">Your Personal Cloud Wallet</p>
+            </div>
+            <div class="glass rounded-3xl p-8 shadow-lg border border-white/50 dark:border-white/10">
+                <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Username</label>
+                <div class="relative">
+                    <input type="text" id="usernameInput" placeholder="Enter name" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-2xl px-5 py-4 text-base font-bold focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition placeholder:font-normal placeholder:text-gray-400">
+                    <div id="authLoader" class="absolute right-4 top-1/2 -translate-y-1/2 hidden"><div class="loader !border-gray-400 !border-l-ios-blue"></div></div>
+                </div>
+                <p class="text-[10px] text-gray-400 mt-3 ml-1 leading-tight"><i class="fa-solid fa-lock mr-1"></i> Data synced to your Firebase.</p>
+                <button onclick="handleAuth()" class="w-full bg-ios-blue text-white py-4 rounded-2xl font-bold text-base mt-6 hover:bg-blue-600 transition shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2">
+                    <span>Continue</span> <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP UI -->
+    <div id="appUI" class="hidden flex-col h-[100dvh]">
+        <!-- Navbar -->
+        <nav class="fixed top-0 w-full z-50 glass border-b border-gray-200 dark:border-gray-800 transition-colors duration-300">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-16">
+                    <div class="flex items-center gap-2 animate-float-in">
+                        <div class="w-8 h-8 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center shadow-lg"><i class="fa-solid fa-wallet text-xs"></i></div>
+                        <span class="font-bold text-lg tracking-tight hidden md:block">FinTrack</span>
+                    </div>
+                    <div class="absolute left-1/2 transform -translate-x-1/2 flex items-center justify-center animate-float-in w-max">
+                        <div onclick="editExchangeRate()" class="bg-gray-100 dark:bg-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 cursor-pointer hover:bg-gray-200 dark:hover:bg-white/20 transition shadow-sm border border-gray-200 dark:border-gray-700 group">
+                            <i class="fa-solid fa-money-bill-transfer text-ios-blue text-[10px] group-hover:rotate-180 transition-transform duration-500"></i>
+                            <span id="rateDisplay" class="font-bold text-xs text-ios-blue">Loading...</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 animate-float-in" style="animation-delay: 0.1s;">
+                        <button onclick="toggleCurrency()" class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-[10px] font-bold hover:bg-gray-300 dark:hover:bg-gray-700 transition active:scale-95 text-ios-blue"><span id="currencyLabel">VND</span></button>
+                        <div class="relative" id="userMenuContainer">
+                            <button onclick="toggleUserMenu(event)" class="w-8 h-8 rounded-full bg-gradient-to-br from-ios-blue to-ios-purple text-white flex items-center justify-center hover:opacity-90 transition shadow-md"><i class="fa-solid fa-user text-xs"></i></button>
+                            <div id="userMenuDropdown" class="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-[#1c1c1e] rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 p-1 opacity-0 pointer-events-none scale-95 transition-all transform origin-top-right z-50">
+                                <div class="px-3 py-2 border-b border-gray-100 dark:border-gray-700 mb-1"><p class="text-[10px] text-gray-400 uppercase font-bold">Signed in as</p><p class="text-sm font-bold truncate text-gray-800 dark:text-white" id="menuUsername">User</p></div>
+                                <button onclick="toggleTheme()" class="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 text-gray-700 dark:text-gray-200"><i id="themeIcon" class="fa-solid fa-moon w-4"></i> Theme</button>
+                                <button onclick="handleLogout()" class="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 text-gray-700 dark:text-gray-200"><i class="fa-solid fa-arrow-right-from-bracket w-4"></i> Logout</button>
+                                <button onclick="handleDeleteAccount()" class="w-full text-left px-3 py-2 text-xs font-bold rounded-lg hover:bg-red-50 dark:hover:bg-red-500/20 flex items-center gap-2 text-red-500"><i class="fa-solid fa-trash w-4"></i> Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <main class="flex-grow pt-24 pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full space-y-6 overflow-y-auto custom-scrollbar pb-safe">
+            <div class="flex items-center justify-center gap-2 py-2 animate-float-in">
+                <button onclick="changeMonth(-1)" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 transition active:scale-90"><i class="fa-solid fa-chevron-left text-ios-blue text-xs"></i></button>
+                <h2 id="currentMonthDisplay" class="text-lg font-bold w-36 text-center">October 2023</h2>
+                <button onclick="changeMonth(1)" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 transition active:scale-90"><i class="fa-solid fa-chevron-right text-ios-blue text-xs"></i></button>
+                <button onclick="jumpToToday()" class="text-xs text-ios-blue font-semibold absolute right-4 sm:relative sm:right-auto hover:underline">Today</button>
+            </div>
+
+            <div id="lockedMessage" class="hidden text-center animate-float-in">
+                <span class="inline-block bg-gray-100 dark:bg-gray-800 text-gray-500 text-[10px] uppercase font-bold px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm"><i class="fa-solid fa-lock mr-1"></i> Read Only Mode</span>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-green"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1">Income</p><h3 class="text-base font-bold text-ios-green truncate" id="incomeDisplay">0</h3></div>
+                <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-red"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1">Spent</p><h3 class="text-base font-bold text-ios-red truncate" id="spentDisplay">0</h3></div>
+                <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-teal"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1">Wallet</p><h3 class="text-base font-bold text-ios-teal truncate" id="walletDisplay">0</h3></div>
+                <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-blue"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1">Left</p><h3 class="text-base font-bold text-gray-800 dark:text-gray-200 truncate" id="monthlyLeftDisplay">0</h3></div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="flex flex-col gap-6">
+                    <div class="glass rounded-3xl shadow-sm p-6 flex flex-col animate-float-in">
+                        <div class="flex justify-between items-start mb-4"><div><h2 class="text-lg font-bold">Monthly Limit</h2><p class="text-[10px] text-gray-400">General Spending</p></div></div>
+                        <div id="limitControl" class="mb-4 flex gap-2"><input type="text" inputmode="numeric" id="limitInput" onkeyup="formatCurrencyInput(this)" placeholder="Set General Limit" class="flex-grow bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-base focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition"><button onclick="setMonthLimit()" class="bg-ios-blue text-white px-4 rounded-xl text-sm font-semibold hover:bg-blue-600 transition shadow-lg shadow-blue-500/30">Set</button></div>
+                        <div class="flex-grow flex items-center justify-center relative min-h-[200px]"><div class="relative w-52 h-52"><canvas id="budgetWheel"></canvas><div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-4 text-center"><span class="text-xs text-gray-400 font-medium">Available</span><span class="text-xl font-bold text-ios-blue break-all" id="centerBudgetRemaining">0</span><span class="text-[10px] text-gray-400 mt-1" id="centerLimitLabel">Limit: 0</span></div></div></div>
+                    </div>
+                    <div class="glass rounded-3xl shadow-sm p-6 animate-float-in">
+                        <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold flex items-center"><i class="fa-solid fa-list-check text-ios-purple mr-2"></i>Sub-Limits</h2><button onclick="openSubLimitModal()" class="text-xs bg-ios-purple/10 text-ios-purple px-3 py-1.5 rounded-full font-bold hover:bg-ios-purple/20 transition">+ Add</button></div>
+                        <div id="subLimitsContainer" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+                        <div id="emptySubLimits" class="hidden text-center text-gray-400 text-xs py-4">No sub-limits created.</div>
+                    </div>
+                </div>
+                <div class="glass rounded-3xl shadow-sm p-6 flex flex-col animate-float-in h-full">
+                    <div class="flex justify-between items-start mb-4"><div><h2 class="text-lg font-bold">My Wallet</h2><p class="text-[10px] text-gray-400">Real Money Remaining</p></div><span class="text-[10px] bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 px-2 py-1 rounded-full font-medium">Continuous</span></div>
+                    <div class="flex-grow flex items-center justify-center relative min-h-[200px]"><div class="relative w-52 h-52"><canvas id="walletWheel"></canvas><div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"><span class="text-xs text-gray-400 font-medium">Net Balance</span><span class="text-2xl font-bold text-ios-teal" id="centerWalletBalance">0</span></div></div></div>
+                    <div class="mt-4 flex justify-center gap-4 text-xs text-center"><div><span class="block text-gray-400">Income</span><span class="font-bold text-ios-green" id="footerTotalIncome">0</span></div><div class="w-px bg-gray-200 dark:bg-gray-700"></div><div><span class="block text-gray-400">Total Out</span><span class="font-bold text-ios-red" id="footerTotalSpent">0</span></div></div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="glass rounded-3xl shadow-sm p-6 flex flex-col animate-float-in h-full">
+                    <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold flex items-center"><i class="fa-solid fa-repeat mr-2 text-ios-purple"></i>Subscriptions</h2></div>
+                    <div id="subsControl" class="flex flex-col gap-2 mb-4 bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-gray-800">
+                        <div class="flex gap-2"><input type="text" id="subNameInput" placeholder="Name" class="flex-grow bg-white dark:bg-black/20 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-base focus:ring-2 focus:ring-ios-purple outline-none dark:text-white"><input type="text" inputmode="numeric" id="subAmountInput" onkeyup="formatCurrencyInput(this)" placeholder="Amount" class="w-24 bg-white dark:bg-black/20 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-base focus:ring-2 focus:ring-ios-purple outline-none dark:text-white text-right"></div>
+                        <div class="flex items-center justify-between mt-1"><div class="flex items-center gap-2"><label class="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" id="subYearlyCheck" onchange="toggleMonthSelect()" class="form-checkbox h-4 w-4 text-ios-purple rounded border-gray-300 bg-white dark:bg-black/20 dark:border-gray-700 focus:ring-ios-purple"><span class="text-[10px] text-gray-500 dark:text-gray-400 font-medium">Yearly</span></label><select id="subMonthSelect" class="hidden text-[10px] p-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-black/20 dark:text-gray-200 focus:ring-1 focus:ring-ios-purple outline-none"><option value="0">Jan</option><option value="1">Feb</option><option value="2">Mar</option><option value="3">Apr</option><option value="4">May</option><option value="5">Jun</option><option value="6">Jul</option><option value="7">Aug</option><option value="8">Sep</option><option value="9">Oct</option><option value="10">Nov</option><option value="11">Dec</option></select></div><button onclick="addSubscription()" class="bg-ios-purple text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-purple-600 transition shadow-md shadow-purple-500/20">Add</button></div>
+                    </div>
+                    <div class="flex-grow overflow-y-auto max-h-[250px] pr-1 space-y-2 custom-scrollbar" id="subscriptionList"></div>
+                    <div id="emptySubs" class="hidden text-center text-gray-400 text-xs py-4">No subscriptions.</div>
+                </div>
+
+                <div class="glass rounded-3xl shadow-sm p-6 animate-float-in h-full">
+                    <h2 class="text-lg font-bold mb-4">Add Transaction</h2>
+                    <div id="transControl" class="flex flex-col gap-4">
+                        <input type="text" id="descInput" placeholder="Description" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-4 py-4 text-base focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white">
+                        <div class="relative"><span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold" id="inputCurrencySymbol">₫</span><input type="text" inputmode="numeric" id="amountInput" onkeyup="formatCurrencyInput(this)" placeholder="0" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl pl-8 pr-4 py-4 text-xl font-bold focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white"></div>
+                        <div class="relative flex gap-2">
+                            <input list="categoryList" id="categoryInput" placeholder="Category" class="flex-grow bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white">
+                            <datalist id="categoryList"></datalist>
+                            <button onclick="suggestCategory()" id="aiBtn" class="bg-gradient-to-tr from-indigo-500 to-purple-500 text-white w-12 rounded-xl flex items-center justify-center hover:opacity-90 transition shadow-lg shadow-purple-500/30 group"><i class="fa-solid fa-wand-magic-sparkles text-sm group-hover:scale-110 transition-transform"></i></button>
+                            <button onclick="openCategoryModal()" class="bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-300 w-12 rounded-xl flex items-center justify-center hover:bg-gray-200 dark:hover:bg-white/20 transition group"><i class="fa-solid fa-list text-sm"></i></button>
+                        </div>
+                        <div><label class="block text-[10px] text-gray-500 mb-1 ml-1 font-semibold uppercase">Budget Source</label><select id="budgetSelect" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white appearance-none cursor-pointer"><option value="general">General (Monthly Limit)</option></select></div>
+                        <div class="flex gap-3 mt-2"><button onclick="addTransaction('expense')" class="flex-1 bg-ios-red text-white py-4 rounded-2xl font-semibold hover:bg-red-600 transition active:scale-95 shadow-lg shadow-red-500/30 flex items-center justify-center gap-2"><i class="fa-solid fa-arrow-down"></i> Spent</button><button onclick="addTransaction('revenue')" class="flex-1 bg-ios-green text-white py-4 rounded-2xl font-semibold hover:bg-green-600 transition active:scale-95 shadow-lg shadow-green-500/30 flex items-center justify-center gap-2"><i class="fa-solid fa-arrow-up"></i> Income</button></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass rounded-3xl shadow-sm p-6 animate-float-in">
+                <div class="mb-4 space-y-2">
+                    <div class="flex justify-between items-center"><h2 class="text-lg font-bold">History <span class="text-xs font-normal text-gray-500 ml-2" id="historyMonthLabel"></span></h2></div>
+                    <div class="flex gap-2">
+                        <div class="relative flex-grow">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                            <input type="text" placeholder="Search..." onkeyup="handleSearch(this.value)" class="w-full bg-gray-100 dark:bg-white/10 border-none rounded-xl pl-8 pr-3 py-2 text-xs font-bold focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition">
+                        </div>
+                        <select onchange="updateSort(this.value)" class="bg-gray-100 dark:bg-white/10 border-none rounded-xl text-xs font-bold px-3 py-2 focus:ring-0 cursor-pointer dark:text-white w-24">
+                            <option value="newest">Newest</option>
+                            <option value="oldest">Oldest</option>
+                            <option value="high">High Amount</option>
+                        </select>
+                    </div>
+                </div>
+                <ul id="historyList" class="space-y-3"></ul>
+            </div>
+
+            <div class="glass rounded-3xl shadow-sm p-6 animate-float-in mb-8">
+                <h2 class="text-lg font-bold mb-4">6-Month Overview</h2>
+                <div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead><tr class="text-xs text-gray-400 uppercase tracking-wide border-b border-gray-200 dark:border-gray-700"><th class="pb-3 pl-2">Month</th><th class="pb-3 text-right">Income</th><th class="pb-3 text-right">Spent</th><th class="pb-3 text-right">Savings</th></tr></thead><tbody id="comparisonTableBody" class="text-sm font-medium"></tbody></table></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Sub-Limit Modal -->
+    <div id="subLimitModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-all duration-300">
+        <div class="bg-white dark:bg-[#1c1c1e] rounded-3xl w-full max-w-xs p-6 shadow-2xl relative animate-fade-in">
+            <button onclick="closeSubLimitModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <h2 class="text-lg font-bold mb-4 text-center dark:text-white">New Sub-Limit</h2>
+            <div class="space-y-3">
+                <input type="text" id="subLimitNameInput" placeholder="Name (e.g. Car Fund)" class="w-full bg-gray-100 dark:bg-white/10 border-none rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-ios-blue outline-none dark:text-white">
+                <input type="text" inputmode="numeric" id="subLimitAmountInput" onkeyup="formatCurrencyInput(this)" placeholder="Limit Amount" class="w-full bg-gray-100 dark:bg-white/10 border-none rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-ios-blue outline-none dark:text-white">
+                <button onclick="createSubLimit()" class="w-full bg-ios-purple text-white py-3 rounded-xl font-bold hover:bg-purple-600 transition shadow-lg shadow-purple-500/20">Create Budget</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Manager Modal -->
+    <div id="categoryModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-all duration-300">
+        <div class="bg-white dark:bg-[#1c1c1e] rounded-3xl w-full max-w-xs p-6 shadow-2xl relative animate-fade-in flex flex-col max-h-[80vh]">
+            <button onclick="closeCategoryModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <h2 class="text-lg font-bold mb-4 text-center dark:text-white">Categories</h2>
+            <div id="categoryListContainer" class="flex-grow overflow-y-auto custom-scrollbar space-y-2 pr-1">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // *** CONFIGURATION ZONE - PASTE YOUR KEYS HERE ***
+        // 1. Go to console.firebase.google.com -> Settings -> General -> Your Apps -> Config
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyBLLUnNGyFxJFEJXOTZ42tAgo41rylZEpA",
+            authDomain: "baowalletapp.firebaseapp.com",
+            projectId: "baowalletapp",
+            storageBucket: "baowalletapp.firebasestorage.app",
+            messagingSenderId: "973567102982",
+            appId: "1:973567102982:web:1b5abf693464c03e85f387"
+        };
+
+        // 2. Go to aistudio.google.com/app/apikey -> Create API Key
+        const GEMINI_API_KEY = "AIzaSyALvf9CWoKQSipB3-wOQnSBHkCtBATLZFY";
+        // *************************************************
+
+        let db, auth, currentUserDocId = null, unsubscribeSnapshot = null;
+        let exchangeRate = 26300, isManualRate = false, viewDate = new Date();
+        let budgetChart, walletChart, currentSort = 'newest', searchQuery = '', confirmCallback = null;
+        let appData = { currency: 'VND', limits: {}, transactions: [], subscriptions: [], subLimits: [], categories: ['Food', 'Transport', 'Utilities', 'Entertainment', 'Shopping', 'Health', 'Education', 'Bill'], customRate: null };
+        const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        if(!Array.isArray(appData.subLimits)) appData.subLimits = [];
+
+        const currentAppId = typeof __app_id !== 'undefined' ? __app_id : (FIREBASE_CONFIG.appId || 'default-app-id');
+
+        async function init() {
+            loadTheme();
+            if (!window.fb) await new Promise(r => window.addEventListener('firebaseLoaded', r));
+            let configToUse = FIREBASE_CONFIG;
+            if (typeof __firebase_config !== 'undefined') { try { configToUse = JSON.parse(__firebase_config); } catch(e) {} }
+
+            try {
+                if(!configToUse.apiKey) throw new Error("Missing Config");
+                const app = window.fb.initializeApp(configToUse);
+                auth = window.fb.getAuth(app);
+                db = window.fb.getFirestore(app);
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await window.fb.signInWithCustomToken(auth, __initial_auth_token);
+                else await window.fb.signInAnonymously(auth);
+            } catch (e) {
+                console.error("Firebase Init Error:", e);
+                if(e.message === "Missing Config") showToast("⚠️ Missing Firebase Keys in Code");
+            }
+
+            const storedUser = localStorage.getItem('finTrack_username');
+            if (storedUser) { document.getElementById('usernameInput').value = storedUser; handleAuth(); }
+            initCharts();
+        }
+
+        async function handleAuth() {
+            const usernameInput = document.getElementById('usernameInput');
+            const username = usernameInput.value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (username.length < 3) { showToast("Username too short"); return; }
+            document.getElementById('authLoader').classList.remove('hidden');
+            usernameInput.disabled = true;
+
+            try {
+                if (!auth.currentUser) await window.fb.signInAnonymously(auth);
+                let userRef;
+                if (typeof __app_id !== 'undefined') userRef = window.fb.doc(db, 'artifacts', __app_id, 'public', 'data', 'finance_users', username);
+                else userRef = window.fb.doc(db, 'finance_users', username);
+                await processUserDoc(userRef, username);
+            } catch (e) { console.error(e); showToast("Login failed. Check keys/console."); } 
+            finally { document.getElementById('authLoader').classList.add('hidden'); usernameInput.disabled = false; }
+        }
+
+        async function processUserDoc(userRef, username) {
+            let docSnap;
+            try { docSnap = await window.fb.getDoc(userRef); } catch(e) {}
+
+            if (docSnap && docSnap.exists()) {
+                currentUserDocId = username;
+                showToast(`Welcome back, ${username}!`);
+            } else {
+                await window.fb.setDoc(userRef, appData, { merge: true });
+                currentUserDocId = username;
+                showToast(`Created account: ${username}`);
+            }
+            localStorage.setItem('finTrack_username', username);
+            document.getElementById('menuUsername').innerText = username;
+            subscribeToData();
+            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('appUI').classList.remove('hidden');
+            document.getElementById('appUI').classList.add('flex');
+        }
+
+        function subscribeToData() {
+            if(!currentUserDocId) return;
+            let userRef;
+            if (typeof __app_id !== 'undefined') userRef = window.fb.doc(db, 'artifacts', __app_id, 'public', 'data', 'finance_users', currentUserDocId);
+            else userRef = window.fb.doc(db, 'finance_users', currentUserDocId);
+
+            unsubscribeSnapshot = window.fb.onSnapshot(userRef, (doc) => {
+                if(doc.exists()) {
+                    appData = { ...appData, ...doc.data() };
+                    if (!appData.categories) appData.categories = ['Food', 'Transport', 'Shopping', 'Bill'];
+                    if (!Array.isArray(appData.subLimits)) appData.subLimits = [];
+                    if (!Array.isArray(appData.transactions)) appData.transactions = [];
+                    if (!Array.isArray(appData.subscriptions)) appData.subscriptions = [];
+                    if (appData.customRate) { exchangeRate = appData.customRate; isManualRate = true; updateRateDisplay(); } 
+                    else { isManualRate = false; fetchLiveRate(); }
+                    updateUI();
+                }
+            });
+        }
+
+        async function saveData() { 
+            if(currentUserDocId) {
+                let userRef;
+                if (typeof __app_id !== 'undefined') userRef = window.fb.doc(db, 'artifacts', __app_id, 'public', 'data', 'finance_users', currentUserDocId);
+                else userRef = window.fb.doc(db, 'finance_users', currentUserDocId);
+                await window.fb.setDoc(userRef, appData, { merge: true }); 
+            }
+        }
+
+        // Logic Helpers
+        const getMonthKey = (d) => `${d.getFullYear()}-${d.getMonth()}`;
+        function formatCurrencyInput(i) { let v = i.value.replace(/\D/g, ""); i.value = v === "" ? "" : Number(v).toLocaleString('de-DE'); }
+        function parseFormattedNumber(v) { return v ? parseFloat(v.replace(/\./g, '')) : 0; }
+        function formatMoney(v) { return appData.currency === 'VND' ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v) : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v / exchangeRate); }
+        function showToast(m) { const el = document.getElementById('toast'); document.getElementById('toastMsg').innerText = m; el.classList.remove('opacity-0', 'translate-y-[-10px]'); setTimeout(() => el.classList.add('opacity-0', 'translate-y-[-10px]'), 2500); }
+        function toggleTheme() { document.documentElement.classList.toggle('dark'); localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light'); updateUI(); }
+        function loadTheme() { if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark'); }
+        function changeMonth(d) { viewDate.setMonth(viewDate.getMonth() + d); updateUI(); }
+        function jumpToToday() { viewDate = new Date(); updateUI(); showToast("Jumped to today"); }
+        function toggleUserMenu(e) { e.stopPropagation(); const m = document.getElementById('userMenuDropdown'); m.classList.toggle('opacity-0'); m.classList.toggle('pointer-events-none'); m.classList.toggle('scale-95'); }
+        
+        // Window Click Handler for Modals
+        window.onclick = (e) => { 
+            // User Menu
+            if(!document.getElementById('userMenuContainer').contains(e.target)) {
+                document.getElementById('userMenuDropdown').classList.add('opacity-0', 'pointer-events-none', 'scale-95');
+            }
+            
+            // Sub Limit Modal
+            const subModal = document.getElementById('subLimitModal');
+            if (!subModal.classList.contains('hidden') && e.target === subModal) {
+                closeSubLimitModal();
+            }
+
+            // Category Modal
+            const catModal = document.getElementById('categoryModal');
+            if (!catModal.classList.contains('hidden') && e.target === catModal) {
+                closeCategoryModal();
+            }
+
+            // Confirm Modal
+            const confModal = document.getElementById('confirmModal');
+            if (!confModal.classList.contains('hidden') && e.target === confModal) {
+                closeConfirm(false);
+            }
+        };
+        
+        async function suggestCategory() {
+            const desc = document.getElementById('descInput').value.trim();
+            const key = GEMINI_API_KEY || ""; 
+            if (!desc) { showToast("Enter description"); return; }
+            if (!key) { showToast("Add AI Key in index.html"); return; }
+            
+            const btn = document.getElementById('aiBtn'); const icon = btn.querySelector('i');
+            icon.classList.replace('fa-wand-magic-sparkles', 'fa-spinner'); icon.classList.add('animate-spin-slow');
+            try {
+                const prompt = `Classify "${desc}" into: ${appData.categories.join(', ')}. If none, suggest 1 word.`;
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                const data = await res.json();
+                const suggestion = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim().replace(/['".]/g, '');
+                if (suggestion) { document.getElementById('categoryInput').value = suggestion; showToast(`AI: ${suggestion}`); }
+            } catch(e) { showToast("AI Error"); } 
+            finally { icon.classList.replace('fa-spinner', 'fa-wand-magic-sparkles'); icon.classList.remove('animate-spin-slow'); }
+        }
+
+        // Search & Filter
+        function handleSearch(val) { searchQuery = val.toLowerCase(); updateUI(); }
+
+        // Category Management
+        function openCategoryModal() {
+            const list = document.getElementById('categoryListContainer');
+            list.innerHTML = '';
+            appData.categories.sort().forEach(cat => {
+                list.innerHTML += `
+                    <div class="flex justify-between items-center bg-gray-100 dark:bg-white/5 p-3 rounded-xl group">
+                        <span class="text-sm font-bold dark:text-gray-200">${cat}</span>
+                        <button onclick="deleteCategory('${cat}')" class="text-gray-400 hover:text-red-500 transition"><i class="fa-solid fa-trash"></i></button>
+                    </div>`;
+            });
+            document.getElementById('categoryModal').classList.remove('hidden');
+        }
+        function closeCategoryModal() { document.getElementById('categoryModal').classList.add('hidden'); }
+        function deleteCategory(cat) {
+            showConfirm(`Delete category "${cat}"?`, () => {
+                appData.categories = appData.categories.filter(c => c !== cat);
+                saveData();
+                openCategoryModal(); // Re-render list
+                updateUI(); // Update main UI
+            });
+        }
+
+        // Actions
+        function addTransaction(type) {
+            const desc = document.getElementById('descInput').value.trim() || (type === 'expense' ? 'Expense' : 'Income');
+            const val = parseFormattedNumber(document.getElementById('amountInput').value);
+            const cat = document.getElementById('categoryInput').value.trim() || 'Uncategorized';
+            const source = document.getElementById('budgetSelect').value;
+            if (val > 0) {
+                const t = { id: Date.now(), date: new Date().toISOString(), desc, amount: appData.currency === 'USD' ? val * exchangeRate : val, type, category: cat };
+                if(type === 'expense' && source !== 'general') t.subLimitId = parseInt(source);
+                if (cat && !appData.categories.includes(cat)) appData.categories.push(cat);
+                appData.transactions.unshift(t);
+                document.getElementById('descInput').value = ''; document.getElementById('amountInput').value = ''; document.getElementById('categoryInput').value = '';
+                saveData(); showToast("Added!");
+            }
+        }
+        function deleteTransaction(id) { showConfirm("Delete?", () => { appData.transactions = appData.transactions.filter(t => t.id !== id); saveData(); showToast("Deleted"); }); }
+        function setMonthLimit() { const v = parseFormattedNumber(document.getElementById('limitInput').value); if(v>=0) { appData.limits[getMonthKey(viewDate)] = appData.currency === 'USD' ? v * exchangeRate : v; document.getElementById('limitInput').value = ''; saveData(); showToast("Limit set"); } }
+        function createSubLimit() { const n = document.getElementById('subLimitNameInput').value.trim(), v = parseFormattedNumber(document.getElementById('subLimitAmountInput').value); if(n && v>0) { appData.subLimits.push({id: Date.now(), name: n, limit: appData.currency === 'USD' ? v * exchangeRate : v}); closeSubLimitModal(); saveData(); } }
+        function deleteSubLimit(id) { showConfirm("Delete budget?", () => { appData.subLimits = appData.subLimits.filter(s => s.id !== id); saveData(); }); }
+        function addSubscription() { const n = document.getElementById('subNameInput').value.trim(), v = parseFormattedNumber(document.getElementById('subAmountInput').value); if(n && v>0) { appData.subscriptions.push({ id: Date.now(), name: n, amount: appData.currency === 'USD' ? v * exchangeRate : v, frequency: document.getElementById('subYearlyCheck').checked ? 'yearly' : 'monthly', dueMonth: parseInt(document.getElementById('subMonthSelect').value) }); saveData(); document.getElementById('subNameInput').value=''; } }
+        function deleteSubscription(id) { showConfirm("Delete sub?", () => { appData.subscriptions = appData.subscriptions.filter(s => s.id !== id); saveData(); }); }
+        
+        function showConfirm(m, cb) { document.getElementById('confirmMessage').innerText = m; confirmCallback = cb; document.getElementById('confirmModal').classList.remove('hidden'); }
+        function closeConfirm(y) { document.getElementById('confirmModal').classList.add('hidden'); if(y && confirmCallback) confirmCallback(); }
+        
+        // Fix: Bind the Yes button click event
+        document.getElementById('confirmYesBtn').onclick = () => closeConfirm(true);
+
+        function openSubLimitModal() { document.getElementById('subLimitModal').classList.remove('hidden'); }
+        function closeSubLimitModal() { document.getElementById('subLimitModal').classList.add('hidden'); }
+        function toggleMonthSelect() { document.getElementById('subMonthSelect').classList.toggle('hidden', !document.getElementById('subYearlyCheck').checked); }
+        function updateSort(v) { currentSort = v; updateUI(); }
+        function handleLogout() { localStorage.removeItem('finTrack_username'); location.reload(); }
+        function handleDeleteAccount() { 
+            showConfirm("PERMANENTLY DELETE?", async () => { 
+                if(currentUserDocId) {
+                    let userRef;
+                    if (typeof __app_id !== 'undefined') userRef = window.fb.doc(db, 'artifacts', __app_id, 'public', 'data', 'finance_users', currentUserDocId);
+                    else userRef = window.fb.doc(db, 'finance_users', currentUserDocId);
+                    await window.fb.deleteDoc(userRef); 
+                }
+                handleLogout(); 
+            }); 
+        }
+        async function fetchLiveRate() { if(!isManualRate) try { const r=await fetch('https://open.er-api.com/v6/latest/USD'); const d=await r.json(); exchangeRate = d.rates.VND; updateRateDisplay(); updateUI(); } catch(e){} }
+        function editExchangeRate() { const r=prompt("Custom Rate (USD->VND):", parseInt(exchangeRate)); if(r){ exchangeRate=parseFloat(r); isManualRate=true; appData.customRate=exchangeRate; saveData(); } else if(r==="") { isManualRate=false; appData.customRate=null; saveData(); fetchLiveRate(); } }
+        function updateRateDisplay() { document.getElementById('rateDisplay').innerText = `1$ ≈ ${new Intl.NumberFormat().format(parseInt(exchangeRate))}₫`; }
+        function toggleCurrency() { appData.currency = appData.currency === 'USD' ? 'VND' : 'USD'; updateUI(); saveData(); }
+
+        // Render
+        function updateUI() {
+            document.getElementById('currencyLabel').innerText = appData.currency;
+            document.getElementById('inputCurrencySymbol').innerText = appData.currency === 'VND' ? '₫' : '$';
+            document.getElementById('currentMonthDisplay').innerText = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            
+            const sel = document.getElementById('budgetSelect'); const oldVal = sel.value;
+            sel.innerHTML = `<option value="general">General (Monthly Limit)</option>`;
+            appData.subLimits.forEach(sl => { const o = document.createElement('option'); o.value = sl.id; o.text = sl.name; sel.appendChild(o); });
+            sel.value = oldVal;
+
+            const dl = document.getElementById('categoryList'); dl.innerHTML = '';
+            appData.categories.sort().forEach(c => { const o = document.createElement('option'); o.value = c; dl.appendChild(o); });
+
+            let inc = 0, exp = 0; appData.transactions.forEach(t => t.type==='revenue' ? inc+=t.amount : exp+=t.amount);
+            
+            let subCost = 0; const now = new Date();
+            appData.subscriptions.forEach(s => {
+               let start = new Date(now.getFullYear(), 0, 1); 
+               let m = 0;
+               while(m < now.getMonth() + 1) {
+                   if(s.frequency === 'monthly') subCost += s.amount;
+                   else if(s.frequency === 'yearly' && s.dueMonth === m) subCost += s.amount;
+                   m++;
+               }
+            });
+            
+            const wallet = inc - (exp + subCost); 
+            
+            const mTrans = appData.transactions.filter(t => new Date(t.date).getMonth() === viewDate.getMonth() && new Date(t.date).getFullYear() === viewDate.getFullYear());
+            let genSpent = 0, subSpent = {};
+            mTrans.forEach(t => { if(t.type==='expense') { if(t.subLimitId) subSpent[t.subLimitId] = (subSpent[t.subLimitId]||0)+t.amount; else genSpent += t.amount; }});
+            
+            const mSubs = appData.subscriptions.reduce((s, sub) => (sub.frequency==='monthly' || (sub.frequency==='yearly' && sub.dueMonth===viewDate.getMonth())) ? s+sub.amount : s, 0);
+            const limit = appData.limits[getMonthKey(viewDate)] || 0;
+            const mainRem = Math.max(0, limit - (genSpent + mSubs));
+            
+            document.getElementById('incomeDisplay').innerText = formatMoney(inc);
+            document.getElementById('spentDisplay').innerText = formatMoney(exp); 
+            document.getElementById('walletDisplay').innerText = formatMoney(wallet);
+            document.getElementById('monthlyLeftDisplay').innerText = formatMoney(mainRem);
+            
+            const isDark = document.documentElement.classList.contains('dark');
+            const bg = isDark ? '#2C2C2E' : '#E5E7EB';
+            
+            const p = limit > 0 ? mainRem / limit : 0;
+            const col = p < 0.2 ? '#FF3B30' : (p < 0.5 ? '#FF9500' : '#007AFF');
+            document.getElementById('centerBudgetRemaining').innerText = formatMoney(mainRem);
+            document.getElementById('centerLimitLabel').innerText = "Limit: " + formatMoney(limit);
+            if(budgetChart) {
+                budgetChart.data.datasets[0].data = limit === 0 ? [0, 100] : [mainRem, limit - mainRem];
+                budgetChart.data.datasets[0].backgroundColor = limit === 0 ? [bg, bg] : [col, bg];
+                budgetChart.update();
+            }
+
+            document.getElementById('centerWalletBalance').innerText = formatMoney(wallet);
+            if(walletChart) {
+                walletChart.data.datasets[0].data = wallet <= 0 ? [0, 100] : [wallet, exp];
+                walletChart.data.datasets[0].backgroundColor = wallet <= 0 ? [bg, bg] : ['#30B0C7', '#FF3B30'];
+                walletChart.update();
+            }
+            document.getElementById('footerTotalIncome').innerText = formatMoney(inc);
+            document.getElementById('footerTotalSpent').innerText = formatMoney(exp + subCost);
+
+            renderSubs();
+            renderSubLimits(subSpent);
+            renderHistory(mTrans);
+            renderComparison();
+        }
+
+        function renderSubLimits(spentMap) {
+            const c = document.getElementById('subLimitsContainer'); c.innerHTML = '';
+            if(appData.subLimits.length===0) document.getElementById('emptySubLimits').classList.remove('hidden');
+            else document.getElementById('emptySubLimits').classList.add('hidden');
+            
+            appData.subLimits.forEach(sl => {
+                const s = spentMap[sl.id] || 0;
+                const rem = Math.max(0, sl.limit - s);
+                const pct = Math.min(100, (rem/sl.limit)*100);
+                const col = rem > 0 ? 'bg-ios-purple' : 'bg-ios-red';
+                const txt = rem > 0 ? 'text-ios-purple' : 'text-ios-red';
+                c.innerHTML += `
+                <div class="bg-white/50 dark:bg-white/5 p-4 rounded-2xl flex flex-col justify-between relative group border border-gray-100 dark:border-gray-800">
+                    <button onclick="deleteSubLimit(${sl.id})" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><i class="fa-solid fa-xmark"></i></button>
+                    <div class="mb-2"><h3 class="text-sm font-bold truncate dark:text-white">${sl.name}</h3><p class="text-[10px] text-gray-400">Limit: ${formatMoney(sl.limit)}</p></div>
+                    <div class="w-full"><div class="flex justify-between items-end mb-1"><span class="text-[10px] font-semibold text-gray-500">Left</span><span class="text-xs font-bold ${txt}">${formatMoney(rem)}</span></div><div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden"><div class="h-full rounded-full transition-all duration-500 ${col}" style="width: ${pct}%"></div></div></div>
+                </div>`;
+            });
+        }
+
+        function renderSubs() {
+            const l = document.getElementById('subscriptionList'); l.innerHTML = '';
+            if(appData.subscriptions.length===0) document.getElementById('emptySubs').classList.remove('hidden'); else document.getElementById('emptySubs').classList.add('hidden');
+            appData.subscriptions.forEach(s => {
+                const tag = s.frequency === 'yearly' ? `<span class="text-[9px] bg-orange-100 text-orange-600 px-1.5 rounded font-bold">YR (${monthNames[s.dueMonth]})</span>` : `<span class="text-[9px] bg-purple-100 text-purple-600 px-1.5 rounded font-bold">MO</span>`;
+                l.innerHTML += `<div class="flex justify-between items-center bg-white/50 dark:bg-white/5 p-3 rounded-xl mb-2 group"><div class="flex items-center gap-2 overflow-hidden">${tag}<span class="text-sm font-medium dark:text-gray-200 truncate">${s.name}</span></div><div class="flex items-center gap-2 shrink-0"><span class="text-sm font-bold text-gray-700 dark:text-gray-300">-${formatMoney(s.amount)}</span><button onclick="deleteSubscription(${s.id})" class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100"><i class="fa-solid fa-xmark"></i></button></div></div>`;
+            });
+        }
+
+        function renderHistory(t) {
+            const l = document.getElementById('historyList'); l.innerHTML = '';
+            if(t.length===0) { l.innerHTML = `<li class="text-center text-gray-400 text-sm py-4">No activity.</li>`; return; }
+            
+            let sorted = [...t];
+            
+            // Search Filtering
+            if (searchQuery) {
+                sorted = sorted.filter(item => {
+                    const descMatch = (item.desc || '').toLowerCase().includes(searchQuery);
+                    const catMatch = (item.category || '').toLowerCase().includes(searchQuery);
+                    // Also search in sub-limit name if linked
+                    let subLimitMatch = false;
+                    if(item.subLimitId) {
+                        const sl = appData.subLimits.find(s => s.id === item.subLimitId);
+                        if(sl && sl.name.toLowerCase().includes(searchQuery)) subLimitMatch = true;
+                    }
+                    return descMatch || catMatch || subLimitMatch;
+                });
+                if(sorted.length === 0) { l.innerHTML = `<li class="text-center text-gray-400 text-sm py-4">No matches found.</li>`; return; }
+            }
+
+            if(currentSort === 'newest') sorted.sort((a,b)=>new Date(b.date)-new Date(a.date));
+            else if(currentSort === 'oldest') sorted.sort((a,b)=>new Date(a.date)-new Date(b.date));
+            else if(currentSort === 'high') sorted.sort((a,b)=>b.amount-a.amount);
+
+            sorted.forEach(x => {
+                const isExp = x.type==='expense';
+                let cat = '';
+                if(x.subLimitId) { const s = appData.subLimits.find(z=>z.id===x.subLimitId); if(s) cat = `<span class="text-[9px] bg-indigo-100 text-indigo-600 px-1.5 rounded ml-2 font-bold">${s.name}</span>`; }
+                else if(x.category && x.category !== 'Uncategorized') cat = `<span class="text-[9px] bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-300 px-1.5 rounded ml-2 font-bold">${x.category}</span>`;
+                
+                l.innerHTML += `
+                <li class="flex justify-between items-center bg-white/50 dark:bg-white/5 p-4 rounded-2xl group transition hover:bg-white/80 dark:hover:bg-white/10">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isExp?'bg-red-100 text-red-500 dark:bg-red-500/20':'bg-green-100 text-green-500 dark:bg-green-500/20'}"><i class="fa-solid ${isExp?'fa-bag-shopping':'fa-coins'} text-sm"></i></div>
+                        <div class="min-w-0"><div class="flex items-center"><p class="font-bold text-sm dark:text-gray-100 truncate">${x.desc}</p>${cat}</div><p class="text-[10px] text-gray-400">${new Date(x.date).toLocaleDateString()}</p></div>
+                    </div>
+                    <div class="flex items-center gap-3 shrink-0"><span class="font-bold ${isExp?'text-ios-red':'text-ios-green'}">${isExp?'-':'+'}${formatMoney(x.amount)}</span><button onclick="deleteTransaction(${x.id})" class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100"><i class="fa-solid fa-trash"></i></button></div>
+                </li>`;
+            });
+        }
+
+        function renderComparison() {
+            const b = document.getElementById('comparisonTableBody'); b.innerHTML = '';
+            for(let i=0; i<6; i++) {
+                let d = new Date(viewDate.getFullYear(), viewDate.getMonth()-i, 1);
+                let inc=0, exp=0;
+                appData.transactions.forEach(t=>{ const td=new Date(t.date); if(td.getMonth()===d.getMonth() && td.getFullYear()===d.getFullYear()) { if(t.type==='revenue') inc+=t.amount; else exp+=t.amount; } });
+                const sav = inc - exp;
+                b.innerHTML += `<tr class="border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-white/50 dark:hover:bg-white/5"><td class="py-3 pl-2 text-gray-500 dark:text-gray-400 font-medium">${d.toLocaleDateString('en-US',{month:'short'})}</td><td class="py-3 text-right text-ios-green">${formatMoney(inc)}</td><td class="py-3 text-right text-ios-red">${formatMoney(exp)}</td><td class="py-3 text-right font-bold ${sav>=0?'text-ios-blue':'text-ios-orange'}">${formatMoney(sav)}</td></tr>`;
+            }
+        }
+
+        function initCharts() {
+            const cfg = { type: 'doughnut', options: { responsive: true, cutout: '85%', plugins: { legend: {display:false}, tooltip: {enabled:false} }, animation: { duration: 600 } } };
+            budgetChart = new Chart(document.getElementById('budgetWheel'), { ...cfg, data: { datasets: [{ data: [100, 0], backgroundColor: ['#007AFF', '#eee'], borderWidth: 0 }] } });
+            walletChart = new Chart(document.getElementById('walletWheel'), { ...cfg, data: { datasets: [{ data: [50, 50], backgroundColor: ['#30B0C7', '#FF3B30'], borderWidth: 0 }] } });
+        }
+
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
