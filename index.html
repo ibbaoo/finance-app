@@ -57,7 +57,7 @@
             theme: {
                 extend: {
                     fontFamily: { sans: ['SF Pro Display', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'] },
-                    colors: { ios: { blue: '#007AFF', green: '#34C759', red: '#FF3B30', orange: '#FF9500', purple: '#5856D6', teal: '#30B0C7', gray: '#8E8E93', light: '#F2F2F7' } }
+                    colors: { ios: { blue: '#007AFF', green: '#34C759', red: '#FF3B30', orange: '#FF9500', purple: '#5856D6', teal: '#30B0C7', gray: '#8E8E93', light: '#F2F2F7', amber: '#FFCC00' } }
                 }
             }
         }
@@ -150,7 +150,7 @@
             </div>
         </nav>
 
-        <main class="flex-grow pt-24 pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full space-y-6 overflow-y-auto custom-scrollbar pb-safe">
+        <main class="flex-grow pt-20 pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full space-y-6 overflow-y-auto custom-scrollbar pb-safe">
             <div class="flex items-center justify-center gap-2 py-2 animate-float-in">
                 <button onclick="changeMonth(-1)" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 transition active:scale-90"><i class="fa-solid fa-chevron-left text-ios-blue text-xs"></i></button>
                 <h2 id="currentMonthDisplay" class="text-lg font-bold w-36 text-center">October 2023</h2>
@@ -291,6 +291,12 @@
 
         const currentAppId = typeof __app_id !== 'undefined' ? __app_id : (FIREBASE_CONFIG.appId || 'default-app-id');
 
+        // Helper to check if viewing current month
+        function isCurrentViewMonth() {
+            const now = new Date();
+            return viewDate.getMonth() === now.getMonth() && viewDate.getFullYear() === now.getFullYear();
+        }
+
         async function init() {
             loadTheme();
             if (!window.fb) await new Promise(r => window.addEventListener('firebaseLoaded', r));
@@ -311,6 +317,13 @@
 
             const storedUser = localStorage.getItem('finTrack_username');
             if (storedUser) { document.getElementById('usernameInput').value = storedUser; handleAuth(); }
+            
+            // Real-time currency sync
+            fetchLiveRate(); // Initial fetch
+            setInterval(fetchLiveRate, 60000); // Poll every minute if online
+            window.addEventListener('online', () => { showToast("Back Online: Syncing Rates..."); fetchLiveRate(); });
+            window.addEventListener('offline', () => showToast("Offline Mode Enabled"));
+
             initCharts();
         }
 
@@ -364,8 +377,11 @@
                     if (!Array.isArray(appData.subLimits)) appData.subLimits = [];
                     if (!Array.isArray(appData.transactions)) appData.transactions = [];
                     if (!Array.isArray(appData.subscriptions)) appData.subscriptions = [];
-                    if (appData.customRate) { exchangeRate = appData.customRate; isManualRate = true; updateRateDisplay(); } 
-                    else { isManualRate = false; fetchLiveRate(); }
+                    
+                    // If online, force fetch to sync with real world, ignoring old saved manual rate if needed
+                    if(navigator.onLine) fetchLiveRate();
+                    else if (appData.customRate) { exchangeRate = appData.customRate; isManualRate = true; updateRateDisplay(); }
+                    
                     updateUI();
                 }
             });
@@ -443,6 +459,7 @@
 
         // Category Management
         function openCategoryModal() {
+            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
             const list = document.getElementById('categoryListContainer');
             list.innerHTML = '';
             appData.categories.sort().forEach(cat => {
@@ -466,6 +483,7 @@
 
         // Actions
         function addTransaction(type) {
+            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
             const desc = document.getElementById('descInput').value.trim() || (type === 'expense' ? 'Expense' : 'Income');
             const val = parseFormattedNumber(document.getElementById('amountInput').value);
             const cat = document.getElementById('categoryInput').value.trim() || 'Uncategorized';
@@ -479,12 +497,30 @@
                 saveData(); showToast("Added!");
             }
         }
-        function deleteTransaction(id) { showConfirm("Delete?", () => { appData.transactions = appData.transactions.filter(t => t.id !== id); saveData(); showToast("Deleted"); }); }
-        function setMonthLimit() { const v = parseFormattedNumber(document.getElementById('limitInput').value); if(v>=0) { appData.limits[getMonthKey(viewDate)] = appData.currency === 'USD' ? v * exchangeRate : v; document.getElementById('limitInput').value = ''; saveData(); showToast("Limit set"); } }
-        function createSubLimit() { const n = document.getElementById('subLimitNameInput').value.trim(), v = parseFormattedNumber(document.getElementById('subLimitAmountInput').value); if(n && v>0) { appData.subLimits.push({id: Date.now(), name: n, limit: appData.currency === 'USD' ? v * exchangeRate : v}); closeSubLimitModal(); saveData(); } }
-        function deleteSubLimit(id) { showConfirm("Delete budget?", () => { appData.subLimits = appData.subLimits.filter(s => s.id !== id); saveData(); }); }
-        function addSubscription() { const n = document.getElementById('subNameInput').value.trim(), v = parseFormattedNumber(document.getElementById('subAmountInput').value); if(n && v>0) { appData.subscriptions.push({ id: Date.now(), name: n, amount: appData.currency === 'USD' ? v * exchangeRate : v, frequency: document.getElementById('subYearlyCheck').checked ? 'yearly' : 'monthly', dueMonth: parseInt(document.getElementById('subMonthSelect').value) }); saveData(); document.getElementById('subNameInput').value=''; } }
-        function deleteSubscription(id) { showConfirm("Delete sub?", () => { appData.subscriptions = appData.subscriptions.filter(s => s.id !== id); saveData(); }); }
+        function deleteTransaction(id) { 
+            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
+            showConfirm("Delete?", () => { appData.transactions = appData.transactions.filter(t => t.id !== id); saveData(); showToast("Deleted"); }); 
+        }
+        function setMonthLimit() { 
+            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
+            const v = parseFormattedNumber(document.getElementById('limitInput').value); if(v>=0) { appData.limits[getMonthKey(viewDate)] = appData.currency === 'USD' ? v * exchangeRate : v; document.getElementById('limitInput').value = ''; saveData(); showToast("Limit set"); } 
+        }
+        function createSubLimit() { 
+            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
+            const n = document.getElementById('subLimitNameInput').value.trim(), v = parseFormattedNumber(document.getElementById('subLimitAmountInput').value); if(n && v>0) { appData.subLimits.push({id: Date.now(), name: n, limit: appData.currency === 'USD' ? v * exchangeRate : v}); closeSubLimitModal(); saveData(); } 
+        }
+        function deleteSubLimit(id) { 
+            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
+            showConfirm("Delete budget?", () => { appData.subLimits = appData.subLimits.filter(s => s.id !== id); saveData(); }); 
+        }
+        function addSubscription() { 
+            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
+            const n = document.getElementById('subNameInput').value.trim(), v = parseFormattedNumber(document.getElementById('subAmountInput').value); if(n && v>0) { appData.subscriptions.push({ id: Date.now(), name: n, amount: appData.currency === 'USD' ? v * exchangeRate : v, frequency: document.getElementById('subYearlyCheck').checked ? 'yearly' : 'monthly', dueMonth: parseInt(document.getElementById('subMonthSelect').value) }); saveData(); document.getElementById('subNameInput').value=''; } 
+        }
+        function deleteSubscription(id) { 
+            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
+            showConfirm("Delete sub?", () => { appData.subscriptions = appData.subscriptions.filter(s => s.id !== id); saveData(); }); 
+        }
         
         function showConfirm(m, cb) { document.getElementById('confirmMessage').innerText = m; confirmCallback = cb; document.getElementById('confirmModal').classList.remove('hidden'); }
         function closeConfirm(y) { document.getElementById('confirmModal').classList.add('hidden'); if(y && confirmCallback) confirmCallback(); }
@@ -492,7 +528,7 @@
         // Fix: Bind the Yes button click event
         document.getElementById('confirmYesBtn').onclick = () => closeConfirm(true);
 
-        function openSubLimitModal() { document.getElementById('subLimitModal').classList.remove('hidden'); }
+        function openSubLimitModal() { if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; } document.getElementById('subLimitModal').classList.remove('hidden'); }
         function closeSubLimitModal() { document.getElementById('subLimitModal').classList.add('hidden'); }
         function toggleMonthSelect() { document.getElementById('subMonthSelect').classList.toggle('hidden', !document.getElementById('subYearlyCheck').checked); }
         function updateSort(v) { currentSort = v; updateUI(); }
@@ -508,9 +544,61 @@
                 handleLogout(); 
             }); 
         }
-        async function fetchLiveRate() { if(!isManualRate) try { const r=await fetch('https://open.er-api.com/v6/latest/USD'); const d=await r.json(); exchangeRate = d.rates.VND; updateRateDisplay(); updateUI(); } catch(e){} }
-        function editExchangeRate() { const r=prompt("Custom Rate (USD->VND):", parseInt(exchangeRate)); if(r){ exchangeRate=parseFloat(r); isManualRate=true; appData.customRate=exchangeRate; saveData(); } else if(r==="") { isManualRate=false; appData.customRate=null; saveData(); fetchLiveRate(); } }
-        function updateRateDisplay() { document.getElementById('rateDisplay').innerText = `1$ ≈ ${new Intl.NumberFormat().format(parseInt(exchangeRate))}₫`; }
+        
+        async function fetchLiveRate() { 
+            // If offline, don't try to fetch (avoids console errors). 
+            // Manual edit is allowed in 'editExchangeRate' below.
+            if(!navigator.onLine) {
+                // If we are offline, show manual rate or last fetched rate with warning
+                const rateEl = document.getElementById('rateDisplay');
+                rateEl.classList.add('text-amber-500');
+                rateEl.classList.remove('text-ios-blue');
+                return;
+            }
+
+            try { 
+                const r=await fetch('https://open.er-api.com/v6/latest/USD'); 
+                const d=await r.json(); 
+                exchangeRate = d.rates.VND; 
+                isManualRate = false; // Reset manual mode because we have live data
+                appData.customRate = null; // Clear saved custom rate
+                // Only save if data changed significantly to avoid write spam? 
+                // For simplicity, we just update UI. We don't necessarily need to save rate to DB unless user wants it persistent.
+                // But the requirement says "sync with real world".
+                updateRateDisplay(); 
+                updateUI(); 
+            } catch(e) {
+                console.warn("Rate fetch failed");
+            } 
+        }
+
+        function editExchangeRate() { 
+            // Allow editing only if offline or if user really wants to override
+            const r=prompt("Custom Rate (USD->VND):", parseInt(exchangeRate)); 
+            if(r){ 
+                exchangeRate=parseFloat(r); 
+                isManualRate=true; 
+                appData.customRate=exchangeRate; 
+                saveData(); 
+                showToast("Manual Rate Set");
+                updateRateDisplay();
+                updateUI();
+            } 
+        }
+
+        function updateRateDisplay() { 
+            const el = document.getElementById('rateDisplay');
+            el.innerText = `1$ ≈ ${new Intl.NumberFormat().format(parseInt(exchangeRate))}₫`; 
+            
+            if(isManualRate || !navigator.onLine) {
+                el.classList.add('text-amber-500');
+                el.classList.remove('text-ios-blue');
+            } else {
+                el.classList.remove('text-amber-500');
+                el.classList.add('text-ios-blue');
+            }
+        }
+        
         function toggleCurrency() { appData.currency = appData.currency === 'USD' ? 'VND' : 'USD'; updateUI(); saveData(); }
 
         // Render
@@ -577,6 +665,19 @@
             document.getElementById('footerTotalIncome').innerText = formatMoney(inc);
             document.getElementById('footerTotalSpent').innerText = formatMoney(exp + subCost);
 
+            // Handle Locking UI
+            const isCurrent = isCurrentViewMonth();
+            const lockMsg = document.getElementById('lockedMessage');
+            const inputs = ['limitControl', 'subsControl', 'transControl'];
+            
+            if (isCurrent) {
+                lockMsg.classList.add('hidden');
+                inputs.forEach(id => document.getElementById(id).classList.remove('disabled-overlay'));
+            } else {
+                lockMsg.classList.remove('hidden');
+                inputs.forEach(id => document.getElementById(id).classList.add('disabled-overlay'));
+            }
+
             renderSubs();
             renderSubLimits(subSpent);
             renderHistory(mTrans);
@@ -594,9 +695,15 @@
                 const pct = Math.min(100, (rem/sl.limit)*100);
                 const col = rem > 0 ? 'bg-ios-purple' : 'bg-ios-red';
                 const txt = rem > 0 ? 'text-ios-purple' : 'text-ios-red';
+                
+                // Show delete button only if current month
+                const delBtn = isCurrentViewMonth() 
+                    ? `<button onclick="deleteSubLimit(${sl.id})" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><i class="fa-solid fa-xmark"></i></button>`
+                    : '';
+
                 c.innerHTML += `
                 <div class="bg-white/50 dark:bg-white/5 p-4 rounded-2xl flex flex-col justify-between relative group border border-gray-100 dark:border-gray-800">
-                    <button onclick="deleteSubLimit(${sl.id})" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><i class="fa-solid fa-xmark"></i></button>
+                    ${delBtn}
                     <div class="mb-2"><h3 class="text-sm font-bold truncate dark:text-white">${sl.name}</h3><p class="text-[10px] text-gray-400">Limit: ${formatMoney(sl.limit)}</p></div>
                     <div class="w-full"><div class="flex justify-between items-end mb-1"><span class="text-[10px] font-semibold text-gray-500">Left</span><span class="text-xs font-bold ${txt}">${formatMoney(rem)}</span></div><div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden"><div class="h-full rounded-full transition-all duration-500 ${col}" style="width: ${pct}%"></div></div></div>
                 </div>`;
@@ -608,7 +715,11 @@
             if(appData.subscriptions.length===0) document.getElementById('emptySubs').classList.remove('hidden'); else document.getElementById('emptySubs').classList.add('hidden');
             appData.subscriptions.forEach(s => {
                 const tag = s.frequency === 'yearly' ? `<span class="text-[9px] bg-orange-100 text-orange-600 px-1.5 rounded font-bold">YR (${monthNames[s.dueMonth]})</span>` : `<span class="text-[9px] bg-purple-100 text-purple-600 px-1.5 rounded font-bold">MO</span>`;
-                l.innerHTML += `<div class="flex justify-between items-center bg-white/50 dark:bg-white/5 p-3 rounded-xl mb-2 group"><div class="flex items-center gap-2 overflow-hidden">${tag}<span class="text-sm font-medium dark:text-gray-200 truncate">${s.name}</span></div><div class="flex items-center gap-2 shrink-0"><span class="text-sm font-bold text-gray-700 dark:text-gray-300">-${formatMoney(s.amount)}</span><button onclick="deleteSubscription(${s.id})" class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100"><i class="fa-solid fa-xmark"></i></button></div></div>`;
+                // Show delete only if current
+                const delBtn = isCurrentViewMonth()
+                    ? `<button onclick="deleteSubscription(${s.id})" class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>`
+                    : '';
+                l.innerHTML += `<div class="flex justify-between items-center bg-white/50 dark:bg-white/5 p-3 rounded-xl mb-2 group"><div class="flex items-center gap-2 overflow-hidden">${tag}<span class="text-sm font-medium dark:text-gray-200 truncate">${s.name}</span></div><div class="flex items-center gap-2 shrink-0"><span class="text-sm font-bold text-gray-700 dark:text-gray-300">-${formatMoney(s.amount)}</span>${delBtn}</div></div>`;
             });
         }
 
@@ -644,13 +755,17 @@
                 if(x.subLimitId) { const s = appData.subLimits.find(z=>z.id===x.subLimitId); if(s) cat = `<span class="text-[9px] bg-indigo-100 text-indigo-600 px-1.5 rounded ml-2 font-bold">${s.name}</span>`; }
                 else if(x.category && x.category !== 'Uncategorized') cat = `<span class="text-[9px] bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-300 px-1.5 rounded ml-2 font-bold">${x.category}</span>`;
                 
+                const delBtn = isCurrentViewMonth()
+                    ? `<button onclick="deleteTransaction(${x.id})" class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100"><i class="fa-solid fa-trash"></i></button>`
+                    : '';
+
                 l.innerHTML += `
                 <li class="flex justify-between items-center bg-white/50 dark:bg-white/5 p-4 rounded-2xl group transition hover:bg-white/80 dark:hover:bg-white/10">
                     <div class="flex items-center gap-3 min-w-0">
                         <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isExp?'bg-red-100 text-red-500 dark:bg-red-500/20':'bg-green-100 text-green-500 dark:bg-green-500/20'}"><i class="fa-solid ${isExp?'fa-bag-shopping':'fa-coins'} text-sm"></i></div>
                         <div class="min-w-0"><div class="flex items-center"><p class="font-bold text-sm dark:text-gray-100 truncate">${x.desc}</p>${cat}</div><p class="text-[10px] text-gray-400">${new Date(x.date).toLocaleDateString()}</p></div>
                     </div>
-                    <div class="flex items-center gap-3 shrink-0"><span class="font-bold ${isExp?'text-ios-red':'text-ios-green'}">${isExp?'-':'+'}${formatMoney(x.amount)}</span><button onclick="deleteTransaction(${x.id})" class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100"><i class="fa-solid fa-trash"></i></button></div>
+                    <div class="flex items-center gap-3 shrink-0"><span class="font-bold ${isExp?'text-ios-red':'text-ios-green'}">${isExp?'-':'+'}${formatMoney(x.amount)}</span>${delBtn}</div>
                 </li>`;
             });
         }
