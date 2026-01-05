@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Finance Tracker</title>
     
     <!-- App Icons & PWA Setup -->
@@ -37,9 +37,10 @@
         }
         .smooth-transition { transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1); }
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.5); border-radius: 20px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: rgba(156, 163, 175, 0.8); }
         .disabled-overlay { opacity: 0.5; pointer-events: none; filter: grayscale(1); }
         .loader { border: 3px solid rgba(255,255,255,0.1); border-left-color: #007AFF; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -47,9 +48,7 @@
         /* Mobile Safe Area Helpers */
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
         .pt-safe { padding-top: env(safe-area-inset-top); }
-        /* Increased offset to 9rem to account for thicker header + extra padding */
         .pt-safe-offset { padding-top: calc(env(safe-area-inset-top) + 9rem); }
-        /* Adjusted toast position */
         .top-safe-offset { top: calc(env(safe-area-inset-top) + 9.5rem); }
         
         /* Animations */
@@ -57,6 +56,21 @@
         @keyframes fadeIn { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }
         .animate-float-in { animation: floatIn 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
         .animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
+        
+        /* Date Input Styling */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(0.5);
+            cursor: pointer;
+        }
+        .dark input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
+
+        /* Hover lift effect for desktop */
+        @media (hover: hover) {
+            .hover-lift { transition: transform 0.2s ease; }
+            .hover-lift:hover { transform: translateY(-3px); }
+        }
     </style>
     <script>
         tailwind.config = {
@@ -72,7 +86,7 @@
 </head>
 <body class="bg-ios-light dark:bg-black text-slate-900 dark:text-white min-h-screen flex flex-col smooth-transition selection:bg-ios-blue selection:text-white overflow-hidden">
 
-    <!-- Firebase SDKs (Updated to 11.6.1) -->
+    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -111,7 +125,7 @@
                 <h1 class="text-3xl font-bold tracking-tight mb-2">MyFinance</h1>
                 <p class="text-gray-500 dark:text-gray-400 text-sm">Your Personal Cloud Wallet</p>
             </div>
-            <div class="glass rounded-3xl p-8 shadow-lg border border-white/50 dark:border-white/10">
+            <div class="glass rounded-3xl p-8 shadow-lg border border-white/50 dark:border-white/10 hover-lift">
                 <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Username</label>
                 <div class="relative">
                     <input type="text" id="usernameInput" placeholder="Enter name" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-2xl px-5 py-4 text-base font-bold focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition placeholder:font-normal placeholder:text-gray-400">
@@ -128,29 +142,62 @@
     <!-- MAIN APP UI -->
     <div id="appUI" class="hidden flex-col h-[100dvh]">
         <!-- Navbar -->
-        <!-- Added pt-6 (explicit padding) to fix dynamic island overlap issues. Using max-w-3xl for centered UI -->
         <nav class="fixed top-0 w-full z-50 glass border-b border-gray-200 dark:border-gray-800 transition-colors duration-300 pt-safe pt-6">
-            <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-                <!-- Changed h-16 to h-20 for thicker bar -->
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
                 <div class="flex items-center justify-between h-20">
+                    
+                    <!-- Left: Logo & Mobile Rate -->
                     <div class="flex items-center gap-2 animate-float-in">
                         <div class="w-8 h-8 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center shadow-lg"><i class="fa-solid fa-wallet text-xs"></i></div>
                         <span class="font-bold text-lg tracking-tight hidden md:block">FinTrack</span>
+                        
+                        <!-- Mobile-only Rate Display (Prevents overlap with Center/Right) -->
+                        <div onclick="editExchangeRate()" class="md:hidden bg-gray-100 dark:bg-white/10 px-3 py-1.5 rounded-full flex items-center gap-1.5 cursor-pointer border border-gray-200 dark:border-gray-700 ml-1">
+                            <i class="fa-solid fa-money-bill-transfer text-ios-blue text-[9px]"></i>
+                            <span id="rateDisplayMobile" class="font-bold text-[10px] text-ios-blue">...</span>
+                        </div>
                     </div>
-                    <!-- Center Pill - Positioned Absolute relative to the constrained container -->
-                    <div class="absolute left-1/2 transform -translate-x-1/2 flex items-center justify-center animate-float-in w-max">
+
+                    <!-- Center Pill (Desktop Only - Absolute Center) -->
+                    <div class="absolute left-1/2 transform -translate-x-1/2 hidden md:flex items-center justify-center animate-float-in w-max">
                         <div onclick="editExchangeRate()" class="bg-gray-100 dark:bg-white/10 px-4 py-2 rounded-full flex items-center gap-2 cursor-pointer hover:bg-gray-200 dark:hover:bg-white/20 transition shadow-sm border border-gray-200 dark:border-gray-700 group">
                             <i class="fa-solid fa-money-bill-transfer text-ios-blue text-[10px] group-hover:rotate-180 transition-transform duration-500"></i>
                             <span id="rateDisplay" class="font-bold text-xs text-ios-blue">Loading...</span>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2 animate-float-in" style="animation-delay: 0.1s;">
+                    
+                    <!-- Right: Actions -->
+                    <div class="flex items-center gap-2 animate-float-in z-50" style="animation-delay: 0.1s;">
+                        <!-- Notification Bell -->
+                        <div class="relative" id="notifContainer">
+                            <button onclick="toggleNotifications(event)" class="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition relative">
+                                <i class="fa-regular fa-bell"></i>
+                                <span id="notifBadge" class="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 border-2 border-white dark:border-black rounded-full hidden"></span>
+                            </button>
+                            <!-- Dropdown: Fixed on mobile to avoid overflow/clipping, Absolute on Desktop -->
+                            <div id="notifDropdown" class="fixed left-4 right-4 top-24 md:absolute md:left-auto md:right-0 md:top-full md:mt-2 md:w-80 bg-white dark:bg-[#1c1c1e] rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 opacity-0 pointer-events-none scale-95 transition-all transform origin-top-right z-[100] overflow-hidden">
+                                <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-white/5">
+                                    <h3 class="text-sm font-bold dark:text-white">Notifications</h3>
+                                    <button onclick="clearAllNotifications()" class="text-[10px] text-ios-blue font-bold hover:underline">Clear All</button>
+                                </div>
+                                <div id="notifList" class="max-h-60 overflow-y-auto custom-scrollbar">
+                                    <!-- Notifications go here -->
+                                </div>
+                                <div id="notifEmpty" class="py-8 text-center hidden">
+                                    <i class="fa-regular fa-bell-slash text-gray-300 text-2xl mb-2"></i>
+                                    <p class="text-xs text-gray-400">No new notifications</p>
+                                </div>
+                            </div>
+                        </div>
+
                         <button onclick="toggleCurrency()" class="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-[10px] font-bold hover:bg-gray-300 dark:hover:bg-gray-700 transition active:scale-95 text-ios-blue"><span id="currencyLabel">VND</span></button>
+                        
                         <div class="relative" id="userMenuContainer">
                             <button onclick="toggleUserMenu(event)" class="w-9 h-9 rounded-full bg-gradient-to-br from-ios-blue to-ios-purple text-white flex items-center justify-center hover:opacity-90 transition shadow-md"><i class="fa-solid fa-user text-xs"></i></button>
                             <div id="userMenuDropdown" class="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-[#1c1c1e] rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 p-1 opacity-0 pointer-events-none scale-95 transition-all transform origin-top-right z-50">
                                 <div class="px-3 py-2 border-b border-gray-100 dark:border-gray-700 mb-1"><p class="text-[10px] text-gray-400 uppercase font-bold">Signed in as</p><p class="text-sm font-bold truncate text-gray-800 dark:text-white" id="menuUsername">User</p></div>
                                 <button onclick="toggleTheme()" class="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 text-gray-700 dark:text-gray-200"><i id="themeIcon" class="fa-solid fa-moon w-4"></i> Theme</button>
+                                <button onclick="requestNotificationPermission()" class="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 text-gray-700 dark:text-gray-200"><i class="fa-solid fa-bell w-4"></i> Enable Alerts</button>
                                 <button onclick="handleLogout()" class="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 text-gray-700 dark:text-gray-200"><i class="fa-solid fa-arrow-right-from-bracket w-4"></i> Logout</button>
                                 <button onclick="handleDeleteAccount()" class="w-full text-left px-3 py-2 text-xs font-bold rounded-lg hover:bg-red-50 dark:hover:bg-red-500/20 flex items-center gap-2 text-red-500"><i class="fa-solid fa-trash w-4"></i> Delete</button>
                             </div>
@@ -161,8 +208,7 @@
         </nav>
 
         <!-- Main Content -->
-        <!-- Added max-w-3xl for centered layout -->
-        <main class="flex-grow pt-safe-offset pb-20 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto w-full space-y-6 overflow-y-auto custom-scrollbar pb-safe">
+        <main class="flex-grow pt-safe-offset pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full space-y-6 overflow-y-auto custom-scrollbar pb-safe">
             <div class="flex items-center justify-center gap-2 py-2 animate-float-in">
                 <button onclick="changeMonth(-1)" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 transition active:scale-90"><i class="fa-solid fa-chevron-left text-ios-blue text-xs"></i></button>
                 <h2 id="currentMonthDisplay" class="text-lg font-bold w-36 text-center">October 2023</h2>
@@ -174,82 +220,145 @@
                 <span class="inline-block bg-gray-100 dark:bg-gray-800 text-gray-500 text-[10px] uppercase font-bold px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm"><i class="fa-solid fa-lock mr-1"></i> Read Only Mode</span>
             </div>
 
+            <!-- Stats Row -->
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-green"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1">Income</p><h3 class="text-base font-bold text-ios-green truncate" id="incomeDisplay">0</h3></div>
-                <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-red"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1">Spent</p><h3 class="text-base font-bold text-ios-red truncate" id="spentDisplay">0</h3></div>
-                <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-teal"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1">Wallet</p><h3 class="text-base font-bold text-ios-teal truncate" id="walletDisplay">0</h3></div>
-                <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-blue"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1">Left</p><h3 class="text-base font-bold text-gray-800 dark:text-gray-200 truncate" id="monthlyLeftDisplay">0</h3></div>
+                <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-green hover-lift relative group">
+                    <div class="absolute top-2 right-2 opacity-50 hover:opacity-100 transition-opacity cursor-pointer z-10" onclick="toggleStatsView()">
+                        <div class="bg-gray-100 dark:bg-white/10 p-1 rounded-lg text-[10px] font-bold flex gap-1">
+                            <span id="viewModeBadge" class="px-1.5 py-0.5 rounded bg-white dark:bg-gray-700 shadow-sm text-black dark:text-white">Mo</span>
+                        </div>
+                    </div>
+                    <p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1" id="lblIncome">Income</p>
+                    <h3 class="text-base font-bold text-ios-green truncate" id="incomeDisplay">0</h3>
+                </div>
+                <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-red hover-lift"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1" id="lblSpent">Spent</p><h3 class="text-base font-bold text-ios-red truncate" id="spentDisplay">0</h3></div>
+                <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-teal hover-lift"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1">Net Worth</p><h3 class="text-base font-bold text-ios-teal truncate" id="walletDisplay">0</h3></div>
+                <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-blue hover-lift"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1">Budget Left</p><h3 class="text-base font-bold text-gray-800 dark:text-gray-200 truncate" id="monthlyLeftDisplay">0</h3></div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Main Dashboard Grid -->
+            <!-- Swapped Assets (Status) to Col 1 and Budget (Limits) to Col 2 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
+                
+                <!-- Column 1: Status & Assets (Formerly Col 2) -->
                 <div class="flex flex-col gap-6">
-                    <div class="glass rounded-3xl shadow-sm p-6 flex flex-col animate-float-in">
+                    <!-- Assets / Net Worth Card (Redesigned with bigger Bank wheel) -->
+                    <div class="glass rounded-3xl shadow-sm p-6 flex flex-col animate-float-in hover-lift">
+                        <div class="flex justify-between items-start mb-4">
+                            <div><h2 class="text-lg font-bold">Assets</h2><p class="text-[10px] text-gray-400">Balances</p></div>
+                            <span class="text-[10px] bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 px-2 py-1 rounded-full font-medium">Continuous</span>
+                        </div>
+                        
+                        <div class="flex flex-col items-center gap-6">
+                            <!-- Bank Wheel (Bigger) -->
+                            <div class="relative w-48 h-48 flex flex-col items-center justify-center">
+                                <canvas id="bankWheel"></canvas>
+                                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                    <span class="text-xs text-gray-400 font-bold uppercase tracking-wider">Bank</span>
+                                    <span class="font-bold text-ios-blue text-lg" id="centerBankBalance">0</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Cash Wheel (Smaller) -->
+                            <div class="flex items-center justify-center gap-4 w-full bg-gray-50 dark:bg-white/5 p-3 rounded-2xl border border-gray-100 dark:border-gray-800">
+                                <div class="relative w-16 h-16 flex-shrink-0">
+                                    <canvas id="cashWheel"></canvas>
+                                </div>
+                                <div class="flex flex-col">
+                                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Cash Wallet</span>
+                                    <span class="font-bold text-ios-green text-base" id="centerCashBalance">0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="w-full h-px bg-gray-100 dark:bg-gray-800 my-4"></div>
+
+                        <div class="flex justify-center gap-4 text-xs text-center"><div><span class="block text-gray-400">All Income</span><span class="font-bold text-ios-green" id="footerTotalIncome">0</span></div><div class="w-px bg-gray-200 dark:bg-gray-700"></div><div><span class="block text-gray-400">All Out</span><span class="font-bold text-ios-red" id="footerTotalSpent">0</span></div></div>
+                    </div>
+
+                    <div class="glass rounded-3xl shadow-sm p-6 flex flex-col animate-float-in hover-lift">
+                        <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold flex items-center"><i class="fa-solid fa-repeat mr-2 text-ios-purple"></i>Subscriptions</h2><button onclick="openSubscriptionModal()" id="addSubBtn" class="text-xs bg-ios-purple/10 text-ios-purple px-3 py-1.5 rounded-full font-bold hover:bg-ios-purple/20 transition">+ Add</button></div>
+                        <div class="flex-grow overflow-y-auto max-h-[350px] pr-1 space-y-2 custom-scrollbar" id="subscriptionList"></div>
+                        <div id="emptySubs" class="hidden text-center text-gray-400 text-xs py-4">No subscriptions.</div>
+                    </div>
+                </div>
+
+                <!-- Column 2: Budgeting (Formerly Col 1) -->
+                <div class="flex flex-col gap-6">
+                    <div class="glass rounded-3xl shadow-sm p-6 flex flex-col animate-float-in hover-lift">
                         <div class="flex justify-between items-start mb-4"><div><h2 class="text-lg font-bold">Monthly Limit</h2><p class="text-[10px] text-gray-400">General Spending</p></div></div>
                         <div id="limitControl" class="mb-4 flex gap-2"><input type="text" inputmode="numeric" id="limitInput" onkeyup="formatCurrencyInput(this)" placeholder="Set General Limit" class="flex-grow bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-base focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition"><button onclick="setMonthLimit()" class="bg-ios-blue text-white px-4 rounded-xl text-sm font-semibold hover:bg-blue-600 transition shadow-lg shadow-blue-500/30">Set</button></div>
                         <div class="flex-grow flex items-center justify-center relative min-h-[200px]"><div class="relative w-52 h-52"><canvas id="budgetWheel"></canvas><div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-4 text-center"><span class="text-xs text-gray-400 font-medium">Available</span><span class="text-xl font-bold text-ios-blue break-all" id="centerBudgetRemaining">0</span><span class="text-[10px] text-gray-400 mt-1" id="centerLimitLabel">Limit: 0</span></div></div></div>
                     </div>
-                    <div class="glass rounded-3xl shadow-sm p-6 animate-float-in">
+                    
+                    <div class="glass rounded-3xl shadow-sm p-6 animate-float-in hover-lift">
                         <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold flex items-center"><i class="fa-solid fa-list-check text-ios-purple mr-2"></i>Sub-Limits</h2><button onclick="openSubLimitModal()" class="text-xs bg-ios-purple/10 text-ios-purple px-3 py-1.5 rounded-full font-bold hover:bg-ios-purple/20 transition">+ Add</button></div>
-                        <div id="subLimitsContainer" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+                        <div id="subLimitsContainer" class="grid grid-cols-1 gap-3"></div>
                         <div id="emptySubLimits" class="hidden text-center text-gray-400 text-xs py-4">No sub-limits created.</div>
                     </div>
                 </div>
-                <div class="glass rounded-3xl shadow-sm p-6 flex flex-col animate-float-in h-full">
-                    <div class="flex justify-between items-start mb-4"><div><h2 class="text-lg font-bold">My Wallet</h2><p class="text-[10px] text-gray-400">Real Money Remaining</p></div><span class="text-[10px] bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 px-2 py-1 rounded-full font-medium">Continuous</span></div>
-                    <div class="flex-grow flex items-center justify-center relative min-h-[200px]"><div class="relative w-52 h-52"><canvas id="walletWheel"></canvas><div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"><span class="text-xs text-gray-400 font-medium">Net Balance</span><span class="text-2xl font-bold text-ios-teal" id="centerWalletBalance">0</span></div></div></div>
-                    <div class="mt-4 flex justify-center gap-4 text-xs text-center"><div><span class="block text-gray-400">Income</span><span class="font-bold text-ios-green" id="footerTotalIncome">0</span></div><div class="w-px bg-gray-200 dark:bg-gray-700"></div><div><span class="block text-gray-400">Total Out</span><span class="font-bold text-ios-red" id="footerTotalSpent">0</span></div></div>
-                </div>
-            </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="glass rounded-3xl shadow-sm p-6 flex flex-col animate-float-in h-full">
-                    <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold flex items-center"><i class="fa-solid fa-repeat mr-2 text-ios-purple"></i>Subscriptions</h2></div>
-                    <div id="subsControl" class="flex flex-col gap-2 mb-4 bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-gray-800">
-                        <div class="flex gap-2"><input type="text" id="subNameInput" placeholder="Name" class="flex-grow bg-white dark:bg-black/20 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-base focus:ring-2 focus:ring-ios-purple outline-none dark:text-white"><input type="text" inputmode="numeric" id="subAmountInput" onkeyup="formatCurrencyInput(this)" placeholder="Amount" class="w-24 bg-white dark:bg-black/20 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-base focus:ring-2 focus:ring-ios-purple outline-none dark:text-white text-right"></div>
-                        <div class="flex items-center justify-between mt-1"><div class="flex items-center gap-2"><label class="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" id="subYearlyCheck" onchange="toggleMonthSelect()" class="form-checkbox h-4 w-4 text-ios-purple rounded border-gray-300 bg-white dark:bg-black/20 dark:border-gray-700 focus:ring-ios-purple"><span class="text-[10px] text-gray-500 dark:text-gray-400 font-medium">Yearly</span></label><select id="subMonthSelect" class="hidden text-[10px] p-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-black/20 dark:text-gray-200 focus:ring-1 focus:ring-ios-purple outline-none"><option value="0">Jan</option><option value="1">Feb</option><option value="2">Mar</option><option value="3">Apr</option><option value="4">May</option><option value="5">Jun</option><option value="6">Jul</option><option value="7">Aug</option><option value="8">Sep</option><option value="9">Oct</option><option value="10">Nov</option><option value="11">Dec</option></select></div><button onclick="addSubscription()" class="bg-ios-purple text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-purple-600 transition shadow-md shadow-purple-500/20">Add</button></div>
-                    </div>
-                    <div class="flex-grow overflow-y-auto max-h-[250px] pr-1 space-y-2 custom-scrollbar" id="subscriptionList"></div>
-                    <div id="emptySubs" class="hidden text-center text-gray-400 text-xs py-4">No subscriptions.</div>
-                </div>
+                <!-- Column 3: Actions & History -->
+                <div class="flex flex-col gap-6">
+                    <div class="glass rounded-3xl shadow-sm p-6 animate-float-in hover-lift">
+                        <h2 class="text-lg font-bold mb-4">Add Transaction</h2>
+                        <div id="transControl" class="flex flex-col gap-4">
+                            <!-- Payment Account Toggle -->
+                            <div class="bg-gray-100 dark:bg-gray-800 p-1 rounded-xl flex">
+                                <button onclick="setTransactionAccount('bank')" id="btnAcctBank" class="flex-1 py-2 rounded-lg text-xs font-bold transition bg-white dark:bg-gray-700 text-black dark:text-white shadow-sm">Bank</button>
+                                <button onclick="setTransactionAccount('cash')" id="btnAcctCash" class="flex-1 py-2 rounded-lg text-xs font-bold transition text-gray-500 dark:text-gray-400">Cash</button>
+                            </div>
 
-                <div class="glass rounded-3xl shadow-sm p-6 animate-float-in h-full">
-                    <h2 class="text-lg font-bold mb-4">Add Transaction</h2>
-                    <div id="transControl" class="flex flex-col gap-4">
-                        <input type="text" id="descInput" placeholder="Description" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-4 py-4 text-base focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white">
-                        <div class="relative"><span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold" id="inputCurrencySymbol">₫</span><input type="text" inputmode="numeric" id="amountInput" onkeyup="formatCurrencyInput(this)" placeholder="0" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl pl-8 pr-4 py-4 text-xl font-bold focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white"></div>
-                        <div class="relative flex gap-2">
-                            <input list="categoryList" id="categoryInput" placeholder="Category" class="flex-grow bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white">
-                            <datalist id="categoryList"></datalist>
-                            <button onclick="suggestCategory()" id="aiBtn" class="bg-gradient-to-tr from-indigo-500 to-purple-500 text-white w-12 rounded-xl flex items-center justify-center hover:opacity-90 transition shadow-lg shadow-purple-500/30 group"><i class="fa-solid fa-wand-magic-sparkles text-sm group-hover:scale-110 transition-transform"></i></button>
-                            <button onclick="openCategoryModal()" class="bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-300 w-12 rounded-xl flex items-center justify-center hover:bg-gray-200 dark:hover:bg-white/20 transition group"><i class="fa-solid fa-list text-sm"></i></button>
+                            <input type="text" id="descInput" placeholder="Description" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-4 py-4 text-base focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white">
+                            <div class="relative"><span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold" id="inputCurrencySymbol">₫</span><input type="text" inputmode="numeric" id="amountInput" onkeyup="formatCurrencyInput(this)" placeholder="0" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl pl-8 pr-4 py-4 text-xl font-bold focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white"></div>
+                            <div class="relative flex gap-2">
+                                <input list="categoryList" id="categoryInput" placeholder="Category" class="flex-grow bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white">
+                                <datalist id="categoryList"></datalist>
+                                <button onclick="openCategoryModal()" class="bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-300 w-12 rounded-xl flex items-center justify-center hover:bg-gray-200 dark:hover:bg-white/20 transition group"><i class="fa-solid fa-list text-sm"></i></button>
+                            </div>
+                            <div><label class="block text-[10px] text-gray-500 mb-1 ml-1 font-semibold uppercase">Budget Source</label><select id="budgetSelect" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white appearance-none cursor-pointer"><option value="general">General (Monthly Limit)</option></select></div>
+                            
+                            <!-- Updated Button Grid -->
+                            <div class="grid grid-cols-3 gap-2 mt-2">
+                                <button onclick="addTransaction('expense')" class="bg-ios-red text-white py-4 rounded-2xl font-semibold hover:bg-red-600 transition active:scale-95 shadow-lg shadow-red-500/30 flex flex-col items-center justify-center gap-1">
+                                    <i class="fa-solid fa-arrow-down"></i> <span class="text-xs">Spent</span>
+                                </button>
+                                <button onclick="addTransaction('transfer')" class="bg-ios-blue text-white py-4 rounded-2xl font-semibold hover:bg-blue-600 transition active:scale-95 shadow-lg shadow-blue-500/30 flex flex-col items-center justify-center gap-1">
+                                    <i class="fa-solid fa-right-left"></i> <span class="text-xs">Transfer</span>
+                                </button>
+                                <button onclick="addTransaction('revenue')" class="bg-ios-green text-white py-4 rounded-2xl font-semibold hover:bg-green-600 transition active:scale-95 shadow-lg shadow-green-500/30 flex flex-col items-center justify-center gap-1">
+                                    <i class="fa-solid fa-arrow-up"></i> <span class="text-xs">Income</span>
+                                </button>
+                            </div>
                         </div>
-                        <div><label class="block text-[10px] text-gray-500 mb-1 ml-1 font-semibold uppercase">Budget Source</label><select id="budgetSelect" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white appearance-none cursor-pointer"><option value="general">General (Monthly Limit)</option></select></div>
-                        <div class="flex gap-3 mt-2"><button onclick="addTransaction('expense')" class="flex-1 bg-ios-red text-white py-4 rounded-2xl font-semibold hover:bg-red-600 transition active:scale-95 shadow-lg shadow-red-500/30 flex items-center justify-center gap-2"><i class="fa-solid fa-arrow-down"></i> Spent</button><button onclick="addTransaction('revenue')" class="flex-1 bg-ios-green text-white py-4 rounded-2xl font-semibold hover:bg-green-600 transition active:scale-95 shadow-lg shadow-green-500/30 flex items-center justify-center gap-2"><i class="fa-solid fa-arrow-up"></i> Income</button></div>
                     </div>
-                </div>
-            </div>
 
-            <div class="glass rounded-3xl shadow-sm p-6 animate-float-in">
-                <div class="mb-4 space-y-2">
-                    <div class="flex justify-between items-center"><h2 class="text-lg font-bold">History <span class="text-xs font-normal text-gray-500 ml-2" id="historyMonthLabel"></span></h2></div>
-                    <div class="flex gap-2">
-                        <div class="relative flex-grow">
-                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                            <input type="text" placeholder="Search..." onkeyup="handleSearch(this.value)" class="w-full bg-gray-100 dark:bg-white/10 border-none rounded-xl pl-8 pr-3 py-2 text-xs font-bold focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition">
+                    <!-- History moved to Col 3 for better density on Desktop -->
+                    <div class="glass rounded-3xl shadow-sm p-6 animate-float-in hover-lift flex-grow">
+                         <div class="mb-4 space-y-2">
+                            <div class="flex justify-between items-center"><h2 class="text-lg font-bold">History <span class="text-xs font-normal text-gray-500 ml-2" id="historyMonthLabel"></span></h2></div>
+                            <div class="flex gap-2">
+                                <div class="relative flex-grow">
+                                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                                    <input type="text" placeholder="Search..." onkeyup="handleSearch(this.value)" class="w-full bg-gray-100 dark:bg-white/10 border-none rounded-xl pl-8 pr-3 py-2 text-xs font-bold focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition">
+                                </div>
+                                <select onchange="updateSort(this.value)" class="bg-gray-100 dark:bg-white/10 border-none rounded-xl text-xs font-bold px-3 py-2 focus:ring-0 cursor-pointer dark:text-white w-24">
+                                    <option value="newest">Newest</option>
+                                    <option value="oldest">Oldest</option>
+                                    <option value="high">High</option>
+                                </select>
+                            </div>
                         </div>
-                        <select onchange="updateSort(this.value)" class="bg-gray-100 dark:bg-white/10 border-none rounded-xl text-xs font-bold px-3 py-2 focus:ring-0 cursor-pointer dark:text-white w-24">
-                            <option value="newest">Newest</option>
-                            <option value="oldest">Oldest</option>
-                            <option value="high">High Amount</option>
-                        </select>
+                        <ul id="historyList" class="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar pr-1"></ul>
                     </div>
                 </div>
-                <ul id="historyList" class="space-y-3"></ul>
+
             </div>
 
-            <div class="glass rounded-3xl shadow-sm p-6 animate-float-in mb-8">
+            <!-- Overview -->
+            <div class="glass rounded-3xl shadow-sm p-6 animate-float-in mb-8 hover-lift">
                 <h2 class="text-lg font-bold mb-4">6-Month Overview</h2>
-                <div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead><tr class="text-xs text-gray-400 uppercase tracking-wide border-b border-gray-200 dark:border-gray-700"><th class="pb-3 pl-2">Month</th><th class="pb-3 text-right">Income</th><th class="pb-3 text-right">Spent</th><th class="pb-3 text-right">Savings</th></tr></thead><tbody id="comparisonTableBody" class="text-sm font-medium"></tbody></table></div>
+                <div class="overflow-x-auto custom-scrollbar"><table class="w-full text-left border-collapse"><thead><tr class="text-xs text-gray-400 uppercase tracking-wide border-b border-gray-200 dark:border-gray-700"><th class="pb-3 pl-2">Month</th><th class="pb-3 text-right">Income</th><th class="pb-3 text-right">Spent</th><th class="pb-3 text-right">Savings</th></tr></thead><tbody id="comparisonTableBody" class="text-sm font-medium"></tbody></table></div>
             </div>
         </main>
     </div>
@@ -286,6 +395,51 @@
         </div>
     </div>
 
+    <!-- Subscription Modal -->
+    <div id="subscriptionModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-all duration-300">
+        <div class="bg-white dark:bg-[#1c1c1e] rounded-3xl w-full max-w-xs p-6 shadow-2xl relative animate-fade-in">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-lg font-bold dark:text-white" id="subModalTitle">New Subscription</h2>
+                <button onclick="closeSubscriptionModal()" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/20 transition"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Name</label>
+                    <input type="text" id="modalSubName" placeholder="e.g. Netflix" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl px-4 py-3 text-base font-bold focus:ring-2 focus:ring-ios-purple outline-none dark:text-white transition">
+                </div>
+                <div>
+                    <label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Amount</label>
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold" id="modalSubCurrency">₫</span>
+                        <input type="text" inputmode="numeric" id="modalSubAmount" onkeyup="formatCurrencyInput(this)" placeholder="0" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl pl-8 pr-4 py-3 text-base font-bold focus:ring-2 focus:ring-ios-purple outline-none dark:text-white transition text-right">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Frequency</label>
+                        <select id="modalSubFreq" onchange="toggleModalDate()" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl px-3 py-3 text-sm font-bold focus:ring-2 focus:ring-ios-purple outline-none dark:text-white transition appearance-none cursor-pointer">
+                            <option value="monthly">Monthly</option>
+                            <option value="yearly">Yearly</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Start / Due Date</label>
+                        <input type="date" id="modalSubDate" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl px-3 py-3 text-sm font-bold focus:ring-2 focus:ring-ios-purple outline-none dark:text-white transition">
+                    </div>
+                </div>
+
+                <button onclick="saveSubscription()" id="subSaveBtn" class="w-full bg-ios-purple text-white py-3.5 rounded-xl font-bold hover:bg-purple-600 transition shadow-lg shadow-purple-500/20 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-check"></i> <span>Add Subscription</span>
+                </button>
+                
+                <button onclick="deleteSubscriptionFromModal()" id="subDeleteBtn" class="w-full bg-red-50 dark:bg-red-500/10 text-red-500 py-3.5 rounded-xl font-bold hover:bg-red-100 dark:hover:bg-red-500/20 transition hidden flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-trash"></i> Delete
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Category Manager Modal -->
     <div id="categoryModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-all duration-300">
         <div class="bg-white dark:bg-[#1c1c1e] rounded-3xl w-full max-w-xs p-6 shadow-2xl relative animate-fade-in flex flex-col max-h-[80vh]">
@@ -299,7 +453,6 @@
 
     <script>
         // *** CONFIGURATION ZONE ***
-        // 1. Go to console.firebase.google.com -> Settings -> General -> Your Apps -> Config
         const FIREBASE_CONFIG = {
             apiKey: "AIzaSyBLLUnNGyFxJFEJXOTZ42tAgo41rylZEpA",
             authDomain: "baowalletapp.firebaseapp.com",
@@ -308,18 +461,18 @@
             messagingSenderId: "973567102982",
             appId: "1:973567102982:web:1b5abf693464c03e85f387"
         };
-
-        // 2. Go to aistudio.google.com/app/apikey -> Create API Key
-        const GEMINI_API_KEY = ""; // Set to empty string for safety; fill if using outside this environment
         // *************************************************
 
         let db, auth, currentUserDocId = null, unsubscribeSnapshot = null;
         let exchangeRate = 26300, isManualRate = false, viewDate = new Date();
-        let budgetChart, walletChart, currentSort = 'newest', searchQuery = '', confirmCallback = null;
-        let appData = { currency: 'VND', limits: {}, transactions: [], subscriptions: [], subLimits: [], categories: ['Food', 'Transport', 'Utilities', 'Entertainment', 'Shopping', 'Health', 'Education', 'Bill'], customRate: null };
+        let budgetChart, bankChart, cashChart, currentSort = 'newest', searchQuery = '', confirmCallback = null;
+        let selectedTransAccount = 'bank';
+        let statsViewMode = 'monthly'; // 'monthly' or 'all'
+        let appData = { currency: 'VND', limits: {}, transactions: [], subscriptions: [], subLimits: [], categories: ['Food', 'Transport', 'Utilities', 'Entertainment', 'Shopping', 'Health', 'Education', 'Bill', 'Exchange'], customRate: null, notifications: [] };
         const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
         if(!Array.isArray(appData.subLimits)) appData.subLimits = [];
         let editingSubLimitId = null;
+        let editingSubId = null;
 
         const currentAppId = typeof __app_id !== 'undefined' ? __app_id : (FIREBASE_CONFIG.appId || 'default-app-id');
 
@@ -356,7 +509,15 @@
             window.addEventListener('online', () => { showToast("Back Online: Syncing Rates..."); fetchLiveRate(); });
             window.addEventListener('offline', () => showToast("Offline Mode Enabled"));
 
+            // Check Notifications on load
+            setTimeout(() => {
+                if(Notification.permission !== "denied") {
+                    // Logic to check could happen here, but better after data is loaded
+                }
+            }, 2000);
+
             initCharts();
+            setStatsView('monthly'); // Default init view mode UI
         }
 
         async function handleAuth() {
@@ -405,11 +566,15 @@
             unsubscribeSnapshot = window.fb.onSnapshot(userRef, (doc) => {
                 if(doc.exists()) {
                     appData = { ...appData, ...doc.data() };
-                    if (!appData.categories) appData.categories = ['Food', 'Transport', 'Shopping', 'Bill'];
+                    if (!appData.categories) appData.categories = ['Food', 'Transport', 'Shopping', 'Bill', 'Exchange'];
                     if (!Array.isArray(appData.subLimits)) appData.subLimits = [];
                     if (!Array.isArray(appData.transactions)) appData.transactions = [];
                     if (!Array.isArray(appData.subscriptions)) appData.subscriptions = [];
+                    if (!Array.isArray(appData.notifications)) appData.notifications = [];
                     
+                    cleanupNotifications(); // Retention Policy
+                    checkSubscriptionNotifications(); // Check for charges
+
                     // If online, force fetch to sync with real world, ignoring old saved manual rate if needed
                     if(navigator.onLine) fetchLiveRate();
                     else if (appData.customRate) { exchangeRate = appData.customRate; isManualRate = true; updateRateDisplay(); }
@@ -428,6 +593,170 @@
             }
         }
 
+        // --- Notification Logic ---
+
+        function requestNotificationPermission() {
+            if (!("Notification" in window)) {
+                showToast("Browser doesn't support notifications");
+                return;
+            }
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") {
+                    showToast("Notifications Enabled!");
+                    new Notification("MyFinance", { body: "You will now receive subscription alerts.", icon: "https://img.icons8.com/fluency/512/wallet.png" });
+                } else {
+                    showToast("Notifications Denied");
+                }
+            });
+        }
+
+        function checkSubscriptionNotifications() {
+            const now = new Date();
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+            let changed = false;
+
+            appData.subscriptions.forEach(s => {
+                if (!s.dueDate) return; // Skip legacy subs without explicit dates for now
+                
+                const d = new Date(s.dueDate);
+                let triggerDate = null;
+                let isDue = false;
+
+                // Determine the "Current" due date
+                if (s.frequency === 'monthly') {
+                    // Due date in CURRENT month
+                    triggerDate = new Date(now.getFullYear(), now.getMonth(), d.getDate());
+                    // If d.getDate() > days in month, simple JS logic rolls it over, but for simplicity:
+                    // We check if "Today" matches the due day
+                } else if (s.frequency === 'yearly') {
+                    // Due date in CURRENT year
+                    triggerDate = new Date(now.getFullYear(), d.getMonth(), d.getDate());
+                }
+
+                if (triggerDate) {
+                    // Check if today is the day OR we missed it recently (e.g. user didn't open app yesterday)
+                    // We define "Recently" as within the last 3 days to avoid spamming old stuff
+                    // BUT crucial: We must not have notified for this specific cycle yet.
+                    
+                    // Unique ID for this cycle notification: SubID + Year + Month (for monthly) or SubID + Year (for yearly)
+                    const cycleId = s.frequency === 'monthly' 
+                        ? `${s.id}_${now.getFullYear()}_${now.getMonth()}`
+                        : `${s.id}_${now.getFullYear()}`;
+                    
+                    // We store lastNotifiedCycle in the subscription object
+                    if (s.lastNotifiedCycle !== cycleId) {
+                        // Check if time is right
+                        const tDiff = now.getTime() - triggerDate.getTime();
+                        // If it's today (tDiff >= 0 and < 24h) OR passed within last 3 days
+                        // Actually, if it's PAST the due date, we notify.
+                        if (triggerDate.getTime() <= now.getTime()) {
+                            // Trigger!
+                            const notifId = Date.now() + Math.random();
+                            const msg = `Subscription charged: ${s.name} (-${formatMoney(s.amount)})`;
+                            
+                            // Add to App Notifications
+                            appData.notifications.unshift({
+                                id: notifId,
+                                title: "Subscription Charge",
+                                message: msg,
+                                date: new Date().toISOString(),
+                                read: false,
+                                type: 'subscription'
+                            });
+
+                            // Browser Notification
+                            if (Notification.permission === "granted") {
+                                new Notification("MyFinance: Subscription Paid", { body: msg, icon: "https://img.icons8.com/fluency/512/wallet.png" });
+                            }
+
+                            s.lastNotifiedCycle = cycleId;
+                            changed = true;
+                        }
+                    }
+                }
+            });
+
+            if(changed) saveData();
+        }
+
+        function cleanupNotifications() {
+            // Remove notifications older than 6 months
+            const sixMonthsAgo = Date.now() - (1000 * 60 * 60 * 24 * 30 * 6);
+            const originalLen = appData.notifications.length;
+            appData.notifications = appData.notifications.filter(n => new Date(n.date).getTime() > sixMonthsAgo);
+            
+            // If we filtered anything, save (though usually happens on sync, good to be explicit if large change)
+            if(appData.notifications.length !== originalLen) saveData();
+        }
+
+        function toggleNotifications(e) {
+            e.stopPropagation();
+            const dropdown = document.getElementById('notifDropdown');
+            const isHidden = dropdown.classList.contains('opacity-0');
+            
+            if (isHidden) {
+                dropdown.classList.remove('opacity-0', 'pointer-events-none', 'scale-95');
+                renderNotificationsDropdown();
+            } else {
+                dropdown.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
+            }
+            
+            // Close User Menu if open
+            document.getElementById('userMenuDropdown').classList.add('opacity-0', 'pointer-events-none', 'scale-95');
+        }
+
+        function renderNotificationsDropdown() {
+            const list = document.getElementById('notifList');
+            const empty = document.getElementById('notifEmpty');
+            const badge = document.getElementById('notifBadge');
+            
+            list.innerHTML = '';
+            
+            if (!appData.notifications || appData.notifications.length === 0) {
+                empty.classList.remove('hidden');
+                badge.classList.add('hidden');
+                return;
+            }
+
+            empty.classList.add('hidden');
+            
+            // Sort new first
+            const sorted = [...appData.notifications].sort((a,b) => new Date(b.date) - new Date(a.date));
+            const hasUnread = sorted.some(n => !n.read);
+            if(hasUnread) badge.classList.remove('hidden'); else badge.classList.add('hidden');
+
+            sorted.forEach(n => {
+                const date = new Date(n.date);
+                const isUnread = !n.read;
+                const row = document.createElement('div');
+                row.className = `px-4 py-3 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-white/5 transition flex gap-3 ${isUnread ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`;
+                row.innerHTML = `
+                    <div class="mt-1 w-2 h-2 rounded-full ${isUnread ? 'bg-ios-blue' : 'bg-transparent shrink-0'}"></div>
+                    <div>
+                        <p class="text-xs font-bold text-gray-800 dark:text-gray-200">${n.title}</p>
+                        <p class="text-[10px] text-gray-500 dark:text-gray-400 leading-tight my-1">${n.message}</p>
+                        <p class="text-[9px] text-gray-400">${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                    </div>
+                `;
+                list.appendChild(row);
+            });
+            
+            // Mark all as read when opened (simple logic)
+            if (hasUnread) {
+                setTimeout(() => {
+                    appData.notifications.forEach(n => n.read = true);
+                    saveData();
+                    badge.classList.add('hidden');
+                }, 2000);
+            }
+        }
+
+        function clearAllNotifications() {
+            appData.notifications = [];
+            saveData();
+            renderNotificationsDropdown();
+        }
+
         // Logic Helpers
         const getMonthKey = (d) => `${d.getFullYear()}-${d.getMonth()}`;
         function formatCurrencyInput(i) { let v = i.value.replace(/\D/g, ""); i.value = v === "" ? "" : Number(v).toLocaleString('de-DE'); }
@@ -438,7 +767,7 @@
         function loadTheme() { if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark'); }
         function changeMonth(d) { viewDate.setMonth(viewDate.getMonth() + d); updateUI(); }
         function jumpToToday() { viewDate = new Date(); updateUI(); showToast("Jumped to today"); }
-        function toggleUserMenu(e) { e.stopPropagation(); const m = document.getElementById('userMenuDropdown'); m.classList.toggle('opacity-0'); m.classList.toggle('pointer-events-none'); m.classList.toggle('scale-95'); }
+        function toggleUserMenu(e) { e.stopPropagation(); const m = document.getElementById('userMenuDropdown'); m.classList.toggle('opacity-0'); m.classList.toggle('pointer-events-none'); m.classList.toggle('scale-95'); document.getElementById('notifDropdown').classList.add('opacity-0', 'pointer-events-none', 'scale-95'); }
         
         // Window Click Handler for Modals
         window.onclick = (e) => { 
@@ -446,48 +775,44 @@
             if(!document.getElementById('userMenuContainer').contains(e.target)) {
                 document.getElementById('userMenuDropdown').classList.add('opacity-0', 'pointer-events-none', 'scale-95');
             }
-            
+            // Notif Menu
+            if(!document.getElementById('notifContainer').contains(e.target)) {
+                document.getElementById('notifDropdown').classList.add('opacity-0', 'pointer-events-none', 'scale-95');
+            }
             // Sub Limit Modal
             const subModal = document.getElementById('subLimitModal');
             if (!subModal.classList.contains('hidden') && e.target === subModal) {
                 closeSubLimitModal();
             }
-
+            // Subscription Modal
+            const sModal = document.getElementById('subscriptionModal');
+            if (!sModal.classList.contains('hidden') && e.target === sModal) {
+                closeSubscriptionModal();
+            }
             // Category Modal
             const catModal = document.getElementById('categoryModal');
             if (!catModal.classList.contains('hidden') && e.target === catModal) {
                 closeCategoryModal();
             }
-
             // Confirm Modal
             const confModal = document.getElementById('confirmModal');
             if (!confModal.classList.contains('hidden') && e.target === confModal) {
                 closeConfirm(false);
             }
         };
-        
-        async function suggestCategory() {
-            const desc = document.getElementById('descInput').value.trim();
-            const key = GEMINI_API_KEY || ""; 
-            if (!desc) { showToast("Enter description"); return; }
-            if (!key) { showToast("Add AI Key in index.html"); return; }
-            
-            const btn = document.getElementById('aiBtn'); const icon = btn.querySelector('i');
-            icon.classList.replace('fa-wand-magic-sparkles', 'fa-spinner'); icon.classList.add('animate-spin-slow');
-            try {
-                const prompt = `Classify "${desc}" into: ${appData.categories.join(', ')}. If none, suggest 1 word.`;
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`, {
-                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-                });
-                const data = await res.json();
-                const suggestion = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim().replace(/['".]/g, '');
-                if (suggestion) { document.getElementById('categoryInput').value = suggestion; showToast(`AI: ${suggestion}`); }
-            } catch(e) { showToast("AI Error"); } 
-            finally { icon.classList.replace('fa-spinner', 'fa-wand-magic-sparkles'); icon.classList.remove('animate-spin-slow'); }
-        }
 
         // Search & Filter
         function handleSearch(val) { searchQuery = val.toLowerCase(); updateUI(); }
+        
+        // Stats View Toggle
+        function toggleStatsView() {
+            setStatsView(statsViewMode === 'monthly' ? 'all' : 'monthly');
+        }
+
+        function setStatsView(mode) {
+            statsViewMode = mode;
+            updateUI();
+        }
 
         // Category Management
         function openCategoryModal() {
@@ -514,19 +839,100 @@
         }
 
         // Actions
+        function setTransactionAccount(acct) {
+            selectedTransAccount = acct;
+            const btnBank = document.getElementById('btnAcctBank');
+            const btnCash = document.getElementById('btnAcctCash');
+            const activeClass = ['bg-white', 'dark:bg-gray-700', 'text-black', 'dark:text-white', 'shadow-sm'];
+            const inactiveClass = ['text-gray-500', 'dark:text-gray-400'];
+
+            if(acct === 'bank') {
+                btnBank.classList.add(...activeClass);
+                btnBank.classList.remove(...inactiveClass);
+                btnCash.classList.remove(...activeClass);
+                btnCash.classList.add(...inactiveClass);
+            } else {
+                btnCash.classList.add(...activeClass);
+                btnCash.classList.remove(...inactiveClass);
+                btnBank.classList.remove(...activeClass);
+                btnBank.classList.add(...inactiveClass);
+            }
+        }
+
         function addTransaction(type) {
             if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
-            const desc = document.getElementById('descInput').value.trim() || (type === 'expense' ? 'Expense' : 'Income');
-            const val = parseFormattedNumber(document.getElementById('amountInput').value);
-            const cat = document.getElementById('categoryInput').value.trim() || 'Uncategorized';
+            const descInput = document.getElementById('descInput');
+            const amtInput = document.getElementById('amountInput');
+            const catInput = document.getElementById('categoryInput');
+
+            // Determine if this is a transfer/exchange
+            const isTransfer = type === 'transfer';
+
+            const val = parseFormattedNumber(amtInput.value);
+            // If transfer, category is strictly 'Exchange'. Else try input or default.
+            let cat = isTransfer ? 'Exchange' : (catInput.value.trim() || 'Uncategorized');
+            const desc = descInput.value.trim() || (isTransfer ? 'Transfer' : (type === 'expense' ? 'Expense' : 'Income'));
             const source = document.getElementById('budgetSelect').value;
+            
             if (val > 0) {
-                const t = { id: Date.now(), date: new Date().toISOString(), desc, amount: appData.currency === 'USD' ? val * exchangeRate : val, type, category: cat };
-                if(type === 'expense' && source !== 'general') t.subLimitId = parseInt(source);
-                if (cat && !appData.categories.includes(cat)) appData.categories.push(cat);
-                appData.transactions.unshift(t);
-                document.getElementById('descInput').value = ''; document.getElementById('amountInput').value = ''; document.getElementById('categoryInput').value = '';
-                saveData(); showToast("Added!");
+                const amount = appData.currency === 'USD' ? val * exchangeRate : val;
+                const date = new Date().toISOString();
+                const ts = Date.now();
+
+                // If it's a transfer, we handle it specifically
+                if (isTransfer) {
+                    const otherAccount = selectedTransAccount === 'bank' ? 'cash' : 'bank';
+                    const transferDesc = desc === 'Transfer' ? `Transfer to ${otherAccount}` : desc;
+
+                    // 1. Expense from Source
+                    const t1 = {
+                        id: ts,
+                        date: date,
+                        desc: transferDesc,
+                        amount: amount,
+                        type: 'expense', // Outgoing
+                        category: 'Exchange',
+                        account: selectedTransAccount
+                    };
+
+                    // 2. Revenue to Target
+                    const t2 = {
+                        id: ts + 1, // Ensure unique ID
+                        date: date,
+                        desc: `Received from ${selectedTransAccount}`,
+                        amount: amount,
+                        type: 'revenue', // Incoming
+                        category: 'Exchange',
+                        account: otherAccount
+                    };
+
+                    appData.transactions.unshift(t1);
+                    appData.transactions.unshift(t2);
+                    showToast(`Transferred: ${selectedTransAccount} ➝ ${otherAccount}`);
+
+                } else {
+                    // Normal Transaction
+                    const t = { 
+                        id: ts, 
+                        date: date, 
+                        desc, 
+                        amount: amount, 
+                        type, 
+                        category: cat,
+                        account: selectedTransAccount 
+                    };
+
+                    if(type === 'expense' && source !== 'general') t.subLimitId = parseInt(source);
+                    if (cat && !appData.categories.includes(cat)) appData.categories.push(cat);
+                    
+                    appData.transactions.unshift(t);
+                    showToast("Transaction added");
+                }
+
+                descInput.value = ''; 
+                amtInput.value = ''; 
+                catInput.value = '';
+                saveData();
             }
         }
         function deleteTransaction(id) { 
@@ -544,47 +950,116 @@
 
             if (name && limitVal > 0) {
                 const storeLimit = appData.currency === 'USD' ? limitVal * exchangeRate : limitVal;
-
                 if (editingSubLimitId) {
-                    // Update
                     const index = appData.subLimits.findIndex(s => s.id === editingSubLimitId);
-                    if (index !== -1) {
-                        appData.subLimits[index].name = name;
-                        appData.subLimits[index].limit = storeLimit;
-                        showToast("Sub-limit updated");
-                    }
+                    if (index !== -1) { appData.subLimits[index].name = name; appData.subLimits[index].limit = storeLimit; showToast("Sub-limit updated"); }
                 } else {
-                    // Create
-                    appData.subLimits.push({
-                        id: Date.now(),
-                        name: name,
-                        limit: storeLimit
-                    });
+                    appData.subLimits.push({ id: Date.now(), name: name, limit: storeLimit });
                     showToast("Sub-limit created");
                 }
-                closeSubLimitModal();
-                saveData();
-                updateUI();
+                closeSubLimitModal(); saveData(); updateUI();
             }
-        }
-        function createSubLimit() { 
-            // Fallback for any old refs, redirects to saveSubLimit logic (handled via UI now)
-            saveSubLimit();
         }
         function deleteSubLimit(id) { 
             if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
             showConfirm("Delete budget?", () => { appData.subLimits = appData.subLimits.filter(s => s.id !== id); saveData(); }); 
         }
-        function deleteSubLimitFromModal() {
-            if (editingSubLimitId) {
-                deleteSubLimit(editingSubLimitId);
-                closeSubLimitModal();
+        function deleteSubLimitFromModal() { if (editingSubLimitId) { deleteSubLimit(editingSubLimitId); closeSubLimitModal(); } }
+
+        // Subscription Functions
+        function openSubscriptionModal(id = null) {
+            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
+            
+            const modal = document.getElementById('subscriptionModal');
+            const title = document.getElementById('subModalTitle');
+            const saveBtn = document.getElementById('subSaveBtn');
+            const deleteBtn = document.getElementById('subDeleteBtn');
+            
+            const nameIn = document.getElementById('modalSubName');
+            const amtIn = document.getElementById('modalSubAmount');
+            const freqIn = document.getElementById('modalSubFreq');
+            const dateIn = document.getElementById('modalSubDate');
+            
+            document.getElementById('modalSubCurrency').innerText = appData.currency === 'VND' ? '₫' : '$';
+
+            if (id) {
+                const s = appData.subscriptions.find(sub => sub.id === id);
+                if (!s) return;
+                editingSubId = id;
+                title.innerText = "Edit Subscription";
+                saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Update Subscription</span>';
+                deleteBtn.classList.remove('hidden');
+                
+                nameIn.value = s.name;
+                let val = s.amount;
+                if (appData.currency === 'USD') val = val / exchangeRate;
+                amtIn.value = Number(Math.round(val)).toLocaleString('de-DE');
+                freqIn.value = s.frequency || 'monthly';
+                
+                // Handle date
+                if (s.dueDate) {
+                    dateIn.value = s.dueDate.split('T')[0];
+                } else {
+                    // Fallback for old data without date
+                    const now = new Date();
+                    const m = s.dueMonth !== undefined ? s.dueMonth : now.getMonth();
+                    dateIn.value = new Date(now.getFullYear(), m, 1).toISOString().split('T')[0];
+                }
+
+            } else {
+                editingSubId = null;
+                title.innerText = "New Subscription";
+                saveBtn.innerHTML = '<i class="fa-solid fa-plus"></i> <span>Add Subscription</span>';
+                deleteBtn.classList.add('hidden');
+                nameIn.value = '';
+                amtIn.value = '';
+                freqIn.value = 'monthly';
+                dateIn.value = new Date().toISOString().split('T')[0];
+            }
+            modal.classList.remove('hidden');
+            nameIn.focus();
+        }
+        function closeSubscriptionModal() { document.getElementById('subscriptionModal').classList.add('hidden'); }
+        function deleteSubscriptionFromModal() { if(editingSubId) { deleteSubscription(editingSubId); closeSubscriptionModal(); } }
+        function toggleModalDate() { /* Can adjust date input label based on frequency if needed */ }
+
+        function saveSubscription() {
+            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
+            const name = document.getElementById('modalSubName').value.trim();
+            const val = parseFormattedNumber(document.getElementById('modalSubAmount').value);
+            const freq = document.getElementById('modalSubFreq').value;
+            const dateStr = document.getElementById('modalSubDate').value;
+            
+            if (name && val > 0 && dateStr) {
+                const amount = appData.currency === 'USD' ? val * exchangeRate : val;
+                const d = new Date(dateStr);
+                
+                const subData = {
+                    name, 
+                    amount, 
+                    frequency: freq,
+                    dueDate: d.toISOString(),
+                    dueMonth: d.getMonth() // Keep for legacy logic compatibility
+                };
+
+                if (editingSubId) {
+                    const idx = appData.subscriptions.findIndex(s => s.id === editingSubId);
+                    if (idx !== -1) {
+                        appData.subscriptions[idx] = { ...appData.subscriptions[idx], ...subData };
+                        showToast("Subscription updated");
+                    }
+                } else {
+                    appData.subscriptions.push({ id: Date.now(), ...subData });
+                    showToast("Subscription added");
+                }
+                closeSubscriptionModal();
+                saveData();
+                updateUI();
+            } else {
+                showToast("Please fill all fields");
             }
         }
-        function addSubscription() { 
-            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
-            const n = document.getElementById('subNameInput').value.trim(), v = parseFormattedNumber(document.getElementById('subAmountInput').value); if(n && v>0) { appData.subscriptions.push({ id: Date.now(), name: n, amount: appData.currency === 'USD' ? v * exchangeRate : v, frequency: document.getElementById('subYearlyCheck').checked ? 'yearly' : 'monthly', dueMonth: parseInt(document.getElementById('subMonthSelect').value) }); saveData(); document.getElementById('subNameInput').value=''; } 
-        }
+        
         function deleteSubscription(id) { 
             if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
             showConfirm("Delete sub?", () => { appData.subscriptions = appData.subscriptions.filter(s => s.id !== id); saveData(); }); 
@@ -593,7 +1068,6 @@
         function showConfirm(m, cb) { document.getElementById('confirmMessage').innerText = m; confirmCallback = cb; document.getElementById('confirmModal').classList.remove('hidden'); }
         function closeConfirm(y) { document.getElementById('confirmModal').classList.add('hidden'); if(y && confirmCallback) confirmCallback(); }
         
-        // Fix: Bind the Yes button click event
         document.getElementById('confirmYesBtn').onclick = () => closeConfirm(true);
 
         function openSubLimitModal(id = null) { 
@@ -633,7 +1107,6 @@
             nameInput.focus();
         }
         function closeSubLimitModal() { document.getElementById('subLimitModal').classList.add('hidden'); }
-        function toggleMonthSelect() { document.getElementById('subMonthSelect').classList.toggle('hidden', !document.getElementById('subYearlyCheck').checked); }
         function updateSort(v) { currentSort = v; updateUI(); }
         function handleLogout() { localStorage.removeItem('finTrack_username'); location.reload(); }
         function handleDeleteAccount() { 
@@ -649,34 +1122,30 @@
         }
         
         async function fetchLiveRate() { 
-            // If offline, don't try to fetch (avoids console errors). 
-            // Manual edit is allowed in 'editExchangeRate' below.
             if(!navigator.onLine) {
-                // If we are offline, show manual rate or last fetched rate with warning
                 const rateEl = document.getElementById('rateDisplay');
                 rateEl.classList.add('text-amber-500');
                 rateEl.classList.remove('text-ios-blue');
+                // Handle mobile display too
+                const mob = document.getElementById('rateDisplayMobile');
+                if(mob) {
+                    mob.classList.add('text-amber-500');
+                    mob.classList.remove('text-ios-blue');
+                }
                 return;
             }
-
             try { 
                 const r=await fetch('https://open.er-api.com/v6/latest/USD'); 
                 const d=await r.json(); 
                 exchangeRate = d.rates.VND; 
-                isManualRate = false; // Reset manual mode because we have live data
-                appData.customRate = null; // Clear saved custom rate
-                // Only save if data changed significantly to avoid write spam? 
-                // For simplicity, we just update UI. We don't necessarily need to save rate to DB unless user wants it persistent.
-                // But the requirement says "sync with real world".
+                isManualRate = false; 
+                appData.customRate = null; 
                 updateRateDisplay(); 
                 updateUI(); 
-            } catch(e) {
-                console.warn("Rate fetch failed");
-            } 
+            } catch(e) { console.warn("Rate fetch failed"); } 
         }
 
         function editExchangeRate() { 
-            // Allow editing only if offline or if user really wants to override
             const r=prompt("Custom Rate (USD->VND):", parseInt(exchangeRate)); 
             if(r){ 
                 exchangeRate=parseFloat(r); 
@@ -690,15 +1159,19 @@
         }
 
         function updateRateDisplay() { 
+            const text = `1$ ≈ ${new Intl.NumberFormat().format(parseInt(exchangeRate))}₫`;
             const el = document.getElementById('rateDisplay');
-            el.innerText = `1$ ≈ ${new Intl.NumberFormat().format(parseInt(exchangeRate))}₫`; 
+            if(el) el.innerText = text; 
             
+            const mob = document.getElementById('rateDisplayMobile');
+            if(mob) mob.innerText = text;
+
             if(isManualRate || !navigator.onLine) {
-                el.classList.add('text-amber-500');
-                el.classList.remove('text-ios-blue');
+                if(el) { el.classList.add('text-amber-500'); el.classList.remove('text-ios-blue'); }
+                if(mob) { mob.classList.add('text-amber-500'); mob.classList.remove('text-ios-blue'); }
             } else {
-                el.classList.remove('text-amber-500');
-                el.classList.add('text-ios-blue');
+                if(el) { el.classList.remove('text-amber-500'); el.classList.add('text-ios-blue'); }
+                if(mob) { mob.classList.remove('text-amber-500'); mob.classList.add('text-ios-blue'); }
             }
         }
         
@@ -706,6 +1179,18 @@
 
         // Render
         function updateUI() {
+            const isMonthly = statsViewMode === 'monthly';
+            const badge = document.getElementById('viewModeBadge');
+            badge.innerText = isMonthly ? 'Mo' : 'All';
+            
+            // Check notifications badge
+            const notifBadge = document.getElementById('notifBadge');
+            if(appData.notifications && appData.notifications.some(n => !n.read)) {
+                notifBadge.classList.remove('hidden');
+            } else {
+                notifBadge.classList.add('hidden');
+            }
+
             document.getElementById('currencyLabel').innerText = appData.currency;
             document.getElementById('inputCurrencySymbol').innerText = appData.currency === 'VND' ? '₫' : '$';
             document.getElementById('currentMonthDisplay').innerText = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -718,37 +1203,134 @@
             const dl = document.getElementById('categoryList'); dl.innerHTML = '';
             appData.categories.sort().forEach(c => { const o = document.createElement('option'); o.value = c; dl.appendChild(o); });
 
-            let inc = 0, exp = 0; appData.transactions.forEach(t => t.type==='revenue' ? inc+=t.amount : exp+=t.amount);
+            // 1. Calculate All-Time Stats for Wallet/Assets (Always All-Time)
+            // Separate Real Income/Expense from Transfers for accurate Wheel Visualization
+            let allInc = 0, allExp = 0; 
             
-            let subCost = 0; const now = new Date();
+            let bankRealInc = 0, bankRealExp = 0;
+            let bankTransIn = 0, bankTransOut = 0;
+            
+            let cashRealInc = 0, cashRealExp = 0;
+            let cashTransIn = 0, cashTransOut = 0;
+
+            appData.transactions.forEach(t => { 
+                const acct = t.account || 'bank'; 
+                const isExchange = (t.category || '').toLowerCase() === 'exchange';
+                
+                if (t.type==='revenue') {
+                    if (acct === 'bank') {
+                        if (isExchange) bankTransIn += t.amount;
+                        else bankRealInc += t.amount;
+                    } else { // cash
+                        if (isExchange) cashTransIn += t.amount;
+                        else cashRealInc += t.amount;
+                    }
+                    // Global Income only tracks real income
+                    if(!isExchange) allInc += t.amount;
+                } else { // expense
+                    if (acct === 'bank') {
+                        if (isExchange) bankTransOut += t.amount;
+                        else bankRealExp += t.amount;
+                    } else { // cash
+                        if (isExchange) cashTransOut += t.amount;
+                        else cashRealExp += t.amount;
+                    }
+                    // Global Spent only tracks real expense
+                    if(!isExchange) allExp += t.amount;
+                }
+            });
+            
+            // Subscription Costs
+            let subCostAllTime = 0; 
+            const now = new Date();
             appData.subscriptions.forEach(s => {
-               let start = new Date(now.getFullYear(), 0, 1); 
                let m = 0;
-               while(m < now.getMonth() + 1) {
-                   if(s.frequency === 'monthly') subCost += s.amount;
-                   else if(s.frequency === 'yearly' && s.dueMonth === m) subCost += s.amount;
+               while(m <= now.getMonth()) {
+                   const isCurrentMonth = m === now.getMonth();
+                   let dueDay = 1;
+                   if (s.dueDate) dueDay = new Date(s.dueDate).getDate();
+                   
+                   let shouldCharge = false;
+                   if (s.frequency === 'monthly') {
+                       if (!isCurrentMonth) shouldCharge = true; 
+                       else if (now.getDate() >= dueDay) shouldCharge = true;
+                   } else if (s.frequency === 'yearly') {
+                       const dueM = s.dueDate ? new Date(s.dueDate).getMonth() : s.dueMonth;
+                       if (dueM === m) {
+                           if (!isCurrentMonth) shouldCharge = true;
+                           else if (now.getDate() >= dueDay) shouldCharge = true;
+                       }
+                   }
+                   if (shouldCharge) subCostAllTime += s.amount;
                    m++;
                }
             });
             
-            const wallet = inc - (exp + subCost); 
+            // Assume Subs come from Bank for simplicity (Real Expense)
+            bankRealExp += subCostAllTime;
+            allExp += subCostAllTime;
+
+            const bankBalance = (bankRealInc + bankTransIn) - (bankRealExp + bankTransOut);
+            const cashBalance = (cashRealInc + cashTransIn) - (cashRealExp + cashTransOut);
+            const totalWallet = bankBalance + cashBalance;
+
+            // 2. Calculate Stats for "Income/Spent" Cards based on View Mode
+            let displayInc = 0, displayExp = 0;
+
+            if (isMonthly) {
+                // Filter transactions for view month
+                const mTrans = appData.transactions.filter(t => new Date(t.date).getMonth() === viewDate.getMonth() && new Date(t.date).getFullYear() === viewDate.getFullYear());
+                mTrans.forEach(t => { 
+                    const isExchange = (t.category || '').toLowerCase() === 'exchange';
+                    if(!isExchange) {
+                        if(t.type==='revenue') displayInc+=t.amount; else displayExp+=t.amount; 
+                    }
+                });
+                
+                // Add Subs for this month if viewing this month
+                appData.subscriptions.forEach(s => {
+                    const dueM = s.dueDate ? new Date(s.dueDate).getMonth() : s.dueMonth;
+                    if(s.frequency === 'monthly' || (s.frequency === 'yearly' && dueM === viewDate.getMonth())) {
+                         displayExp += s.amount;
+                    }
+                });
+
+            } else {
+                // All Time
+                displayInc = allInc;
+                displayExp = allExp;
+            }
+
+            // 3. Update DOM
+            document.getElementById('incomeDisplay').innerText = formatMoney(displayInc);
+            document.getElementById('spentDisplay').innerText = formatMoney(displayExp); 
+            document.getElementById('walletDisplay').innerText = formatMoney(totalWallet);
             
-            const mTrans = appData.transactions.filter(t => new Date(t.date).getMonth() === viewDate.getMonth() && new Date(t.date).getFullYear() === viewDate.getFullYear());
+            // Budget Left (Always Monthly)
+            const mTransCurrent = appData.transactions.filter(t => new Date(t.date).getMonth() === viewDate.getMonth() && new Date(t.date).getFullYear() === viewDate.getFullYear());
             let genSpent = 0, subSpent = {};
-            mTrans.forEach(t => { if(t.type==='expense') { if(t.subLimitId) subSpent[t.subLimitId] = (subSpent[t.subLimitId]||0)+t.amount; else genSpent += t.amount; }});
+            mTransCurrent.forEach(t => { 
+                const isExchange = (t.category || '').toLowerCase() === 'exchange';
+                // Only count expense towards budget if NOT exchange
+                if(t.type==='expense' && !isExchange) { 
+                    if(t.subLimitId) subSpent[t.subLimitId] = (subSpent[t.subLimitId]||0)+t.amount; else genSpent += t.amount; 
+                }
+            });
             
-            const mSubs = appData.subscriptions.reduce((s, sub) => (sub.frequency==='monthly' || (sub.frequency==='yearly' && sub.dueMonth===viewDate.getMonth())) ? s+sub.amount : s, 0);
+            const mSubs = appData.subscriptions.reduce((s, sub) => {
+                const dueM = sub.dueDate ? new Date(sub.dueDate).getMonth() : sub.dueMonth;
+                const isDueMonth = (sub.frequency==='monthly' || (sub.frequency==='yearly' && dueM === viewDate.getMonth()));
+                return isDueMonth ? s+sub.amount : s;
+            }, 0);
+
             const limit = appData.limits[getMonthKey(viewDate)] || 0;
             const mainRem = Math.max(0, limit - (genSpent + mSubs));
-            
-            document.getElementById('incomeDisplay').innerText = formatMoney(inc);
-            document.getElementById('spentDisplay').innerText = formatMoney(exp); 
-            document.getElementById('walletDisplay').innerText = formatMoney(wallet);
             document.getElementById('monthlyLeftDisplay').innerText = formatMoney(mainRem);
             
             const isDark = document.documentElement.classList.contains('dark');
             const bg = isDark ? '#2C2C2E' : '#E5E7EB';
             
+            // Budget Wheel Update
             const p = limit > 0 ? mainRem / limit : 0;
             const col = p < 0.2 ? '#FF3B30' : (p < 0.5 ? '#FF9500' : '#007AFF');
             document.getElementById('centerBudgetRemaining').innerText = formatMoney(mainRem);
@@ -759,31 +1341,75 @@
                 budgetChart.update();
             }
 
-            document.getElementById('centerWalletBalance').innerText = formatMoney(wallet);
-            if(walletChart) {
-                walletChart.data.datasets[0].data = wallet <= 0 ? [0, 100] : [wallet, exp];
-                walletChart.data.datasets[0].backgroundColor = wallet <= 0 ? [bg, bg] : ['#30B0C7', '#FF3B30'];
-                walletChart.update();
+            // Assets Wheels Update
+            // New Logic: Net Transfers.
+            // If Net Transfer > 0 (More In), we increase the "Capacity" (Total slice).
+            // If Net Transfer < 0 (More Out), we treat it as an expense in the Red slice.
+            
+            // Bank Chart
+            const bankNetTransfer = bankTransIn - bankTransOut;
+            let bankChartData = [];
+            
+            if (bankNetTransfer >= 0) {
+                 // Income + Net Transfer = Total Available to Spend. 
+                 // Spent = Real Exp.
+                 // Balance = Total - Spent.
+                 bankChartData = [bankBalance, bankRealExp];
+            } else {
+                 // Money left the account. Treat Net Transfer Out as Expense.
+                 // Chart Expense = Real Exp + (-NetTransfer).
+                 bankChartData = [bankBalance, bankRealExp + Math.abs(bankNetTransfer)];
             }
-            document.getElementById('footerTotalIncome').innerText = formatMoney(inc);
-            document.getElementById('footerTotalSpent').innerText = formatMoney(exp + subCost);
+            
+            // Cash Chart
+            const cashNetTransfer = cashTransIn - cashTransOut;
+            let cashChartData = [];
+            
+            if (cashNetTransfer >= 0) {
+                 cashChartData = [cashBalance, cashRealExp];
+            } else {
+                 cashChartData = [cashBalance, cashRealExp + Math.abs(cashNetTransfer)];
+            }
+
+            // Visual fallback for empty
+            if (bankChartData[0] <= 0) bankChartData = [0, 100]; 
+            if (cashChartData[0] <= 0) cashChartData = [0, 100];
+
+            document.getElementById('centerBankBalance').innerText = formatMoney(bankBalance);
+            document.getElementById('centerCashBalance').innerText = formatMoney(cashBalance);
+            document.getElementById('footerTotalIncome').innerText = formatMoney(allInc);
+            document.getElementById('footerTotalSpent').innerText = formatMoney(allExp);
+
+            if(bankChart) {
+                bankChart.data.datasets[0].data = bankChartData; 
+                bankChart.data.datasets[0].backgroundColor = bankBalance <= 0 ? [bg, bg] : ['#007AFF', '#FF3B30'];
+                bankChart.update();
+            }
+            if(cashChart) {
+                cashChart.data.datasets[0].data = cashChartData;
+                cashChart.data.datasets[0].backgroundColor = cashBalance <= 0 ? [bg, bg] : ['#34C759', '#FF3B30'];
+                cashChart.update();
+            }
 
             // Handle Locking UI
             const isCurrent = isCurrentViewMonth();
             const lockMsg = document.getElementById('lockedMessage');
-            const inputs = ['limitControl', 'subsControl', 'transControl'];
+            const inputs = ['limitControl', 'transControl'];
+            const addSubBtn = document.getElementById('addSubBtn');
             
             if (isCurrent) {
                 lockMsg.classList.add('hidden');
                 inputs.forEach(id => document.getElementById(id).classList.remove('disabled-overlay'));
+                addSubBtn.classList.remove('pointer-events-none', 'opacity-50');
             } else {
                 lockMsg.classList.remove('hidden');
                 inputs.forEach(id => document.getElementById(id).classList.add('disabled-overlay'));
+                addSubBtn.classList.add('pointer-events-none', 'opacity-50');
             }
 
             renderSubs();
             renderSubLimits(subSpent);
-            renderHistory(mTrans);
+            renderHistory(mTransCurrent);
             renderComparison();
         }
 
@@ -799,7 +1425,6 @@
                 const col = rem > 0 ? 'bg-ios-purple' : 'bg-ios-red';
                 const txt = rem > 0 ? 'text-ios-purple' : 'text-ios-red';
                 
-                // Show delete button only if current month
                 const delBtn = isCurrentViewMonth() 
                     ? `<button onclick="deleteSubLimit(${sl.id})" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><i class="fa-solid fa-xmark"></i></button>`
                     : '';
@@ -808,7 +1433,7 @@
                     : '';
 
                 c.innerHTML += `
-                <div class="bg-white/50 dark:bg-white/5 p-4 rounded-2xl flex flex-col justify-between relative group border border-gray-100 dark:border-gray-800">
+                <div class="bg-white/50 dark:bg-white/5 p-4 rounded-2xl flex flex-col justify-between relative group border border-gray-100 dark:border-gray-800 hover-lift">
                     ${editBtn}
                     ${delBtn}
                     <div class="mb-2"><h3 class="text-sm font-bold truncate dark:text-white">${sl.name}</h3><p class="text-[10px] text-gray-400">Limit: ${formatMoney(sl.limit)}</p></div>
@@ -821,12 +1446,43 @@
             const l = document.getElementById('subscriptionList'); l.innerHTML = '';
             if(appData.subscriptions.length===0) document.getElementById('emptySubs').classList.remove('hidden'); else document.getElementById('emptySubs').classList.add('hidden');
             appData.subscriptions.forEach(s => {
-                const tag = s.frequency === 'yearly' ? `<span class="text-[9px] bg-orange-100 text-orange-600 px-1.5 rounded font-bold">YR (${monthNames[s.dueMonth]})</span>` : `<span class="text-[9px] bg-purple-100 text-purple-600 px-1.5 rounded font-bold">MO</span>`;
-                // Show delete only if current
-                const delBtn = isCurrentViewMonth()
-                    ? `<button onclick="deleteSubscription(${s.id})" class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>`
+                // Determine day/date display
+                let dateDisplay = '';
+                if (s.dueDate) {
+                    const d = new Date(s.dueDate);
+                    const day = d.getDate();
+                    if(s.frequency === 'yearly') {
+                        dateDisplay = `${monthNames[d.getMonth()]} ${day}`;
+                    } else {
+                        dateDisplay = `Day ${day}`;
+                    }
+                } else {
+                    // Legacy fallback
+                    dateDisplay = s.frequency === 'yearly' ? monthNames[s.dueMonth] : 'Monthly';
+                }
+
+                const tag = s.frequency === 'yearly' 
+                    ? `<span class="text-[9px] bg-orange-100 text-orange-600 px-1.5 rounded font-bold">YR</span>` 
+                    : `<span class="text-[9px] bg-purple-100 text-purple-600 px-1.5 rounded font-bold">MO</span>`;
+                
+                const editBtn = isCurrentViewMonth()
+                    ? `<button onclick="openSubscriptionModal(${s.id})" class="text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100"><i class="fa-solid fa-pen"></i></button>`
                     : '';
-                l.innerHTML += `<div class="flex justify-between items-center bg-white/50 dark:bg-white/5 p-3 rounded-xl mb-2 group"><div class="flex items-center gap-2 overflow-hidden">${tag}<span class="text-sm font-medium dark:text-gray-200 truncate">${s.name}</span></div><div class="flex items-center gap-2 shrink-0"><span class="text-sm font-bold text-gray-700 dark:text-gray-300">-${formatMoney(s.amount)}</span>${delBtn}</div></div>`;
+
+                l.innerHTML += `
+                <div class="flex justify-between items-center bg-white/50 dark:bg-white/5 p-3 rounded-xl mb-2 group">
+                    <div class="flex items-center gap-2 overflow-hidden">
+                        ${tag}
+                        <div class="flex flex-col">
+                            <span class="text-sm font-medium dark:text-gray-200 truncate">${s.name}</span>
+                            <span class="text-[10px] text-gray-400 font-medium">Due: ${dateDisplay}</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 shrink-0">
+                        <span class="text-sm font-bold text-gray-700 dark:text-gray-300">-${formatMoney(s.amount)}</span>
+                        ${editBtn}
+                    </div>
+                </div>`;
             });
         }
 
@@ -841,7 +1497,6 @@
                 sorted = sorted.filter(item => {
                     const descMatch = (item.desc || '').toLowerCase().includes(searchQuery);
                     const catMatch = (item.category || '').toLowerCase().includes(searchQuery);
-                    // Also search in sub-limit name if linked
                     let subLimitMatch = false;
                     if(item.subLimitId) {
                         const sl = appData.subLimits.find(s => s.id === item.subLimitId);
@@ -862,15 +1517,20 @@
                 if(x.subLimitId) { const s = appData.subLimits.find(z=>z.id===x.subLimitId); if(s) cat = `<span class="text-[9px] bg-indigo-100 text-indigo-600 px-1.5 rounded ml-2 font-bold">${s.name}</span>`; }
                 else if(x.category && x.category !== 'Uncategorized') cat = `<span class="text-[9px] bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-300 px-1.5 rounded ml-2 font-bold">${x.category}</span>`;
                 
+                const acct = x.account || 'bank';
+                const acctIcon = acct === 'cash' 
+                    ? `<i class="fa-solid fa-money-bill-wave text-[10px] ml-1 text-gray-400" title="Cash"></i>`
+                    : `<i class="fa-solid fa-building-columns text-[10px] ml-1 text-gray-400" title="Bank"></i>`;
+
                 const delBtn = isCurrentViewMonth()
                     ? `<button onclick="deleteTransaction(${x.id})" class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100"><i class="fa-solid fa-trash"></i></button>`
                     : '';
 
                 l.innerHTML += `
-                <li class="flex justify-between items-center bg-white/50 dark:bg-white/5 p-4 rounded-2xl group transition hover:bg-white/80 dark:hover:bg-white/10">
+                <li class="flex justify-between items-center bg-white/50 dark:bg-white/5 p-4 rounded-2xl group transition hover:bg-white/80 dark:hover:bg-white/10 hover-lift">
                     <div class="flex items-center gap-3 min-w-0">
                         <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isExp?'bg-red-100 text-red-500 dark:bg-red-500/20':'bg-green-100 text-green-500 dark:bg-green-500/20'}"><i class="fa-solid ${isExp?'fa-bag-shopping':'fa-coins'} text-sm"></i></div>
-                        <div class="min-w-0"><div class="flex items-center"><p class="font-bold text-sm dark:text-gray-100 truncate">${x.desc}</p>${cat}</div><p class="text-[10px] text-gray-400">${new Date(x.date).toLocaleDateString()}</p></div>
+                        <div class="min-w-0"><div class="flex items-center"><p class="font-bold text-sm dark:text-gray-100 truncate">${x.desc}</p>${cat}${acctIcon}</div><p class="text-[10px] text-gray-400">${new Date(x.date).toLocaleDateString()}</p></div>
                     </div>
                     <div class="flex items-center gap-3 shrink-0"><span class="font-bold ${isExp?'text-ios-red':'text-ios-green'}">${isExp?'-':'+'}${formatMoney(x.amount)}</span>${delBtn}</div>
                 </li>`;
@@ -882,16 +1542,25 @@
             for(let i=0; i<6; i++) {
                 let d = new Date(viewDate.getFullYear(), viewDate.getMonth()-i, 1);
                 let inc=0, exp=0;
-                appData.transactions.forEach(t=>{ const td=new Date(t.date); if(td.getMonth()===d.getMonth() && td.getFullYear()===d.getFullYear()) { if(t.type==='revenue') inc+=t.amount; else exp+=t.amount; } });
+                appData.transactions.forEach(t=>{ 
+                    const isExchange = (t.category || '').toLowerCase() === 'exchange';
+                    if(!isExchange) {
+                        const td=new Date(t.date); if(td.getMonth()===d.getMonth() && td.getFullYear()===d.getFullYear()) { if(t.type==='revenue') inc+=t.amount; else exp+=t.amount; } 
+                    }
+                });
                 const sav = inc - exp;
                 b.innerHTML += `<tr class="border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-white/50 dark:hover:bg-white/5"><td class="py-3 pl-2 text-gray-500 dark:text-gray-400 font-medium">${d.toLocaleDateString('en-US',{month:'short'})}</td><td class="py-3 text-right text-ios-green">${formatMoney(inc)}</td><td class="py-3 text-right text-ios-red">${formatMoney(exp)}</td><td class="py-3 text-right font-bold ${sav>=0?'text-ios-blue':'text-ios-orange'}">${formatMoney(sav)}</td></tr>`;
             }
         }
 
         function initCharts() {
-            const cfg = { type: 'doughnut', options: { responsive: true, cutout: '85%', plugins: { legend: {display:false}, tooltip: {enabled:false} }, animation: { duration: 600 } } };
+            const cfg = { type: 'doughnut', options: { responsive: true, maintainAspectRatio: false, cutout: '80%', plugins: { legend: {display:false}, tooltip: {enabled:false} }, animation: { duration: 600 } } };
+            
             budgetChart = new Chart(document.getElementById('budgetWheel'), { ...cfg, data: { datasets: [{ data: [100, 0], backgroundColor: ['#007AFF', '#eee'], borderWidth: 0 }] } });
-            walletChart = new Chart(document.getElementById('walletWheel'), { ...cfg, data: { datasets: [{ data: [50, 50], backgroundColor: ['#30B0C7', '#FF3B30'], borderWidth: 0 }] } });
+            
+            // Replaced Wallet Chart with Bank & Cash
+            bankChart = new Chart(document.getElementById('bankWheel'), { ...cfg, data: { datasets: [{ data: [50, 50], backgroundColor: ['#007AFF', '#eee'], borderWidth: 0 }] } });
+            cashChart = new Chart(document.getElementById('cashWheel'), { ...cfg, data: { datasets: [{ data: [50, 50], backgroundColor: ['#34C759', '#eee'], borderWidth: 0 }] } });
         }
 
         window.addEventListener('load', init);
