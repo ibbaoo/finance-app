@@ -61,6 +61,7 @@
         
         /* PIN Dots */
         .pin-dot.active { background-color: #007AFF !important; transform: scale(1.1); }
+        .avatar-preview { object-fit: cover; }
         
         /* Date Input Styling */
         input[type="date"]::-webkit-calendar-picker-indicator {
@@ -148,7 +149,7 @@
             <button onclick="handlePinInput(0)" class="h-16 w-16 rounded-full bg-white dark:bg-white/10 shadow-sm text-2xl font-medium flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/20 transition dark:text-white active:scale-95">0</button>
             <button onclick="handlePinInput('back')" class="h-16 w-16 rounded-full text-xl flex items-center justify-center hover:bg-gray-200 dark:hover:bg-white/10 transition text-gray-500 dark:text-white active:scale-95"><i class="fa-solid fa-delete-left"></i></button>
         </div>
-        <button onclick="cancelPin()" class="mt-8 text-ios-blue text-sm font-semibold">Cancel</button>
+        <button onclick="cancelPin()" id="pinCancelBtn" class="mt-8 text-ios-blue text-sm font-semibold">Cancel</button>
     </div>
 
     <!-- AUTH SCREEN -->
@@ -187,14 +188,14 @@
                         <div class="w-8 h-8 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center shadow-lg"><i class="fa-solid fa-wallet text-xs"></i></div>
                         <span class="font-bold text-lg tracking-tight hidden md:block">FinTrack</span>
                         
-                        <!-- Mobile-only Rate Display (Prevents overlap with Center/Right) -->
+                        <!-- Mobile-only Rate Display -->
                         <div onclick="editExchangeRate()" class="md:hidden bg-gray-100 dark:bg-white/10 px-3 py-1.5 rounded-full flex items-center gap-1.5 cursor-pointer border border-gray-200 dark:border-gray-700 ml-1">
                             <i class="fa-solid fa-money-bill-transfer text-ios-blue text-[9px]"></i>
                             <span id="rateDisplayMobile" class="font-bold text-[10px] text-ios-blue">...</span>
                         </div>
                     </div>
 
-                    <!-- Center Pill (Desktop Only - Absolute Center) -->
+                    <!-- Center Pill (Desktop Only) -->
                     <div class="absolute left-1/2 transform -translate-x-1/2 hidden md:flex items-center justify-center animate-float-in w-max">
                         <div onclick="editExchangeRate()" class="bg-gray-100 dark:bg-white/10 px-4 py-2 rounded-full flex items-center gap-2 cursor-pointer hover:bg-gray-200 dark:hover:bg-white/20 transition shadow-sm border border-gray-200 dark:border-gray-700 group">
                             <i class="fa-solid fa-money-bill-transfer text-ios-blue text-[10px] group-hover:rotate-180 transition-transform duration-500"></i>
@@ -210,15 +211,12 @@
                                 <i class="fa-regular fa-bell"></i>
                                 <span id="notifBadge" class="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 border-2 border-white dark:border-black rounded-full hidden"></span>
                             </button>
-                            <!-- Dropdown: Fixed on mobile to avoid overflow/clipping, Absolute on Desktop -->
                             <div id="notifDropdown" class="fixed left-4 right-4 top-24 md:absolute md:left-auto md:right-0 md:top-full md:mt-2 md:w-80 bg-white dark:bg-[#1c1c1e] rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 opacity-0 pointer-events-none scale-95 transition-all transform origin-top-right z-[100] overflow-hidden">
                                 <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-white/5">
                                     <h3 class="text-sm font-bold dark:text-white">Notifications</h3>
                                     <button onclick="clearAllNotifications()" class="text-[10px] text-ios-blue font-bold hover:underline">Clear All</button>
                                 </div>
-                                <div id="notifList" class="max-h-60 overflow-y-auto custom-scrollbar">
-                                    <!-- Notifications go here -->
-                                </div>
+                                <div id="notifList" class="max-h-60 overflow-y-auto custom-scrollbar"></div>
                                 <div id="notifEmpty" class="py-8 text-center hidden">
                                     <i class="fa-regular fa-bell-slash text-gray-300 text-2xl mb-2"></i>
                                     <p class="text-xs text-gray-400">No new notifications</p>
@@ -228,175 +226,260 @@
 
                         <button onclick="toggleCurrency()" class="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-[10px] font-bold hover:bg-gray-300 dark:hover:bg-gray-700 transition active:scale-95 text-ios-blue"><span id="currencyLabel">VND</span></button>
                         
+                        <!-- User Button: Now just a toggle for Settings -->
                         <div class="relative" id="userMenuContainer">
-                            <button onclick="toggleUserMenu(event)" class="w-9 h-9 rounded-full bg-gradient-to-br from-ios-blue to-ios-purple text-white flex items-center justify-center hover:opacity-90 transition shadow-md"><i class="fa-solid fa-user text-xs"></i></button>
-                            <div id="userMenuDropdown" class="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-[#1c1c1e] rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 p-1 opacity-0 pointer-events-none scale-95 transition-all transform origin-top-right z-50">
-                                <div class="px-3 py-2 border-b border-gray-100 dark:border-gray-700 mb-1"><p class="text-[10px] text-gray-400 uppercase font-bold">Signed in as</p><p class="text-sm font-bold truncate text-gray-800 dark:text-white" id="menuUsername">User</p></div>
-                                <button onclick="toggleTheme()" class="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 text-gray-700 dark:text-gray-200"><i id="themeIcon" class="fa-solid fa-moon w-4"></i> Theme</button>
-                                <button onclick="requestNotificationPermission()" class="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 text-gray-700 dark:text-gray-200"><i class="fa-solid fa-bell w-4"></i> Enable Alerts</button>
-                                <button onclick="handleLogout()" class="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 text-gray-700 dark:text-gray-200"><i class="fa-solid fa-arrow-right-from-bracket w-4"></i> Logout</button>
-                                <button onclick="handleDeleteAccount()" class="w-full text-left px-3 py-2 text-xs font-bold rounded-lg hover:bg-red-50 dark:hover:bg-red-500/20 flex items-center gap-2 text-red-500"><i class="fa-solid fa-trash w-4"></i> Delete</button>
-                            </div>
+                            <button onclick="toggleSettingsView()" class="w-9 h-9 rounded-full bg-gradient-to-br from-ios-blue to-ios-purple text-white flex items-center justify-center hover:opacity-90 transition shadow-md overflow-hidden p-0">
+                                <img id="userAvatarNav" src="" class="w-full h-full object-cover hidden">
+                                <i id="userIconNav" class="fa-solid fa-user text-xs"></i>
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
         </nav>
 
-        <!-- Main Content -->
-        <main class="flex-grow pt-safe-offset pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full space-y-6 overflow-y-auto custom-scrollbar pb-safe">
-            <div class="flex items-center justify-center gap-2 py-2 animate-float-in">
-                <button onclick="changeMonth(-1)" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 transition active:scale-90"><i class="fa-solid fa-chevron-left text-ios-blue text-xs"></i></button>
-                <h2 id="currentMonthDisplay" class="text-lg font-bold w-36 text-center">October 2023</h2>
-                <button onclick="changeMonth(1)" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 transition active:scale-90"><i class="fa-solid fa-chevron-right text-ios-blue text-xs"></i></button>
-                <button onclick="jumpToToday()" class="text-xs text-ios-blue font-semibold absolute right-4 sm:relative sm:right-auto hover:underline">Today</button>
-            </div>
+        <!-- Main Content Wrapper -->
+        <main class="flex-grow pt-safe-offset pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full overflow-y-auto custom-scrollbar pb-safe">
+            
+            <!-- DASHBOARD VIEW -->
+            <div id="dashboardView" class="animate-fade-in space-y-6">
+                <div class="flex items-center justify-center gap-2 py-2">
+                    <button onclick="changeMonth(-1)" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 transition active:scale-90"><i class="fa-solid fa-chevron-left text-ios-blue text-xs"></i></button>
+                    <h2 id="currentMonthDisplay" class="text-lg font-bold w-36 text-center">October 2023</h2>
+                    <button onclick="changeMonth(1)" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 transition active:scale-90"><i class="fa-solid fa-chevron-right text-ios-blue text-xs"></i></button>
+                    <button onclick="jumpToToday()" class="text-xs text-ios-blue font-semibold absolute right-4 sm:relative sm:right-auto hover:underline">Today</button>
+                </div>
 
-            <div id="lockedMessage" class="hidden text-center animate-float-in">
-                <span class="inline-block bg-gray-100 dark:bg-gray-800 text-gray-500 text-[10px] uppercase font-bold px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm"><i class="fa-solid fa-lock mr-1"></i> Read Only Mode</span>
-            </div>
+                <div id="lockedMessage" class="hidden text-center">
+                    <span class="inline-block bg-gray-100 dark:bg-gray-800 text-gray-500 text-[10px] uppercase font-bold px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm"><i class="fa-solid fa-lock mr-1"></i> Read Only Mode</span>
+                </div>
 
-            <!-- Stats Row -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-green hover-lift relative group">
-                    <div class="absolute top-2 right-2 opacity-50 hover:opacity-100 transition-opacity cursor-pointer z-10" onclick="toggleStatsView()">
-                        <div class="bg-gray-100 dark:bg-white/10 p-1 rounded-lg text-[10px] font-bold flex gap-1">
-                            <span id="viewModeBadge" class="px-1.5 py-0.5 rounded bg-white dark:bg-gray-700 shadow-sm text-black dark:text-white">Mo</span>
+                <!-- Stats Row -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="glass rounded-2xl p-4 shadow-sm border-t-4 border-ios-green hover-lift relative group">
+                        <div class="absolute top-2 right-2 opacity-50 hover:opacity-100 transition-opacity cursor-pointer z-10" onclick="toggleStatsView()">
+                            <div class="bg-gray-100 dark:bg-white/10 p-1 rounded-lg text-[10px] font-bold flex gap-1">
+                                <span id="viewModeBadge" class="px-1.5 py-0.5 rounded bg-white dark:bg-gray-700 shadow-sm text-black dark:text-white">Mo</span>
+                            </div>
+                        </div>
+                        <p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1" id="lblIncome">Income</p>
+                        <h3 class="text-base font-bold text-ios-green truncate" id="incomeDisplay">0</h3>
+                    </div>
+                    <div class="glass rounded-2xl p-4 shadow-sm border-t-4 border-ios-red hover-lift"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1" id="lblSpent">Spent</p><h3 class="text-base font-bold text-ios-red truncate" id="spentDisplay">0</h3></div>
+                    <div class="glass rounded-2xl p-4 shadow-sm border-t-4 border-ios-teal hover-lift"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1">Net Worth</p><h3 class="text-base font-bold text-ios-teal truncate" id="walletDisplay">0</h3></div>
+                    <div class="glass rounded-2xl p-4 shadow-sm border-t-4 border-ios-blue hover-lift"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1">Budget Left</p><h3 class="text-base font-bold text-gray-800 dark:text-gray-200 truncate" id="monthlyLeftDisplay">0</h3></div>
+                </div>
+
+                <!-- Main Dashboard Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
+                    
+                    <!-- Column 1: Status & Assets -->
+                    <div class="flex flex-col gap-6">
+                        <!-- Assets / Net Worth Card -->
+                        <div class="glass rounded-3xl shadow-sm p-6 flex flex-col hover-lift">
+                            <div class="flex justify-between items-start mb-4">
+                                <div><h2 class="text-lg font-bold">Assets</h2><p class="text-[10px] text-gray-400">Balances</p></div>
+                                <span class="text-[10px] bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 px-2 py-1 rounded-full font-medium">Continuous</span>
+                            </div>
+                            
+                            <div class="flex flex-col items-center gap-6">
+                                <!-- Bank Wheel -->
+                                <div class="relative w-48 h-48 flex flex-col items-center justify-center">
+                                    <canvas id="bankWheel"></canvas>
+                                    <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                        <span class="text-xs text-gray-400 font-bold uppercase tracking-wider">Bank</span>
+                                        <span class="font-bold text-ios-blue text-lg" id="centerBankBalance">0</span>
+                                    </div>
+                                </div>
+                                <!-- Cash Wheel -->
+                                <div class="flex items-center justify-center gap-4 w-full bg-gray-50 dark:bg-white/5 p-3 rounded-2xl border border-gray-100 dark:border-gray-800">
+                                    <div class="relative w-16 h-16 flex-shrink-0"><canvas id="cashWheel"></canvas></div>
+                                    <div class="flex flex-col">
+                                        <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Cash Wallet</span>
+                                        <span class="font-bold text-ios-green text-base" id="centerCashBalance">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="w-full h-px bg-gray-100 dark:bg-gray-800 my-4"></div>
+                            <div class="flex justify-center gap-4 text-xs text-center"><div><span class="block text-gray-400">All Income</span><span class="font-bold text-ios-green" id="footerTotalIncome">0</span></div><div class="w-px bg-gray-200 dark:bg-gray-700"></div><div><span class="block text-gray-400">All Out</span><span class="font-bold text-ios-red" id="footerTotalSpent">0</span></div></div>
+                        </div>
+
+                        <div class="glass rounded-3xl shadow-sm p-6 flex flex-col hover-lift">
+                            <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold flex items-center"><i class="fa-solid fa-repeat mr-2 text-ios-purple"></i>Subscriptions</h2><button onclick="openSubscriptionModal()" id="addSubBtn" class="text-xs bg-ios-purple/10 text-ios-purple px-3 py-1.5 rounded-full font-bold hover:bg-ios-purple/20 transition">+ Add</button></div>
+                            <div class="flex-grow overflow-y-auto max-h-[350px] pr-1 space-y-2 custom-scrollbar" id="subscriptionList"></div>
+                            <div id="emptySubs" class="hidden text-center text-gray-400 text-xs py-4">No subscriptions.</div>
                         </div>
                     </div>
-                    <p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1" id="lblIncome">Income</p>
-                    <h3 class="text-base font-bold text-ios-green truncate" id="incomeDisplay">0</h3>
-                </div>
-                <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-red hover-lift"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1" id="lblSpent">Spent</p><h3 class="text-base font-bold text-ios-red truncate" id="spentDisplay">0</h3></div>
-                <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-teal hover-lift"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1">Net Worth</p><h3 class="text-base font-bold text-ios-teal truncate" id="walletDisplay">0</h3></div>
-                <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-blue hover-lift"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1">Budget Left</p><h3 class="text-base font-bold text-gray-800 dark:text-gray-200 truncate" id="monthlyLeftDisplay">0</h3></div>
-            </div>
 
-            <!-- Main Dashboard Grid -->
-            <!-- Swapped Assets (Status) to Col 1 and Budget (Limits) to Col 2 -->
-            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
-                
-                <!-- Column 1: Status & Assets (Formerly Col 2) -->
-                <div class="flex flex-col gap-6">
-                    <!-- Assets / Net Worth Card (Redesigned with bigger Bank wheel) -->
-                    <div class="glass rounded-3xl shadow-sm p-6 flex flex-col animate-float-in hover-lift">
-                        <div class="flex justify-between items-start mb-4">
-                            <div><h2 class="text-lg font-bold">Assets</h2><p class="text-[10px] text-gray-400">Balances</p></div>
-                            <span class="text-[10px] bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 px-2 py-1 rounded-full font-medium">Continuous</span>
+                    <!-- Column 2: Budgeting -->
+                    <div class="flex flex-col gap-6">
+                        <div class="glass rounded-3xl shadow-sm p-6 flex flex-col hover-lift">
+                            <div class="flex justify-between items-start mb-4"><div><h2 class="text-lg font-bold">Monthly Limit</h2><p class="text-[10px] text-gray-400">General Spending</p></div></div>
+                            <div id="limitControl" class="mb-4 flex gap-2"><input type="text" inputmode="numeric" id="limitInput" onkeyup="formatCurrencyInput(this)" placeholder="Set General Limit" class="flex-grow bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-base focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition"><button onclick="setMonthLimit()" class="bg-ios-blue text-white px-4 rounded-xl text-sm font-semibold hover:bg-blue-600 transition shadow-lg shadow-blue-500/30">Set</button></div>
+                            <div class="flex-grow flex items-center justify-center relative min-h-[200px]"><div class="relative w-52 h-52"><canvas id="budgetWheel"></canvas><div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-4 text-center"><span class="text-xs text-gray-400 font-medium">Available</span><span class="text-xl font-bold text-ios-blue break-all" id="centerBudgetRemaining">0</span><span class="text-[10px] text-gray-400 mt-1" id="centerLimitLabel">Limit: 0</span></div></div></div>
                         </div>
                         
-                        <div class="flex flex-col items-center gap-6">
-                            <!-- Bank Wheel (Bigger) -->
-                            <div class="relative w-48 h-48 flex flex-col items-center justify-center">
-                                <canvas id="bankWheel"></canvas>
-                                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                    <span class="text-xs text-gray-400 font-bold uppercase tracking-wider">Bank</span>
-                                    <span class="font-bold text-ios-blue text-lg" id="centerBankBalance">0</span>
+                        <div class="glass rounded-3xl shadow-sm p-6 hover-lift">
+                            <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold flex items-center"><i class="fa-solid fa-list-check text-ios-purple mr-2"></i>Sub-Limits</h2><button onclick="openSubLimitModal()" class="text-xs bg-ios-purple/10 text-ios-purple px-3 py-1.5 rounded-full font-bold hover:bg-ios-purple/20 transition">+ Add</button></div>
+                            <div id="subLimitsContainer" class="grid grid-cols-1 gap-3"></div>
+                            <div id="emptySubLimits" class="hidden text-center text-gray-400 text-xs py-4">No sub-limits created.</div>
+                        </div>
+                    </div>
+
+                    <!-- Column 3: Actions & History -->
+                    <div class="flex flex-col gap-6">
+                        <div class="glass rounded-3xl shadow-sm p-6 hover-lift">
+                            <h2 class="text-lg font-bold mb-4">Add Transaction</h2>
+                            <div id="transControl" class="flex flex-col gap-4">
+                                <div class="bg-gray-100 dark:bg-gray-800 p-1 rounded-xl flex">
+                                    <button onclick="setTransactionAccount('bank')" id="btnAcctBank" class="flex-1 py-2 rounded-lg text-xs font-bold transition bg-white dark:bg-gray-700 text-black dark:text-white shadow-sm">Bank</button>
+                                    <button onclick="setTransactionAccount('cash')" id="btnAcctCash" class="flex-1 py-2 rounded-lg text-xs font-bold transition text-gray-500 dark:text-gray-400">Cash</button>
                                 </div>
-                            </div>
-                            
-                            <!-- Cash Wheel (Smaller) -->
-                            <div class="flex items-center justify-center gap-4 w-full bg-gray-50 dark:bg-white/5 p-3 rounded-2xl border border-gray-100 dark:border-gray-800">
-                                <div class="relative w-16 h-16 flex-shrink-0">
-                                    <canvas id="cashWheel"></canvas>
+                                <input type="text" id="descInput" placeholder="Description" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-4 py-4 text-base focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white">
+                                <div class="relative"><span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold" id="inputCurrencySymbol">₫</span><input type="text" inputmode="numeric" id="amountInput" onkeyup="formatCurrencyInput(this)" placeholder="0" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl pl-8 pr-4 py-4 text-xl font-bold focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white"></div>
+                                <div class="relative flex gap-2">
+                                    <input list="categoryList" id="categoryInput" placeholder="Category" class="flex-grow bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white">
+                                    <datalist id="categoryList"></datalist>
+                                    <button onclick="openCategoryModal()" class="bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-300 w-12 rounded-xl flex items-center justify-center hover:bg-gray-200 dark:hover:bg-white/20 transition group"><i class="fa-solid fa-list text-sm"></i></button>
                                 </div>
-                                <div class="flex flex-col">
-                                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Cash Wallet</span>
-                                    <span class="font-bold text-ios-green text-base" id="centerCashBalance">0</span>
+                                <div><label class="block text-[10px] text-gray-500 mb-1 ml-1 font-semibold uppercase">Budget Source</label><select id="budgetSelect" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white appearance-none cursor-pointer"><option value="general">General (Monthly Limit)</option></select></div>
+                                <div class="grid grid-cols-3 gap-2 mt-2">
+                                    <button onclick="addTransaction('expense')" class="bg-ios-red text-white py-4 rounded-2xl font-semibold hover:bg-red-600 transition active:scale-95 shadow-lg shadow-red-500/30 flex flex-col items-center justify-center gap-1"><i class="fa-solid fa-arrow-down"></i> <span class="text-xs">Spent</span></button>
+                                    <button onclick="addTransaction('transfer')" class="bg-ios-blue text-white py-4 rounded-2xl font-semibold hover:bg-blue-600 transition active:scale-95 shadow-lg shadow-blue-500/30 flex flex-col items-center justify-center gap-1"><i class="fa-solid fa-right-left"></i> <span class="text-xs">Transfer</span></button>
+                                    <button onclick="addTransaction('revenue')" class="bg-ios-green text-white py-4 rounded-2xl font-semibold hover:bg-green-600 transition active:scale-95 shadow-lg shadow-green-500/30 flex flex-col items-center justify-center gap-1"><i class="fa-solid fa-arrow-up"></i> <span class="text-xs">Income</span></button>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="w-full h-px bg-gray-100 dark:bg-gray-800 my-4"></div>
-
-                        <div class="flex justify-center gap-4 text-xs text-center"><div><span class="block text-gray-400">All Income</span><span class="font-bold text-ios-green" id="footerTotalIncome">0</span></div><div class="w-px bg-gray-200 dark:bg-gray-700"></div><div><span class="block text-gray-400">All Out</span><span class="font-bold text-ios-red" id="footerTotalSpent">0</span></div></div>
-                    </div>
-
-                    <div class="glass rounded-3xl shadow-sm p-6 flex flex-col animate-float-in hover-lift">
-                        <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold flex items-center"><i class="fa-solid fa-repeat mr-2 text-ios-purple"></i>Subscriptions</h2><button onclick="openSubscriptionModal()" id="addSubBtn" class="text-xs bg-ios-purple/10 text-ios-purple px-3 py-1.5 rounded-full font-bold hover:bg-ios-purple/20 transition">+ Add</button></div>
-                        <div class="flex-grow overflow-y-auto max-h-[350px] pr-1 space-y-2 custom-scrollbar" id="subscriptionList"></div>
-                        <div id="emptySubs" class="hidden text-center text-gray-400 text-xs py-4">No subscriptions.</div>
+                        <div class="glass rounded-3xl shadow-sm p-6 hover-lift flex-grow">
+                             <div class="mb-4 space-y-2">
+                                <div class="flex justify-between items-center"><h2 class="text-lg font-bold">History <span class="text-xs font-normal text-gray-500 ml-2" id="historyMonthLabel"></span></h2></div>
+                                <div class="flex gap-2">
+                                    <div class="relative flex-grow">
+                                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                                        <input type="text" placeholder="Search..." onkeyup="handleSearch(this.value)" class="w-full bg-gray-100 dark:bg-white/10 border-none rounded-xl pl-8 pr-3 py-2 text-xs font-bold focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition">
+                                    </div>
+                                    <select onchange="updateSort(this.value)" class="bg-gray-100 dark:bg-white/10 border-none rounded-xl text-xs font-bold px-3 py-2 focus:ring-0 cursor-pointer dark:text-white w-24">
+                                        <option value="newest">Newest</option>
+                                        <option value="oldest">Oldest</option>
+                                        <option value="high">High</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <ul id="historyList" class="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar pr-1"></ul>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Column 2: Budgeting (Formerly Col 1) -->
-                <div class="flex flex-col gap-6">
-                    <div class="glass rounded-3xl shadow-sm p-6 flex flex-col animate-float-in hover-lift">
-                        <div class="flex justify-between items-start mb-4"><div><h2 class="text-lg font-bold">Monthly Limit</h2><p class="text-[10px] text-gray-400">General Spending</p></div></div>
-                        <div id="limitControl" class="mb-4 flex gap-2"><input type="text" inputmode="numeric" id="limitInput" onkeyup="formatCurrencyInput(this)" placeholder="Set General Limit" class="flex-grow bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-base focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition"><button onclick="setMonthLimit()" class="bg-ios-blue text-white px-4 rounded-xl text-sm font-semibold hover:bg-blue-600 transition shadow-lg shadow-blue-500/30">Set</button></div>
-                        <div class="flex-grow flex items-center justify-center relative min-h-[200px]"><div class="relative w-52 h-52"><canvas id="budgetWheel"></canvas><div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-4 text-center"><span class="text-xs text-gray-400 font-medium">Available</span><span class="text-xl font-bold text-ios-blue break-all" id="centerBudgetRemaining">0</span><span class="text-[10px] text-gray-400 mt-1" id="centerLimitLabel">Limit: 0</span></div></div></div>
+                <!-- Overview -->
+                <div class="glass rounded-3xl shadow-sm p-6 mb-8 hover-lift">
+                    <h2 class="text-lg font-bold mb-4">6-Month Overview</h2>
+                    <div class="overflow-x-auto custom-scrollbar"><table class="w-full text-left border-collapse"><thead><tr class="text-xs text-gray-400 uppercase tracking-wide border-b border-gray-200 dark:border-gray-700"><th class="pb-3 pl-2">Month</th><th class="pb-3 text-right">Income</th><th class="pb-3 text-right">Spent</th><th class="pb-3 text-right">Savings</th></tr></thead><tbody id="comparisonTableBody" class="text-sm font-medium"></tbody></table></div>
+                </div>
+            </div>
+
+            <!-- SETTINGS VIEW (New) -->
+            <div id="settingsView" class="hidden animate-fade-in space-y-6">
+                <div class="flex items-center gap-3 mb-6">
+                    <button onclick="toggleSettingsView()" class="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 transition flex items-center justify-center"><i class="fa-solid fa-arrow-left"></i></button>
+                    <h1 class="text-2xl font-bold">Settings</h1>
+                </div>
+
+                <!-- Profile Card -->
+                <div class="glass rounded-3xl p-6 shadow-sm">
+                    <h3 class="text-lg font-bold mb-4">Profile</h3>
+                    <div class="flex items-center gap-6">
+                        <div class="relative w-20 h-20 group cursor-pointer" onclick="document.getElementById('avatarInput').click()">
+                            <div class="w-full h-full rounded-full bg-gradient-to-br from-ios-blue to-ios-purple flex items-center justify-center overflow-hidden border-4 border-white dark:border-gray-700 shadow-md">
+                                <img id="settingsAvatar" src="" class="w-full h-full object-cover hidden">
+                                <i id="settingsAvatarIcon" class="fa-solid fa-user text-3xl text-white"></i>
+                            </div>
+                            <div class="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                                <i class="fa-solid fa-camera text-white"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold dark:text-white" id="settingsUsername">User</h2>
+                            <p class="text-xs text-gray-500">Personal Account</p>
+                            <button onclick="document.getElementById('avatarInput').click()" class="text-ios-blue text-xs font-bold mt-1 hover:underline">Change Photo</button>
+                        </div>
                     </div>
+                </div>
+
+                <!-- Preferences Card -->
+                <div class="glass rounded-3xl p-6 shadow-sm space-y-4">
+                    <h3 class="text-lg font-bold mb-2">Preferences</h3>
+                    <div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-500 flex items-center justify-center"><i class="fa-solid fa-moon"></i></div>
+                            <span class="font-bold text-sm dark:text-gray-200">Dark Mode</span>
+                        </div>
+                        <button onclick="toggleTheme()" class="text-gray-400 hover:text-ios-blue transition"><i class="fa-solid fa-toggle-on text-2xl"></i></button>
+                    </div>
+                    <div class="flex items-center justify-between py-2">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-500 flex items-center justify-center"><i class="fa-solid fa-bell"></i></div>
+                            <span class="font-bold text-sm dark:text-gray-200">Notifications</span>
+                        </div>
+                        <button onclick="requestNotificationPermission()" id="btnNotifToggle" class="text-gray-400 hover:text-ios-blue transition"><i class="fa-solid fa-toggle-off text-2xl"></i></button>
+                    </div>
+                </div>
+
+                <!-- Security Card (New Activity Log) -->
+                <div class="glass rounded-3xl p-6 shadow-sm">
+                    <h3 class="text-lg font-bold mb-4">Security</h3>
                     
-                    <div class="glass rounded-3xl shadow-sm p-6 animate-float-in hover-lift">
-                        <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold flex items-center"><i class="fa-solid fa-list-check text-ios-purple mr-2"></i>Sub-Limits</h2><button onclick="openSubLimitModal()" class="text-xs bg-ios-purple/10 text-ios-purple px-3 py-1.5 rounded-full font-bold hover:bg-ios-purple/20 transition">+ Add</button></div>
-                        <div id="subLimitsContainer" class="grid grid-cols-1 gap-3"></div>
-                        <div id="emptySubLimits" class="hidden text-center text-gray-400 text-xs py-4">No sub-limits created.</div>
+                    <button onclick="handleChangePin()" class="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-white/5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition mb-6 group">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-500 flex items-center justify-center"><i class="fa-solid fa-key"></i></div>
+                            <span class="font-bold text-sm dark:text-gray-200">Change PIN Code</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-gray-400 text-xs group-hover:translate-x-1 transition"></i>
+                    </button>
+
+                    <h4 class="text-xs font-bold text-gray-400 uppercase mb-3">Activity Security (Logins)</h4>
+                    <div id="activityLogContainer" class="space-y-3">
+                        <!-- Populated by JS -->
+                        <p class="text-center text-xs text-gray-400 py-2">No activity recorded.</p>
                     </div>
                 </div>
 
-                <!-- Column 3: Actions & History -->
-                <div class="flex flex-col gap-6">
-                    <div class="glass rounded-3xl shadow-sm p-6 animate-float-in hover-lift">
-                        <h2 class="text-lg font-bold mb-4">Add Transaction</h2>
-                        <div id="transControl" class="flex flex-col gap-4">
-                            <!-- Payment Account Toggle -->
-                            <div class="bg-gray-100 dark:bg-gray-800 p-1 rounded-xl flex">
-                                <button onclick="setTransactionAccount('bank')" id="btnAcctBank" class="flex-1 py-2 rounded-lg text-xs font-bold transition bg-white dark:bg-gray-700 text-black dark:text-white shadow-sm">Bank</button>
-                                <button onclick="setTransactionAccount('cash')" id="btnAcctCash" class="flex-1 py-2 rounded-lg text-xs font-bold transition text-gray-500 dark:text-gray-400">Cash</button>
-                            </div>
-
-                            <input type="text" id="descInput" placeholder="Description" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-4 py-4 text-base focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white">
-                            <div class="relative"><span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold" id="inputCurrencySymbol">₫</span><input type="text" inputmode="numeric" id="amountInput" onkeyup="formatCurrencyInput(this)" placeholder="0" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl pl-8 pr-4 py-4 text-xl font-bold focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white"></div>
-                            <div class="relative flex gap-2">
-                                <input list="categoryList" id="categoryInput" placeholder="Category" class="flex-grow bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white">
-                                <datalist id="categoryList"></datalist>
-                                <button onclick="openCategoryModal()" class="bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-300 w-12 rounded-xl flex items-center justify-center hover:bg-gray-200 dark:hover:bg-white/20 transition group"><i class="fa-solid fa-list text-sm"></i></button>
-                            </div>
-                            <div><label class="block text-[10px] text-gray-500 mb-1 ml-1 font-semibold uppercase">Budget Source</label><select id="budgetSelect" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white appearance-none cursor-pointer"><option value="general">General (Monthly Limit)</option></select></div>
-                            
-                            <!-- Updated Button Grid -->
-                            <div class="grid grid-cols-3 gap-2 mt-2">
-                                <button onclick="addTransaction('expense')" class="bg-ios-red text-white py-4 rounded-2xl font-semibold hover:bg-red-600 transition active:scale-95 shadow-lg shadow-red-500/30 flex flex-col items-center justify-center gap-1">
-                                    <i class="fa-solid fa-arrow-down"></i> <span class="text-xs">Spent</span>
-                                </button>
-                                <button onclick="addTransaction('transfer')" class="bg-ios-blue text-white py-4 rounded-2xl font-semibold hover:bg-blue-600 transition active:scale-95 shadow-lg shadow-blue-500/30 flex flex-col items-center justify-center gap-1">
-                                    <i class="fa-solid fa-right-left"></i> <span class="text-xs">Transfer</span>
-                                </button>
-                                <button onclick="addTransaction('revenue')" class="bg-ios-green text-white py-4 rounded-2xl font-semibold hover:bg-green-600 transition active:scale-95 shadow-lg shadow-green-500/30 flex flex-col items-center justify-center gap-1">
-                                    <i class="fa-solid fa-arrow-up"></i> <span class="text-xs">Income</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- History moved to Col 3 for better density on Desktop -->
-                    <div class="glass rounded-3xl shadow-sm p-6 animate-float-in hover-lift flex-grow">
-                         <div class="mb-4 space-y-2">
-                            <div class="flex justify-between items-center"><h2 class="text-lg font-bold">History <span class="text-xs font-normal text-gray-500 ml-2" id="historyMonthLabel"></span></h2></div>
-                            <div class="flex gap-2">
-                                <div class="relative flex-grow">
-                                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                                    <input type="text" placeholder="Search..." onkeyup="handleSearch(this.value)" class="w-full bg-gray-100 dark:bg-white/10 border-none rounded-xl pl-8 pr-3 py-2 text-xs font-bold focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition">
-                                </div>
-                                <select onchange="updateSort(this.value)" class="bg-gray-100 dark:bg-white/10 border-none rounded-xl text-xs font-bold px-3 py-2 focus:ring-0 cursor-pointer dark:text-white w-24">
-                                    <option value="newest">Newest</option>
-                                    <option value="oldest">Oldest</option>
-                                    <option value="high">High</option>
-                                </select>
-                            </div>
-                        </div>
-                        <ul id="historyList" class="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar pr-1"></ul>
+                <!-- Danger Zone -->
+                <div class="glass rounded-3xl p-6 shadow-sm border border-red-100 dark:border-red-900/30">
+                    <h3 class="text-lg font-bold mb-4 text-red-500">Danger Zone</h3>
+                    <div class="space-y-3">
+                        <button onclick="handleLogout()" class="w-full py-3 rounded-xl font-bold bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 transition text-gray-700 dark:text-gray-300">Log Out</button>
+                        <button onclick="handleDeleteAccount()" class="w-full py-3 rounded-xl font-bold bg-red-50 dark:bg-red-500/10 text-red-500 hover:bg-red-100 dark:hover:bg-red-500/20 transition">Delete Account</button>
                     </div>
                 </div>
-
+                <div class="h-10"></div>
             </div>
 
-            <!-- Overview -->
-            <div class="glass rounded-3xl shadow-sm p-6 animate-float-in mb-8 hover-lift">
-                <h2 class="text-lg font-bold mb-4">6-Month Overview</h2>
-                <div class="overflow-x-auto custom-scrollbar"><table class="w-full text-left border-collapse"><thead><tr class="text-xs text-gray-400 uppercase tracking-wide border-b border-gray-200 dark:border-gray-700"><th class="pb-3 pl-2">Month</th><th class="pb-3 text-right">Income</th><th class="pb-3 text-right">Spent</th><th class="pb-3 text-right">Savings</th></tr></thead><tbody id="comparisonTableBody" class="text-sm font-medium"></tbody></table></div>
-            </div>
         </main>
+    </div>
+
+    <!-- Cropper Modal -->
+    <div id="cropperModal" class="fixed inset-0 z-[200] hidden flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+        <div class="bg-white dark:bg-[#1c1c1e] rounded-3xl w-full max-w-sm p-6 shadow-2xl relative flex flex-col items-center">
+            <h3 class="text-lg font-bold mb-4 dark:text-white">Adjust Photo</h3>
+            
+            <!-- Viewport -->
+            <div class="relative w-56 h-56 rounded-full overflow-hidden border-4 border-ios-blue shadow-inner bg-black mb-6">
+                <canvas id="cropperCanvas" class="cursor-move"></canvas>
+            </div>
+            
+            <!-- Controls -->
+            <div class="w-full flex items-center gap-4 mb-6">
+                <i class="fa-solid fa-image text-gray-400 text-xs"></i>
+                <input type="range" id="cropperZoom" min="1" max="3" step="0.01" value="1" class="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                <i class="fa-solid fa-image text-gray-400 text-lg"></i>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 w-full">
+                <button onclick="closeCropper()" class="bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 py-3 rounded-xl text-sm font-bold hover:bg-gray-200 dark:hover:bg-white/20 transition">Cancel</button>
+                <button onclick="saveCrop()" class="bg-ios-blue text-white py-3 rounded-xl text-sm font-bold hover:bg-blue-600 transition shadow-lg shadow-blue-500/20">Save</button>
+            </div>
+        </div>
     </div>
 
     <!-- Sub-Limit Modal -->
@@ -487,6 +570,9 @@
         </div>
     </div>
 
+    <!-- Hidden File Input -->
+    <input type="file" id="avatarInput" hidden accept="image/*" onchange="handleAvatarFile(this)">
+
     <script>
         // *** CONFIGURATION ZONE ***
         const FIREBASE_CONFIG = {
@@ -504,7 +590,7 @@
         let budgetChart, bankChart, cashChart, currentSort = 'newest', searchQuery = '', confirmCallback = null;
         let selectedTransAccount = 'bank';
         let statsViewMode = 'monthly'; // 'monthly' or 'all'
-        let appData = { currency: 'VND', limits: {}, transactions: [], subscriptions: [], subLimits: [], categories: ['Food', 'Transport', 'Utilities', 'Entertainment', 'Shopping', 'Health', 'Education', 'Bill', 'Exchange'], customRate: null, notifications: [], pin: null };
+        let appData = { currency: 'VND', limits: {}, transactions: [], subscriptions: [], subLimits: [], categories: ['Food', 'Transport', 'Utilities', 'Entertainment', 'Shopping', 'Health', 'Education', 'Bill', 'Exchange'], customRate: null, notifications: [], pin: null, avatar: null, activityLog: [] };
         const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
         if(!Array.isArray(appData.subLimits)) appData.subLimits = [];
         let editingSubLimitId = null;
@@ -512,10 +598,13 @@
 
         // PIN variables
         let pinInput = "";
-        let pinMode = "login"; // 'login', 'create', 'confirm'
+        let pinMode = "login"; // 'login', 'create', 'confirm', 'change'
         let firstPinEntry = "";
         let tempUserDoc = null; // Stores doc snapshot during PIN entry
         let tempUsername = null; // Stores username during new account creation
+
+        // Cropper variables
+        let cropperState = { img: null, x: 0, y: 0, scale: 1, isDragging: false, startX: 0, startY: 0 };
 
         const currentAppId = typeof __app_id !== 'undefined' ? __app_id : (FIREBASE_CONFIG.appId || 'default-app-id');
 
@@ -544,7 +633,11 @@
             }
 
             const storedUser = localStorage.getItem('finTrack_username');
-            if (storedUser) { document.getElementById('usernameInput').value = storedUser; }
+            
+            // Auto Login Check
+            if (storedUser) {
+                handleAuth(storedUser); 
+            }
             
             // Real-time currency sync
             fetchLiveRate(); // Initial fetch
@@ -561,14 +654,19 @@
 
             initCharts();
             setStatsView('monthly'); // Default init view mode UI
+            initCropperEvents();
         }
 
-        async function handleAuth() {
+        async function handleAuth(autoUser = null) {
             const usernameInput = document.getElementById('usernameInput');
-            const username = usernameInput.value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-            if (username.length < 3) { showToast("Username too short"); return; }
-            document.getElementById('authLoader').classList.remove('hidden');
-            usernameInput.disabled = true;
+            let username = autoUser;
+            
+            if (!username) {
+                username = usernameInput.value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (username.length < 3) { showToast("Username too short"); return; }
+                document.getElementById('authLoader').classList.remove('hidden');
+                usernameInput.disabled = true;
+            }
 
             try {
                 if (!auth.currentUser) await window.fb.signInAnonymously(auth);
@@ -579,42 +677,44 @@
                 // Fetch doc directly first to determine PIN status
                 let docSnap = await window.fb.getDoc(userRef);
                 
-                // RESET PIN UI
-                pinInput = "";
-                updatePinDots();
-                document.getElementById('authScreen').classList.add('hidden');
-                document.getElementById('pinScreen').classList.remove('hidden');
-
                 if (docSnap && docSnap.exists()) {
                     const data = docSnap.data();
-                    tempUserDoc = docSnap; // Store for later access after PIN success
+                    tempUserDoc = docSnap; // Store for later access
                     
                     if (data.pin) {
-                        // User exists & has PIN -> LOGIN MODE
-                        pinMode = 'login';
-                        document.getElementById('pinTitle').innerText = "Enter PIN";
-                        document.getElementById('pinSubtitle').innerText = `Welcome back, ${username}`;
+                        // User has PIN
+                        if (autoUser) {
+                            // AUTO-LOGIN: Bypass PIN if previously logged in
+                            finishLogin(docSnap);
+                        } else {
+                            // MANUAL LOGIN: Ask for PIN
+                            showPinScreen('login', username);
+                        }
                     } else {
-                        // User exists & NO PIN -> CREATE MODE (Legacy User)
-                        pinMode = 'create';
-                        document.getElementById('pinTitle').innerText = "Create PIN";
-                        document.getElementById('pinSubtitle').innerText = "Set a 4-digit code for security";
+                        // LEGACY USER (No PIN): Force create
+                        showPinScreen('create', username, true); // true = forced
                     }
                 } else {
-                    // New User -> CREATE MODE
-                    tempUsername = username;
-                    tempUserDoc = null; 
-                    pinMode = 'create';
-                    document.getElementById('pinTitle').innerText = "Create PIN";
-                    document.getElementById('pinSubtitle').innerText = "Set a 4-digit code for security";
+                    // NEW USER
+                    if (autoUser) {
+                        // Should not happen if localstorage is correct, but safe fallback
+                        localStorage.removeItem('finTrack_username');
+                        location.reload();
+                    } else {
+                        tempUsername = username;
+                        tempUserDoc = null; 
+                        showPinScreen('create', username, true);
+                    }
                 }
 
             } catch (e) { 
                 console.error(e); 
                 showToast("Connection failed."); 
                 // Revert UI if error
-                document.getElementById('authScreen').classList.remove('hidden');
-                document.getElementById('pinScreen').classList.add('hidden');
+                if(!autoUser) {
+                    document.getElementById('authScreen').classList.remove('hidden');
+                    document.getElementById('pinScreen').classList.add('hidden');
+                }
             } 
             finally { 
                 document.getElementById('authLoader').classList.add('hidden'); 
@@ -622,14 +722,152 @@
             }
         }
 
-        function cancelPin() {
-            // Reset everything
+        function showPinScreen(mode, username, forced = false) {
+            pinMode = mode;
             pinInput = "";
-            firstPinEntry = "";
-            tempUserDoc = null;
-            tempUsername = null;
-            document.getElementById('pinScreen').classList.add('hidden');
-            document.getElementById('authScreen').classList.remove('hidden');
+            updatePinDots();
+            
+            const title = document.getElementById('pinTitle');
+            const sub = document.getElementById('pinSubtitle');
+            const cancelBtn = document.getElementById('pinCancelBtn');
+
+            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('appUI').classList.add('hidden'); // Hide app if switching pin
+            document.getElementById('pinScreen').classList.remove('hidden');
+
+            if (mode === 'login') {
+                title.innerText = "Enter PIN";
+                sub.innerText = `Welcome back, ${username}`;
+                cancelBtn.classList.remove('hidden');
+            } else if (mode === 'create') {
+                title.innerText = "Create PIN";
+                sub.innerText = "Set a 4-digit code for security";
+                // If forced (new account/legacy), prevent cancel to force setup
+                if (forced) cancelBtn.classList.add('hidden'); else cancelBtn.classList.remove('hidden');
+            }
+        }
+
+        function cancelPin() {
+            if (currentUserDocId && pinMode === 'create') {
+                // Was changing pin, go back to app
+                document.getElementById('pinScreen').classList.add('hidden');
+                document.getElementById('appUI').classList.remove('hidden');
+                document.getElementById('appUI').classList.add('flex');
+            } else {
+                // Was logging in, go back to auth
+                pinInput = "";
+                firstPinEntry = "";
+                tempUserDoc = null;
+                tempUsername = null;
+                document.getElementById('pinScreen').classList.add('hidden');
+                document.getElementById('authScreen').classList.remove('hidden');
+            }
+        }
+
+        // --- New Settings Navigation ---
+        function toggleSettingsView() {
+            const dashboard = document.getElementById('dashboardView');
+            const settings = document.getElementById('settingsView');
+            
+            if (settings.classList.contains('hidden')) {
+                dashboard.classList.add('hidden');
+                settings.classList.remove('hidden');
+                renderSettings();
+            } else {
+                settings.classList.add('hidden');
+                dashboard.classList.remove('hidden');
+            }
+        }
+
+        function renderSettings() {
+            // Render Profile
+            document.getElementById('settingsUsername').innerText = currentUserDocId;
+            const imgEl = document.getElementById('settingsAvatar');
+            const iconEl = document.getElementById('settingsAvatarIcon');
+            if (appData.avatar) {
+                imgEl.src = appData.avatar;
+                imgEl.classList.remove('hidden');
+                iconEl.classList.add('hidden');
+            } else {
+                imgEl.classList.add('hidden');
+                iconEl.classList.remove('hidden');
+            }
+
+            // Render Notifications Toggle
+            const notifBtn = document.getElementById('btnNotifToggle');
+            const icon = notifBtn.querySelector('i');
+            
+            if ("Notification" in window) {
+                if (Notification.permission === "granted") {
+                    icon.className = "fa-solid fa-toggle-on text-2xl text-ios-blue";
+                    notifBtn.classList.remove('text-gray-400');
+                    notifBtn.classList.add('text-ios-blue');
+                } else {
+                    icon.className = "fa-solid fa-toggle-off text-2xl";
+                    notifBtn.classList.add('text-gray-400');
+                    notifBtn.classList.remove('text-ios-blue');
+                }
+            }
+
+            // Render Activity Log
+            const container = document.getElementById('activityLogContainer');
+            container.innerHTML = '';
+            
+            if (!appData.activityLog || appData.activityLog.length === 0) {
+                container.innerHTML = '<p class="text-center text-xs text-gray-400 py-2">No activity recorded.</p>';
+            } else {
+                // Show last 5
+                appData.activityLog.slice(0, 5).forEach(log => {
+                    const date = new Date(log.date);
+                    const isToday = new Date().toDateString() === date.toDateString();
+                    const dateStr = isToday ? `Today, ${date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}` : date.toLocaleDateString();
+                    
+                    container.innerHTML += `
+                        <div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-100 dark:border-gray-800">
+                            <div class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center shrink-0">
+                                <i class="fa-solid fa-mobile-screen-button text-gray-500 dark:text-gray-400 text-xs"></i>
+                            </div>
+                            <div class="flex-grow">
+                                <p class="text-xs font-bold dark:text-white truncate">${log.device}</p>
+                                <p class="text-[10px] text-gray-400">${dateStr}</p>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+        }
+
+        function logActivity() {
+            if (!currentUserDocId) return;
+            
+            const ua = navigator.userAgent;
+            let device = "Unknown Device";
+            if (ua.includes("iPhone")) device = "iPhone";
+            else if (ua.includes("iPad")) device = "iPad";
+            else if (ua.includes("Android")) device = "Android Device";
+            else if (ua.includes("Windows")) device = "Windows PC";
+            else if (ua.includes("Mac")) device = "Mac";
+            else if (ua.includes("Linux")) device = "Linux PC";
+            
+            const entry = {
+                date: new Date().toISOString(),
+                device: device
+            };
+            
+            if (!appData.activityLog) appData.activityLog = [];
+            appData.activityLog.unshift(entry);
+            // Keep last 20
+            if (appData.activityLog.length > 20) appData.activityLog = appData.activityLog.slice(0, 20);
+            saveData();
+        }
+
+        function handleChangePin() {
+            // Check if user is logged in
+            if (!currentUserDocId) return;
+            
+            pinMode = 'create';
+            tempUserDoc = { id: currentUserDocId, data: () => appData }; // Mock docSnap logic
+            showPinScreen('create', currentUserDocId, false);
         }
 
         function handlePinInput(val) {
@@ -686,15 +924,26 @@
                 if (pinInput === firstPinEntry) {
                     // PINs Match -> Save
                     if (tempUserDoc) {
-                        // Legacy User Update
-                        let userRef;
+                        // Legacy User Update OR PIN Change
                         const username = tempUserDoc.id;
+                        let userRef;
                         if (typeof __app_id !== 'undefined') userRef = window.fb.doc(db, 'artifacts', __app_id, 'public', 'data', 'finance_users', username);
                         else userRef = window.fb.doc(db, 'finance_users', username);
                         
                         await window.fb.setDoc(userRef, { pin: pinInput }, { merge: true });
-                        showToast("PIN Created Successfully!");
-                        await finishLogin(tempUserDoc);
+                        
+                        if (currentUserDocId) {
+                            // Was Changing PIN
+                            showToast("PIN Changed!");
+                            appData.pin = pinInput; // Update local state
+                            document.getElementById('pinScreen').classList.add('hidden');
+                            document.getElementById('appUI').classList.remove('hidden');
+                            document.getElementById('appUI').classList.add('flex');
+                        } else {
+                            // Was Legacy Setup
+                            showToast("PIN Created!");
+                            await finishLogin(tempUserDoc);
+                        }
                     } else {
                         // New User Creation
                         let userRef;
@@ -733,11 +982,180 @@
 
         function finishLoadSequence(username) {
             localStorage.setItem('finTrack_username', username);
-            document.getElementById('menuUsername').innerText = username;
+            
+            // FIX: Element 'menuUsername' was removed in the UI refactor. 
+            // Updating 'settingsUsername' instead.
+            const settingsNameEl = document.getElementById('settingsUsername');
+            if (settingsNameEl) settingsNameEl.innerText = username;
+            
+            // Record Activity
+            logActivity();
+            
             subscribeToData();
             document.getElementById('pinScreen').classList.add('hidden');
+            document.getElementById('authScreen').classList.add('hidden');
             document.getElementById('appUI').classList.remove('hidden');
             document.getElementById('appUI').classList.add('flex');
+        }
+
+        // --- Avatar Cropper Logic ---
+        function handleAvatarFile(input) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            if (file.size > 2 * 1024 * 1024) {
+                showToast("Image too large (Max 2MB)");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    initCropper(img);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+            // Reset input
+            input.value = '';
+        }
+
+        function initCropper(img) {
+            cropperState.img = img;
+            // Center crop initially
+            const canvas = document.getElementById('cropperCanvas');
+            // Viewport is 224x224 (w-56 h-56)
+            canvas.width = 224;
+            canvas.height = 224;
+            
+            // Calc scale to cover
+            const scaleW = canvas.width / img.width;
+            const scaleH = canvas.height / img.height;
+            const startScale = Math.max(scaleW, scaleH);
+            
+            cropperState.scale = startScale;
+            // Center
+            cropperState.x = (canvas.width - img.width * startScale) / 2;
+            cropperState.y = (canvas.height - img.height * startScale) / 2;
+            
+            // Reset slider
+            const slider = document.getElementById('cropperZoom');
+            slider.min = startScale;
+            slider.max = startScale * 3;
+            slider.value = startScale;
+            
+            document.getElementById('cropperModal').classList.remove('hidden');
+            renderCropper();
+        }
+
+        // Render loop variable
+        let rAF = null;
+        function scheduleRender() {
+            if (rAF) return;
+            rAF = requestAnimationFrame(() => {
+                renderCropper();
+                rAF = null;
+            });
+        }
+
+        function initCropperEvents() {
+            const canvas = document.getElementById('cropperCanvas');
+            const slider = document.getElementById('cropperZoom');
+            
+            // Zoom
+            slider.oninput = (e) => {
+                const oldScale = cropperState.scale;
+                const newScale = parseFloat(e.target.value);
+                
+                // Zoom towards center
+                const cx = canvas.width / 2;
+                const cy = canvas.height / 2;
+                
+                cropperState.x = cx - (cx - cropperState.x) * (newScale / oldScale);
+                cropperState.y = cy - (cy - cropperState.y) * (newScale / oldScale);
+                cropperState.scale = newScale;
+                
+                scheduleRender();
+            };
+
+            // Drag
+            const startDrag = (x, y) => {
+                cropperState.isDragging = true;
+                cropperState.startX = x - cropperState.x;
+                cropperState.startY = y - cropperState.y;
+            };
+            
+            const moveDrag = (x, y) => {
+                if(!cropperState.isDragging) return;
+                cropperState.x = x - cropperState.startX;
+                cropperState.y = y - cropperState.startY;
+                scheduleRender();
+            };
+            
+            const endDrag = () => { cropperState.isDragging = false; };
+
+            // Mouse
+            canvas.addEventListener('mousedown', e => startDrag(e.offsetX, e.offsetY));
+            canvas.addEventListener('mousemove', e => moveDrag(e.offsetX, e.offsetY));
+            window.addEventListener('mouseup', endDrag);
+            
+            // Touch
+            canvas.addEventListener('touchstart', e => {
+                const rect = canvas.getBoundingClientRect();
+                startDrag(e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top);
+            });
+            canvas.addEventListener('touchmove', e => {
+                e.preventDefault();
+                const rect = canvas.getBoundingClientRect();
+                moveDrag(e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top);
+            });
+            window.addEventListener('touchend', endDrag);
+        }
+
+        function renderCropper() {
+            const canvas = document.getElementById('cropperCanvas');
+            const ctx = canvas.getContext('2d');
+            const { img, x, y, scale } = cropperState;
+            
+            if(!img) return;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Draw image
+            ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+        }
+
+        function saveCrop() {
+            const canvas = document.getElementById('cropperCanvas');
+            // Export
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            
+            appData.avatar = dataUrl;
+            saveData();
+            updateAvatarUI();
+            renderSettings();
+            
+            closeCropper();
+            showToast("Profile Picture Updated");
+        }
+
+        function closeCropper() {
+            document.getElementById('cropperModal').classList.add('hidden');
+            cropperState.img = null;
+        }
+
+        function updateAvatarUI() {
+            const imgEl = document.getElementById('userAvatarNav');
+            const iconEl = document.getElementById('userIconNav');
+            
+            if (appData.avatar) {
+                imgEl.src = appData.avatar;
+                imgEl.classList.remove('hidden');
+                iconEl.classList.add('hidden');
+            } else {
+                imgEl.classList.add('hidden');
+                iconEl.classList.remove('hidden');
+            }
         }
 
         function subscribeToData() {
@@ -754,6 +1172,7 @@
                     if (!Array.isArray(appData.transactions)) appData.transactions = [];
                     if (!Array.isArray(appData.subscriptions)) appData.subscriptions = [];
                     if (!Array.isArray(appData.notifications)) appData.notifications = [];
+                    if (!Array.isArray(appData.activityLog)) appData.activityLog = [];
                     
                     cleanupNotifications(); // Retention Policy
                     checkSubscriptionNotifications(); // Check for charges
@@ -762,6 +1181,7 @@
                     if(navigator.onLine) fetchLiveRate();
                     else if (appData.customRate) { exchangeRate = appData.customRate; isManualRate = true; updateRateDisplay(); }
                     
+                    updateAvatarUI(); // Sync avatar
                     updateUI();
                 }
             });
@@ -783,14 +1203,32 @@
                 showToast("Browser doesn't support notifications");
                 return;
             }
-            Notification.requestPermission().then(permission => {
-                if (permission === "granted") {
-                    showToast("Notifications Enabled!");
-                    new Notification("MyFinance", { body: "You will now receive subscription alerts.", icon: "https://img.icons8.com/fluency/512/wallet.png" });
-                } else {
-                    showToast("Notifications Denied");
-                }
-            });
+            
+            // Check if already on (granted) - if so, this acts as a 'toggle off' visually
+            // But we can't revoke browser permission programmatically.
+            // So we just tell user. Or we can treat this button as "Sync/Request".
+            
+            if (Notification.permission === "granted") {
+                // User wants to turn OFF? 
+                // We can't turn off browser perms via JS.
+                // We can only stop sending them (logic side) or tell user to block.
+                // For simplicity, we just show a toast "Manage in Browser Settings".
+                showToast("Turn off in Browser Settings");
+            } else if (Notification.permission === "denied") {
+                showToast("Blocked. Enable in Browser Settings.");
+                renderSettings(); // Ensure UI is off
+            } else {
+                // Default -> Request
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") {
+                        showToast("Notifications Enabled!");
+                        new Notification("MyFinance", { body: "You will now receive subscription alerts.", icon: "https://img.icons8.com/fluency/512/wallet.png" });
+                    } else {
+                        showToast("Notifications Denied");
+                    }
+                    renderSettings(); // Update UI
+                });
+            }
         }
 
         function checkSubscriptionNotifications() {
@@ -885,7 +1323,7 @@
             }
             
             // Close User Menu if open
-            document.getElementById('userMenuDropdown').classList.add('opacity-0', 'pointer-events-none', 'scale-95');
+            // document.getElementById('userMenuDropdown').classList.add('opacity-0', 'pointer-events-none', 'scale-95');
         }
 
         function renderNotificationsDropdown() {
@@ -950,36 +1388,33 @@
         function loadTheme() { if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark'); }
         function changeMonth(d) { viewDate.setMonth(viewDate.getMonth() + d); updateUI(); }
         function jumpToToday() { viewDate = new Date(); updateUI(); showToast("Jumped to today"); }
-        function toggleUserMenu(e) { e.stopPropagation(); const m = document.getElementById('userMenuDropdown'); m.classList.toggle('opacity-0'); m.classList.toggle('pointer-events-none'); m.classList.toggle('scale-95'); document.getElementById('notifDropdown').classList.add('opacity-0', 'pointer-events-none', 'scale-95'); }
+        // function toggleUserMenu(e) { e.stopPropagation(); const m = document.getElementById('userMenuDropdown'); m.classList.toggle('opacity-0'); m.classList.toggle('pointer-events-none'); m.classList.toggle('scale-95'); document.getElementById('notifDropdown').classList.add('opacity-0', 'pointer-events-none', 'scale-95'); }
         
         // Window Click Handler for Modals
         window.onclick = (e) => { 
-            // User Menu
-            if(!document.getElementById('userMenuContainer').contains(e.target)) {
-                document.getElementById('userMenuDropdown').classList.add('opacity-0', 'pointer-events-none', 'scale-95');
-            }
             // Notif Menu
             if(!document.getElementById('notifContainer').contains(e.target)) {
-                document.getElementById('notifDropdown').classList.add('opacity-0', 'pointer-events-none', 'scale-95');
+                const drop = document.getElementById('notifDropdown');
+                if(drop) drop.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
             }
             // Sub Limit Modal
             const subModal = document.getElementById('subLimitModal');
-            if (!subModal.classList.contains('hidden') && e.target === subModal) {
+            if (subModal && !subModal.classList.contains('hidden') && e.target === subModal) {
                 closeSubLimitModal();
             }
             // Subscription Modal
             const sModal = document.getElementById('subscriptionModal');
-            if (!sModal.classList.contains('hidden') && e.target === sModal) {
+            if (sModal && !sModal.classList.contains('hidden') && e.target === sModal) {
                 closeSubscriptionModal();
             }
             // Category Modal
             const catModal = document.getElementById('categoryModal');
-            if (!catModal.classList.contains('hidden') && e.target === catModal) {
+            if (catModal && !catModal.classList.contains('hidden') && e.target === catModal) {
                 closeCategoryModal();
             }
             // Confirm Modal
             const confModal = document.getElementById('confirmModal');
-            if (!confModal.classList.contains('hidden') && e.target === confModal) {
+            if (confModal && !confModal.classList.contains('hidden') && e.target === confModal) {
                 closeConfirm(false);
             }
         };
