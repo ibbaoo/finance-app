@@ -173,6 +173,7 @@
                     <span>Continue</span> <i class="fa-solid fa-arrow-right"></i>
                 </button>
             </div>
+            <div class="absolute bottom-4 right-4 text-[10px] text-gray-400 font-mono">v2.5</div>
         </div>
     </div>
 
@@ -452,6 +453,7 @@
                         <button onclick="handleDeleteAccount()" class="w-full py-3 rounded-xl font-bold bg-red-50 dark:bg-red-500/10 text-red-500 hover:bg-red-100 dark:hover:bg-red-500/20 transition">Delete Account</button>
                     </div>
                 </div>
+                <div class="text-center text-[10px] text-gray-300 mt-8 mb-4 font-mono">App Version 2.5</div>
                 <div class="h-10"></div>
             </div>
 
@@ -575,6 +577,7 @@
 
     <script>
         // *** CONFIGURATION ZONE ***
+        // DELETE the config below and PASTE YOUR OWN KEYS here if they differ
         const FIREBASE_CONFIG = {
             apiKey: "AIzaSyBLLUnNGyFxJFEJXOTZ42tAgo41rylZEpA",
             authDomain: "baowalletapp.firebaseapp.com",
@@ -1044,6 +1047,7 @@
             const slider = document.getElementById('cropperZoom');
             slider.min = startScale;
             slider.max = startScale * 3;
+            slider.step = "0.01"; // Smoother steps
             slider.value = startScale;
             
             document.getElementById('cropperModal').classList.remove('hidden');
@@ -1107,7 +1111,7 @@
                 startDrag(e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top);
             });
             canvas.addEventListener('touchmove', e => {
-                e.preventDefault();
+                e.preventDefault(); // Prevent scrolling while dragging
                 const rect = canvas.getBoundingClientRect();
                 moveDrag(e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top);
             });
