@@ -2,10 +2,25 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
     <title>Finance Tracker</title>
     
-    <!-- App Icons & PWA Setup -->
+    <!-- PWA Manifest (Data URI for standalone capability) -->
+    <link rel="manifest" href='data:application/manifest+json,{
+      "name": "MyFinance",
+      "short_name": "FinTrack",
+      "start_url": ".",
+      "display": "standalone",
+      "background_color": "#F2F2F7",
+      "theme_color": "#007AFF",
+      "orientation": "portrait-primary",
+      "icons": [
+        {"src": "https://img.icons8.com/fluency/192/wallet.png", "sizes": "192x192", "type": "image/png"},
+        {"src": "https://img.icons8.com/fluency/512/wallet.png", "sizes": "512x512", "type": "image/png"}
+      ]
+    }'>
+
+    <!-- App Icons -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👛</text></svg>">
     <link rel="apple-touch-icon" href="https://img.icons8.com/fluency/512/wallet.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -30,14 +45,14 @@
     <style>
         body { -webkit-tap-highlight-color: transparent; }
         
-        /* Performance Optimization for Glassmorphism */
+        /* Performance Optimization */
         .glass {
             background: rgba(255, 255, 255, 0.85);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.4);
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            transform: translateZ(0); /* Hardware Acceleration */
+            transform: translateZ(0);
         }
         .dark .glass {
             background: rgba(30, 30, 32, 0.85);
@@ -67,10 +82,12 @@
         @keyframes floatIn { 0% { opacity: 0; transform: translateY(15px); } 100% { opacity: 1; transform: translateY(0); } }
         @keyframes fadeIn { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }
         @keyframes slideUp { 0% { transform: translateY(100%); } 100% { transform: translateY(0); } }
+        @keyframes pulse-slow { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         
         .animate-float-in { animation: floatIn 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
         .animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
         .animate-slide-up { animation: slideUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+        .animate-pulse-slow { animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
         
         /* PIN Input Styling */
         .pin-input { letter-spacing: 0.5em; text-align: center; font-family: monospace; }
@@ -183,8 +200,14 @@
                 <p class="text-gray-500 dark:text-gray-400 text-sm">Your Personal Cloud Wallet</p>
             </div>
             
-            <!-- Step 1: Login (Combined) -->
-            <div id="authStep1" class="glass rounded-3xl p-8 shadow-lg border border-white/50 dark:border-white/10 hover-lift gpu-accel">
+            <!-- Splash Loader (Visible by default for auto-login check) -->
+            <div id="splashLoader" class="flex flex-col items-center justify-center py-8 animate-fade-in">
+                <div class="w-12 h-12 border-4 border-gray-200 dark:border-gray-800 border-t-ios-blue rounded-full animate-spin mb-4"></div>
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-widest animate-pulse-slow">Securely Syncing...</p>
+            </div>
+
+            <!-- Step 1: Login (Combined) - HIDDEN INITIALLY -->
+            <div id="authStep1" class="hidden glass rounded-3xl p-8 shadow-lg border border-white/50 dark:border-white/10 hover-lift gpu-accel">
                 <div class="space-y-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Username</label>
@@ -239,7 +262,7 @@
     <!-- MAIN APP UI -->
     <div id="appUI" class="hidden flex-col h-[100dvh]">
         <!-- Navbar -->
-        <nav class="fixed top-0 w-full z-50 glass border-b border-gray-200 dark:border-gray-800 transition-colors duration-300 pt-safe pt-6 gpu-accel">
+        <nav class="fixed top-0 w-full z-[90] glass border-b border-gray-200 dark:border-gray-800 transition-colors duration-300 pt-safe pt-6 gpu-accel">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
                 <div class="flex items-center justify-between h-20">
                     
@@ -271,13 +294,18 @@
                                 <i class="fa-regular fa-bell"></i>
                                 <span id="notifBadge" class="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 border-2 border-white dark:border-black rounded-full hidden"></span>
                             </button>
+                            
                             <!-- Dropdown / Bottom Sheet -->
-                            <div id="notifBackdrop" class="fixed inset-0 backdrop-mobile z-40 hidden md:hidden" onclick="toggleNotifications(event)"></div>
-                            <div id="notifDropdown" class="fixed inset-x-0 bottom-0 top-auto m-0 rounded-t-3xl rounded-b-none p-0 bg-white dark:bg-[#1c1c1e] shadow-2xl border-t border-gray-100 dark:border-gray-700 translate-y-full transition-transform duration-300 ease-out z-50 md:absolute md:left-auto md:right-0 md:top-full md:bottom-auto md:mt-2 md:w-80 md:rounded-xl md:border md:translate-y-0 md:opacity-0 md:pointer-events-none md:scale-95 md:transform md:origin-top-right overflow-hidden flex flex-col max-h-[80vh] md:max-h-96">
+                            <!-- Backdrop for Mobile -->
+                            <div id="notifBackdrop" class="fixed inset-0 backdrop-mobile z-[100] hidden md:hidden" onclick="toggleNotifications(event)"></div>
+                            
+                            <!-- Modal Content -->
+                            <div id="notifDropdown" class="fixed inset-x-0 bottom-0 top-auto m-0 rounded-t-3xl rounded-b-none p-0 bg-white dark:bg-[#1c1c1e] shadow-2xl border-t border-gray-100 dark:border-gray-700 translate-y-full transition-transform duration-300 ease-out z-[110] md:absolute md:left-auto md:right-0 md:top-full md:bottom-auto md:mt-2 md:w-80 md:rounded-xl md:border md:translate-y-0 md:opacity-0 md:pointer-events-none md:scale-95 md:transform md:origin-top-right overflow-hidden flex flex-col max-h-[80vh] md:max-h-96">
                                 <!-- Mobile Handle -->
-                                <div class="w-full flex justify-center pt-3 pb-1 md:hidden">
+                                <div class="w-full flex justify-center pt-3 pb-1 md:hidden" onclick="toggleNotifications(event)">
                                     <div class="w-12 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
                                 </div>
+                                
                                 <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-white/5 shrink-0">
                                     <h3 class="text-sm font-bold dark:text-white">Notifications</h3>
                                     <button onclick="clearAllNotifications()" class="text-[10px] text-ios-blue font-bold hover:underline">Clear All</button>
@@ -527,7 +555,7 @@
                     </button>
                 </div>
                 
-                <p class="text-center text-[10px] text-gray-400 mt-4">App Version 2.3.0</p>
+                <p class="text-center text-[10px] text-gray-400 mt-4">App Version 2.3.1</p>
             </div>
         </div>
     </div>
@@ -640,6 +668,7 @@
         let editingSubLimitId = null;
         let editingSubId = null;
         let pendingUsername = '';
+        let isInitialLoad = true; // For preventing spam on startup
 
         const currentAppId = typeof __app_id !== 'undefined' ? __app_id : (FIREBASE_CONFIG.appId || 'default-app-id');
 
@@ -670,14 +699,16 @@
 
         async function init() {
             loadTheme();
-            registerServiceWorker(); // PWA Capability
+            registerServiceWorker(); 
             
-            // Clear inputs
-            document.getElementById('usernameInput').value = '';
-            document.getElementById('loginPinInput').value = '';
-
-            // Auto-login Check
             const storedUser = localStorage.getItem('finTrack_username');
+            let isAutoLoggedIn = false;
+
+            // Clear inputs just in case
+            const uIn = document.getElementById('usernameInput');
+            const pIn = document.getElementById('loginPinInput');
+            if(uIn) uIn.value = '';
+            if(pIn) pIn.value = '';
 
             if (!window.fb) await new Promise(r => window.addEventListener('firebaseLoaded', r));
             let configToUse = FIREBASE_CONFIG;
@@ -692,20 +723,35 @@
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await window.fb.signInWithCustomToken(auth, __initial_auth_token);
                 else await window.fb.signInAnonymously(auth);
 
-                // Perform Auto-login if valid session found
+                // --- AUTO LOGIN LOGIC ---
                 if (storedUser) {
-                    await completeLogin(storedUser, false);
+                    const userRef = getUserRef(storedUser);
+                    const docSnap = await window.fb.getDoc(userRef);
+                    
+                    if (docSnap.exists()) {
+                        await completeLogin(storedUser, false);
+                        isAutoLoggedIn = true;
+                    } else {
+                        // User exists in local storage but not in cloud (deleted account)
+                        localStorage.removeItem('finTrack_username');
+                    }
                 }
 
             } catch (e) {
-                console.error("Firebase Init Error:", e);
-                if(e.message === "Missing Config") showToast("⚠️ Missing Firebase Keys in Code");
+                console.error("Init Error:", e);
+                // Don't show toast for auto-login fail, just show login screen
             }
             
-            // Real-time currency sync
+            // If auto-login failed or wasn't attempted, show the login form
+            if (!isAutoLoggedIn) {
+                document.getElementById('splashLoader').classList.add('hidden');
+                document.getElementById('authStep1').classList.remove('hidden');
+            }
+
+            // Start background tasks
             fetchLiveRate();
             setInterval(fetchLiveRate, 60000);
-            window.addEventListener('online', () => { showToast("Back Online: Syncing Rates..."); fetchLiveRate(); });
+            window.addEventListener('online', () => { showToast("Back Online"); fetchLiveRate(); });
             window.addEventListener('offline', () => showToast("Offline Mode Enabled"));
 
             initCharts();
@@ -1062,14 +1108,16 @@
                     const newData = doc.data();
                     
                     // --- SYNCED NOTIFICATION DETECTION ---
-                    if (newData.notifications && newData.notifications.length > 0) {
+                    if (!isInitialLoad && newData.notifications && newData.notifications.length > 0) {
                         const existingIds = new Set(appData.notifications.map(n => n.id));
                         newData.notifications.forEach(n => {
                             if (!existingIds.has(n.id)) {
-                                // This is a new notification added by ANOTHER device
-                                // Fire local browser notification if permitted
-                                if (Notification.permission === "granted") {
-                                    new Notification("MyFinance Alert", { body: n.message, icon: "https://img.icons8.com/fluency/512/wallet.png" });
+                                // Only trigger if created within the last 60 seconds
+                                const notifTime = new Date(n.date).getTime();
+                                if (Date.now() - notifTime < 60000) {
+                                    if (Notification.permission === "granted") {
+                                        new Notification("MyFinance Alert", { body: n.message, icon: "https://img.icons8.com/fluency/512/wallet.png" });
+                                    }
                                 }
                             }
                         });
@@ -1099,6 +1147,7 @@
                     else if (appData.customRate) { exchangeRate = appData.customRate; isManualRate = true; updateRateDisplay(); }
                     
                     updateUI();
+                    isInitialLoad = false;
                 }
             });
         }
@@ -1140,11 +1189,13 @@
                         const notifId = Date.now() + Math.random();
                         const msg = `Subscription charged: ${s.name} (-${formatMoney(s.amount)})`;
                         
-                        // Add to cloud first - onSnapshot will trigger the visual alert for other devices
+                        // Add to cloud first
                         appData.notifications.unshift({ id: notifId, title: "Subscription Charge", message: msg, date: new Date().toISOString(), read: false, type: 'subscription' });
                         
-                        // Local alert for THIS device immediately
-                        if (Notification.permission === "granted") new Notification("MyFinance: Subscription Paid", { body: msg, icon: "https://img.icons8.com/fluency/512/wallet.png" });
+                        // Local alert if created just now
+                        if (Notification.permission === "granted" && !isInitialLoad) {
+                             new Notification("MyFinance: Subscription Paid", { body: msg, icon: "https://img.icons8.com/fluency/512/wallet.png" });
+                        }
                         
                         s.lastNotifiedCycle = cycleId;
                         changed = true;
