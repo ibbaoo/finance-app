@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
     <title>ProTracker</title>
     
-    <!-- PWA Manifest (Data URI for standalone capability) -->
+    <!-- PWA Manifest -->
     <link rel="manifest" href='data:application/manifest+json,{
       "name": "ProTracker",
       "short_name": "ProTracker",
@@ -200,14 +200,14 @@
                 <p class="text-gray-500 dark:text-gray-400 text-sm">Your Personal Cloud Wallet</p>
             </div>
             
-            <!-- Splash Loader (Visible by default for auto-login check) -->
-            <div id="splashLoader" class="flex flex-col items-center justify-center py-8 animate-fade-in">
+            <!-- Splash Loader (Hidden by default, used only if needed) -->
+            <div id="splashLoader" class="hidden flex flex-col items-center justify-center py-8 animate-fade-in">
                 <div class="w-12 h-12 border-4 border-gray-200 dark:border-gray-800 border-t-ios-blue rounded-full animate-spin mb-4"></div>
                 <p class="text-xs font-bold text-gray-400 uppercase tracking-widest animate-pulse-slow">Securely Syncing...</p>
             </div>
 
-            <!-- Step 1: Login (Combined) - HIDDEN INITIALLY -->
-            <div id="authStep1" class="hidden glass rounded-3xl p-8 shadow-lg border border-white/50 dark:border-white/10 hover-lift gpu-accel">
+            <!-- Step 1: Login (Combined) -->
+            <div id="authStep1" class="glass rounded-3xl p-8 shadow-lg border border-white/50 dark:border-white/10 hover-lift gpu-accel">
                 <div class="space-y-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Username</label>
@@ -576,7 +576,7 @@
                     </button>
                 </div>
                 
-                <p class="text-center text-[10px] text-gray-400 mt-4">App Version 2.3.3</p>
+                <p class="text-center text-[10px] text-gray-400 mt-4">App Version 2.3.4</p>
             </div>
         </div>
     </div>
@@ -739,9 +739,21 @@
             if(uIn) uIn.value = '';
             if(pIn) pIn.value = '';
 
-            // --- IMMEDIATE UI CHECK ---
-            // If no user stored, hide splash immediately to make it feel fast
-            if (!storedUser) {
+            // --- IMMEDIATE UI CHECK (OPTIMISTIC LOAD) ---
+            if (storedUser) {
+                // Assume valid user and show UI immediately to make it "super quick"
+                document.getElementById('authScreen').classList.add('hidden');
+                document.getElementById('appUI').classList.remove('hidden');
+                document.getElementById('appUI').classList.add('flex');
+                document.getElementById('settingsUsername').innerText = storedUser;
+                currentUserDocId = storedUser; // Temporarily set for UI helpers
+                
+                // Show a small, non-intrusive syncing indicator via toast
+                showToast("Syncing data...");
+                
+                // We'll validate this in the background shortly
+            } else {
+                // No user, show login as before
                 document.getElementById('splashLoader').classList.add('hidden');
                 document.getElementById('authStep1').classList.remove('hidden');
             }
@@ -759,28 +771,32 @@
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await window.fb.signInWithCustomToken(auth, __initial_auth_token);
                 else await window.fb.signInAnonymously(auth);
 
-                // --- AUTO LOGIN LOGIC ---
+                // --- AUTO LOGIN LOGIC (BACKGROUND VERIFICATION) ---
                 if (storedUser) {
                     const userRef = getUserRef(storedUser);
                     const docSnap = await window.fb.getDoc(userRef);
                     
                     if (docSnap.exists()) {
-                        await completeLogin(storedUser, false);
+                        // User exists, proceed with "completeLogin" logic but skip UI transition since we did it optimistically
+                        await completeLogin(storedUser, false, true); 
                         isAutoLoggedIn = true;
                     } else {
-                        // User exists in local storage but not in cloud (deleted account)
+                        // User exists in local storage but not in cloud (deleted account?)
+                        // Revert the optimistic load
                         localStorage.removeItem('finTrack_username');
-                        // Hide splash now if it was showing
-                        document.getElementById('splashLoader').classList.add('hidden');
-                        document.getElementById('authStep1').classList.remove('hidden');
+                        handleLogout(); // This will reload/reset UI
                     }
                 }
 
             } catch (e) {
                 console.error("Init Error:", e);
-                // Fallback to login screen
-                document.getElementById('splashLoader').classList.add('hidden');
-                document.getElementById('authStep1').classList.remove('hidden');
+                // If detailed error handling needed, do it here. 
+                // For now, if init fails and we optimistically showed UI, it might be stale.
+                // But usually safe to leave until user tries an action that fails.
+                if (!isAutoLoggedIn && !storedUser) {
+                     document.getElementById('splashLoader').classList.add('hidden');
+                     document.getElementById('authStep1').classList.remove('hidden');
+                }
             }
             
             // Start background tasks
@@ -934,7 +950,7 @@
             }
         }
 
-        async function completeLogin(username, isLegacyNoPin) {
+        async function completeLogin(username, isLegacyNoPin, skipUI = false) {
             currentUserDocId = username;
             
             // Auto-login persistence
@@ -961,10 +977,12 @@
 
             subscribeToData();
             
-            // UI Transition
-            document.getElementById('authScreen').classList.add('hidden');
-            document.getElementById('appUI').classList.remove('hidden');
-            document.getElementById('appUI').classList.add('flex');
+            if (!skipUI) {
+                // UI Transition
+                document.getElementById('authScreen').classList.add('hidden');
+                document.getElementById('appUI').classList.remove('hidden');
+                document.getElementById('appUI').classList.add('flex');
+            }
             
             document.getElementById('settingsUsername').innerText = username;
             
