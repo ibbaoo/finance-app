@@ -54,8 +54,13 @@
         /* Animations */
         @keyframes floatIn { 0% { opacity: 0; transform: translateY(15px); } 100% { opacity: 1; transform: translateY(0); } }
         @keyframes fadeIn { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
         .animate-float-in { animation: floatIn 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
         .animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
+        .animate-shake { animation: shake 0.2s ease-in-out 2; }
+        
+        /* PIN Dots */
+        .pin-dot.active { background-color: #007AFF !important; transform: scale(1.1); }
         
         /* Date Input Styling */
         input[type="date"]::-webkit-calendar-picker-indicator {
@@ -113,6 +118,37 @@
                 <button id="confirmYesBtn" class="bg-ios-red text-white py-3 rounded-xl text-sm font-bold hover:bg-red-600 transition shadow-lg shadow-red-500/20">Delete</button>
             </div>
         </div>
+    </div>
+
+    <!-- PIN SCREEN -->
+    <div id="pinScreen" class="fixed inset-0 z-[150] hidden flex flex-col items-center justify-center bg-ios-light dark:bg-black p-6 animate-fade-in">
+        <h2 id="pinTitle" class="text-xl font-bold mb-2 dark:text-white">Enter PIN</h2>
+        <p id="pinSubtitle" class="text-sm text-gray-500 mb-8">Secure your wallet</p>
+        
+        <div class="flex gap-4 mb-12" id="pinDotsContainer">
+            <div class="w-4 h-4 rounded-full bg-gray-300 dark:bg-gray-700 pin-dot transition-all duration-200"></div>
+            <div class="w-4 h-4 rounded-full bg-gray-300 dark:bg-gray-700 pin-dot transition-all duration-200"></div>
+            <div class="w-4 h-4 rounded-full bg-gray-300 dark:bg-gray-700 pin-dot transition-all duration-200"></div>
+            <div class="w-4 h-4 rounded-full bg-gray-300 dark:bg-gray-700 pin-dot transition-all duration-200"></div>
+        </div>
+        
+        <div class="grid grid-cols-3 gap-x-8 gap-y-6 w-full max-w-[280px]">
+            <!-- 1-9 -->
+            <button onclick="handlePinInput(1)" class="h-16 w-16 rounded-full bg-white dark:bg-white/10 shadow-sm text-2xl font-medium flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/20 transition dark:text-white active:scale-95">1</button>
+            <button onclick="handlePinInput(2)" class="h-16 w-16 rounded-full bg-white dark:bg-white/10 shadow-sm text-2xl font-medium flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/20 transition dark:text-white active:scale-95">2</button>
+            <button onclick="handlePinInput(3)" class="h-16 w-16 rounded-full bg-white dark:bg-white/10 shadow-sm text-2xl font-medium flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/20 transition dark:text-white active:scale-95">3</button>
+            <button onclick="handlePinInput(4)" class="h-16 w-16 rounded-full bg-white dark:bg-white/10 shadow-sm text-2xl font-medium flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/20 transition dark:text-white active:scale-95">4</button>
+            <button onclick="handlePinInput(5)" class="h-16 w-16 rounded-full bg-white dark:bg-white/10 shadow-sm text-2xl font-medium flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/20 transition dark:text-white active:scale-95">5</button>
+            <button onclick="handlePinInput(6)" class="h-16 w-16 rounded-full bg-white dark:bg-white/10 shadow-sm text-2xl font-medium flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/20 transition dark:text-white active:scale-95">6</button>
+            <button onclick="handlePinInput(7)" class="h-16 w-16 rounded-full bg-white dark:bg-white/10 shadow-sm text-2xl font-medium flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/20 transition dark:text-white active:scale-95">7</button>
+            <button onclick="handlePinInput(8)" class="h-16 w-16 rounded-full bg-white dark:bg-white/10 shadow-sm text-2xl font-medium flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/20 transition dark:text-white active:scale-95">8</button>
+            <button onclick="handlePinInput(9)" class="h-16 w-16 rounded-full bg-white dark:bg-white/10 shadow-sm text-2xl font-medium flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/20 transition dark:text-white active:scale-95">9</button>
+            <!-- Bottom Row -->
+            <div class="h-16 w-16 flex items-center justify-center"></div>
+            <button onclick="handlePinInput(0)" class="h-16 w-16 rounded-full bg-white dark:bg-white/10 shadow-sm text-2xl font-medium flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/20 transition dark:text-white active:scale-95">0</button>
+            <button onclick="handlePinInput('back')" class="h-16 w-16 rounded-full text-xl flex items-center justify-center hover:bg-gray-200 dark:hover:bg-white/10 transition text-gray-500 dark:text-white active:scale-95"><i class="fa-solid fa-delete-left"></i></button>
+        </div>
+        <button onclick="cancelPin()" class="mt-8 text-ios-blue text-sm font-semibold">Cancel</button>
     </div>
 
     <!-- AUTH SCREEN -->
@@ -468,11 +504,18 @@
         let budgetChart, bankChart, cashChart, currentSort = 'newest', searchQuery = '', confirmCallback = null;
         let selectedTransAccount = 'bank';
         let statsViewMode = 'monthly'; // 'monthly' or 'all'
-        let appData = { currency: 'VND', limits: {}, transactions: [], subscriptions: [], subLimits: [], categories: ['Food', 'Transport', 'Utilities', 'Entertainment', 'Shopping', 'Health', 'Education', 'Bill', 'Exchange'], customRate: null, notifications: [] };
+        let appData = { currency: 'VND', limits: {}, transactions: [], subscriptions: [], subLimits: [], categories: ['Food', 'Transport', 'Utilities', 'Entertainment', 'Shopping', 'Health', 'Education', 'Bill', 'Exchange'], customRate: null, notifications: [], pin: null };
         const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
         if(!Array.isArray(appData.subLimits)) appData.subLimits = [];
         let editingSubLimitId = null;
         let editingSubId = null;
+
+        // PIN variables
+        let pinInput = "";
+        let pinMode = "login"; // 'login', 'create', 'confirm'
+        let firstPinEntry = "";
+        let tempUserDoc = null; // Stores doc snapshot during PIN entry
+        let tempUsername = null; // Stores username during new account creation
 
         const currentAppId = typeof __app_id !== 'undefined' ? __app_id : (FIREBASE_CONFIG.appId || 'default-app-id');
 
@@ -501,7 +544,7 @@
             }
 
             const storedUser = localStorage.getItem('finTrack_username');
-            if (storedUser) { document.getElementById('usernameInput').value = storedUser; handleAuth(); }
+            if (storedUser) { document.getElementById('usernameInput').value = storedUser; }
             
             // Real-time currency sync
             fetchLiveRate(); // Initial fetch
@@ -532,27 +575,167 @@
                 let userRef;
                 if (typeof __app_id !== 'undefined') userRef = window.fb.doc(db, 'artifacts', __app_id, 'public', 'data', 'finance_users', username);
                 else userRef = window.fb.doc(db, 'finance_users', username);
-                await processUserDoc(userRef, username);
-            } catch (e) { console.error(e); showToast("Login failed. Check keys/console."); } 
-            finally { document.getElementById('authLoader').classList.add('hidden'); usernameInput.disabled = false; }
+                
+                // Fetch doc directly first to determine PIN status
+                let docSnap = await window.fb.getDoc(userRef);
+                
+                // RESET PIN UI
+                pinInput = "";
+                updatePinDots();
+                document.getElementById('authScreen').classList.add('hidden');
+                document.getElementById('pinScreen').classList.remove('hidden');
+
+                if (docSnap && docSnap.exists()) {
+                    const data = docSnap.data();
+                    tempUserDoc = docSnap; // Store for later access after PIN success
+                    
+                    if (data.pin) {
+                        // User exists & has PIN -> LOGIN MODE
+                        pinMode = 'login';
+                        document.getElementById('pinTitle').innerText = "Enter PIN";
+                        document.getElementById('pinSubtitle').innerText = `Welcome back, ${username}`;
+                    } else {
+                        // User exists & NO PIN -> CREATE MODE (Legacy User)
+                        pinMode = 'create';
+                        document.getElementById('pinTitle').innerText = "Create PIN";
+                        document.getElementById('pinSubtitle').innerText = "Set a 4-digit code for security";
+                    }
+                } else {
+                    // New User -> CREATE MODE
+                    tempUsername = username;
+                    tempUserDoc = null; 
+                    pinMode = 'create';
+                    document.getElementById('pinTitle').innerText = "Create PIN";
+                    document.getElementById('pinSubtitle').innerText = "Set a 4-digit code for security";
+                }
+
+            } catch (e) { 
+                console.error(e); 
+                showToast("Connection failed."); 
+                // Revert UI if error
+                document.getElementById('authScreen').classList.remove('hidden');
+                document.getElementById('pinScreen').classList.add('hidden');
+            } 
+            finally { 
+                document.getElementById('authLoader').classList.add('hidden'); 
+                usernameInput.disabled = false; 
+            }
         }
 
-        async function processUserDoc(userRef, username) {
-            let docSnap;
-            try { docSnap = await window.fb.getDoc(userRef); } catch(e) {}
+        function cancelPin() {
+            // Reset everything
+            pinInput = "";
+            firstPinEntry = "";
+            tempUserDoc = null;
+            tempUsername = null;
+            document.getElementById('pinScreen').classList.add('hidden');
+            document.getElementById('authScreen').classList.remove('hidden');
+        }
 
-            if (docSnap && docSnap.exists()) {
-                currentUserDocId = username;
-                showToast(`Welcome back, ${username}!`);
-            } else {
-                await window.fb.setDoc(userRef, appData, { merge: true });
-                currentUserDocId = username;
-                showToast(`Created account: ${username}`);
+        function handlePinInput(val) {
+            if (val === 'back') {
+                pinInput = pinInput.slice(0, -1);
+            } else if (pinInput.length < 4) {
+                pinInput += val;
             }
+            
+            updatePinDots();
+
+            if (pinInput.length === 4) {
+                setTimeout(processPin, 100);
+            }
+        }
+
+        function updatePinDots() {
+            const dots = document.querySelectorAll('.pin-dot');
+            dots.forEach((dot, idx) => {
+                if (idx < pinInput.length) {
+                    dot.classList.add('active');
+                } else {
+                    dot.classList.remove('active');
+                }
+            });
+        }
+
+        async function processPin() {
+            const pinDotsContainer = document.getElementById('pinDotsContainer');
+
+            if (pinMode === 'login') {
+                if (tempUserDoc.data().pin === pinInput) {
+                    // Success Login
+                    await finishLogin(tempUserDoc);
+                } else {
+                    // Wrong PIN
+                    pinDotsContainer.classList.add('animate-shake');
+                    showToast("Incorrect PIN");
+                    setTimeout(() => {
+                        pinDotsContainer.classList.remove('animate-shake');
+                        pinInput = "";
+                        updatePinDots();
+                    }, 500);
+                }
+            } else if (pinMode === 'create') {
+                // First entry for creation
+                firstPinEntry = pinInput;
+                pinMode = 'confirm';
+                pinInput = "";
+                updatePinDots();
+                document.getElementById('pinTitle').innerText = "Confirm PIN";
+                document.getElementById('pinSubtitle').innerText = "Re-enter to confirm";
+            } else if (pinMode === 'confirm') {
+                if (pinInput === firstPinEntry) {
+                    // PINs Match -> Save
+                    if (tempUserDoc) {
+                        // Legacy User Update
+                        let userRef;
+                        const username = tempUserDoc.id;
+                        if (typeof __app_id !== 'undefined') userRef = window.fb.doc(db, 'artifacts', __app_id, 'public', 'data', 'finance_users', username);
+                        else userRef = window.fb.doc(db, 'finance_users', username);
+                        
+                        await window.fb.setDoc(userRef, { pin: pinInput }, { merge: true });
+                        showToast("PIN Created Successfully!");
+                        await finishLogin(tempUserDoc);
+                    } else {
+                        // New User Creation
+                        let userRef;
+                        if (typeof __app_id !== 'undefined') userRef = window.fb.doc(db, 'artifacts', __app_id, 'public', 'data', 'finance_users', tempUsername);
+                        else userRef = window.fb.doc(db, 'finance_users', tempUsername);
+                        
+                        const newUserData = { ...appData, pin: pinInput };
+                        await window.fb.setDoc(userRef, newUserData, { merge: true });
+                        showToast(`Account Created for ${tempUsername}`);
+                        currentUserDocId = tempUsername;
+                        finishLoadSequence(tempUsername);
+                    }
+                } else {
+                    // Mismatch
+                    pinDotsContainer.classList.add('animate-shake');
+                    showToast("PINs do not match. Try again.");
+                    setTimeout(() => {
+                        pinDotsContainer.classList.remove('animate-shake');
+                        // Reset to Create Mode
+                        pinMode = 'create';
+                        pinInput = "";
+                        firstPinEntry = "";
+                        updatePinDots();
+                        document.getElementById('pinTitle').innerText = "Create PIN";
+                        document.getElementById('pinSubtitle').innerText = "Set a 4-digit code for security";
+                    }, 500);
+                }
+            }
+        }
+
+        async function finishLogin(docSnap) {
+             const username = docSnap.id;
+             currentUserDocId = username;
+             finishLoadSequence(username);
+        }
+
+        function finishLoadSequence(username) {
             localStorage.setItem('finTrack_username', username);
             document.getElementById('menuUsername').innerText = username;
             subscribeToData();
-            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('pinScreen').classList.add('hidden');
             document.getElementById('appUI').classList.remove('hidden');
             document.getElementById('appUI').classList.add('flex');
         }
@@ -1124,8 +1307,10 @@
         async function fetchLiveRate() { 
             if(!navigator.onLine) {
                 const rateEl = document.getElementById('rateDisplay');
-                rateEl.classList.add('text-amber-500');
-                rateEl.classList.remove('text-ios-blue');
+                if(rateEl) {
+                    rateEl.classList.add('text-amber-500');
+                    rateEl.classList.remove('text-ios-blue');
+                }
                 // Handle mobile display too
                 const mob = document.getElementById('rateDisplayMobile');
                 if(mob) {
