@@ -20,6 +20,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Cropper.js for Image Editing -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
     <style>
         body { -webkit-tap-highlight-color: transparent; }
@@ -54,23 +58,20 @@
         /* Animations */
         @keyframes floatIn { 0% { opacity: 0; transform: translateY(15px); } 100% { opacity: 1; transform: translateY(0); } }
         @keyframes fadeIn { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }
-        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
         .animate-float-in { animation: floatIn 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
         .animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
-        .animate-shake { animation: shake 0.2s ease-in-out 2; }
         
-        /* PIN Dots */
-        .pin-dot.active { background-color: #007AFF !important; transform: scale(1.1); }
-        .avatar-preview { object-fit: cover; }
+        /* PIN Input Styling */
+        .pin-input { letter-spacing: 0.5em; text-align: center; font-family: monospace; }
+
+        /* Cropper Customization */
+        .cropper-view-box, .cropper-face { border-radius: 50%; } /* Circle crop visual */
+        .cropper-modal { opacity: 0.8; }
         
-        /* Date Input Styling */
-        input[type="date"]::-webkit-calendar-picker-indicator {
-            filter: invert(0.5);
-            cursor: pointer;
-        }
-        .dark input[type="date"]::-webkit-calendar-picker-indicator {
-            filter: invert(1);
-        }
+        /* Zoom Slider Customization */
+        input[type=range] { -webkit-appearance: none; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%; background: #ffffff; cursor: pointer; margin-top: -8px; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: rgba(255,255,255,0.2); border-radius: 2px; }
 
         /* Hover lift effect for desktop */
         @media (hover: hover) {
@@ -96,8 +97,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        window.fb = { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut, getFirestore, collection, doc, setDoc, getDoc, onSnapshot, deleteDoc };
+        import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, deleteDoc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        window.fb = { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut, getFirestore, collection, doc, setDoc, getDoc, onSnapshot, deleteDoc, updateDoc, arrayUnion };
         window.dispatchEvent(new Event('firebaseLoaded'));
     </script>
 
@@ -121,40 +122,47 @@
         </div>
     </div>
 
-    <!-- PIN SCREEN -->
-    <div id="pinScreen" class="fixed inset-0 z-[150] hidden flex flex-col items-center justify-center bg-ios-light dark:bg-black p-6 animate-fade-in">
-        <h2 id="pinTitle" class="text-xl font-bold mb-2 dark:text-white">Enter PIN</h2>
-        <p id="pinSubtitle" class="text-sm text-gray-500 mb-8">Secure your wallet</p>
-        
-        <div class="flex gap-4 mb-12" id="pinDotsContainer">
-            <div class="w-4 h-4 rounded-full bg-gray-300 dark:bg-gray-700 pin-dot transition-all duration-200"></div>
-            <div class="w-4 h-4 rounded-full bg-gray-300 dark:bg-gray-700 pin-dot transition-all duration-200"></div>
-            <div class="w-4 h-4 rounded-full bg-gray-300 dark:bg-gray-700 pin-dot transition-all duration-200"></div>
-            <div class="w-4 h-4 rounded-full bg-gray-300 dark:bg-gray-700 pin-dot transition-all duration-200"></div>
+    <!-- CROP MODAL -->
+    <div id="cropModal" class="fixed inset-0 z-[250] hidden flex items-center justify-center bg-black/95 p-4 transition-all duration-300">
+        <div class="w-full max-w-lg flex flex-col h-[90vh] bg-[#1c1c1e] rounded-3xl overflow-hidden relative shadow-2xl border border-white/10">
+            <div class="absolute top-4 right-4 z-50">
+                <button onclick="closeCropModal()" class="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white hover:bg-black/60 transition backdrop-blur-md"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <!-- Editor Area -->
+            <div class="flex-grow relative bg-black flex items-center justify-center overflow-hidden">
+                <img id="cropImage" src="" class="max-w-full max-h-full block opacity-0">
+            </div>
+
+            <!-- Controls -->
+            <div class="bg-[#1c1c1e] p-6 pb-8 flex flex-col gap-6 border-t border-white/10">
+                
+                <!-- Zoom Slider -->
+                <div class="flex items-center gap-4 px-2">
+                    <i class="fa-solid fa-minus text-gray-400 text-xs"></i>
+                    <input type="range" id="zoomRange" min="0.1" max="3.0" step="0.1" value="1" class="flex-grow h-1.5 bg-gray-700 rounded-full appearance-none cursor-pointer">
+                    <i class="fa-solid fa-plus text-white text-xs"></i>
+                </div>
+
+                <!-- Rotation Tools -->
+                <div class="flex justify-center gap-8 text-white text-xl">
+                    <button onclick="rotateCropper(-90)" class="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition" title="Rotate Left"><i class="fa-solid fa-rotate-left"></i></button>
+                    <button onclick="resetCropper()" class="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition text-sm font-bold text-ios-blue" title="Reset">RESET</button>
+                    <button onclick="rotateCropper(90)" class="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition" title="Rotate Right"><i class="fa-solid fa-rotate-right"></i></button>
+                </div>
+                
+                <!-- Actions -->
+                <div class="flex gap-3 mt-2">
+                    <button onclick="closeCropModal()" class="flex-1 bg-gray-800 text-white py-3.5 rounded-xl font-bold hover:bg-gray-700 transition">Cancel</button>
+                    <button onclick="saveCroppedAvatar()" class="flex-1 bg-ios-blue text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-500/20 hover:bg-blue-600 transition flex items-center justify-center gap-2"><i class="fa-solid fa-crop-simple"></i> Save Photo</button>
+                </div>
+            </div>
         </div>
-        
-        <div class="grid grid-cols-3 gap-x-8 gap-y-6 w-full max-w-[280px]">
-            <!-- 1-9 -->
-            <button onclick="handlePinInput(1)" class="h-16 w-16 rounded-full bg-white dark:bg-white/10 shadow-sm text-2xl font-medium flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/20 transition dark:text-white active:scale-95">1</button>
-            <button onclick="handlePinInput(2)" class="h-16 w-16 rounded-full bg-white dark:bg-white/10 shadow-sm text-2xl font-medium flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/20 transition dark:text-white active:scale-95">2</button>
-            <button onclick="handlePinInput(3)" class="h-16 w-16 rounded-full bg-white dark:bg-white/10 shadow-sm text-2xl font-medium flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/20 transition dark:text-white active:scale-95">3</button>
-            <button onclick="handlePinInput(4)" class="h-16 w-16 rounded-full bg-white dark:bg-white/10 shadow-sm text-2xl font-medium flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/20 transition dark:text-white active:scale-95">4</button>
-            <button onclick="handlePinInput(5)" class="h-16 w-16 rounded-full bg-white dark:bg-white/10 shadow-sm text-2xl font-medium flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/20 transition dark:text-white active:scale-95">5</button>
-            <button onclick="handlePinInput(6)" class="h-16 w-16 rounded-full bg-white dark:bg-white/10 shadow-sm text-2xl font-medium flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/20 transition dark:text-white active:scale-95">6</button>
-            <button onclick="handlePinInput(7)" class="h-16 w-16 rounded-full bg-white dark:bg-white/10 shadow-sm text-2xl font-medium flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/20 transition dark:text-white active:scale-95">7</button>
-            <button onclick="handlePinInput(8)" class="h-16 w-16 rounded-full bg-white dark:bg-white/10 shadow-sm text-2xl font-medium flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/20 transition dark:text-white active:scale-95">8</button>
-            <button onclick="handlePinInput(9)" class="h-16 w-16 rounded-full bg-white dark:bg-white/10 shadow-sm text-2xl font-medium flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/20 transition dark:text-white active:scale-95">9</button>
-            <!-- Bottom Row -->
-            <div class="h-16 w-16 flex items-center justify-center"></div>
-            <button onclick="handlePinInput(0)" class="h-16 w-16 rounded-full bg-white dark:bg-white/10 shadow-sm text-2xl font-medium flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/20 transition dark:text-white active:scale-95">0</button>
-            <button onclick="handlePinInput('back')" class="h-16 w-16 rounded-full text-xl flex items-center justify-center hover:bg-gray-200 dark:hover:bg-white/10 transition text-gray-500 dark:text-white active:scale-95"><i class="fa-solid fa-delete-left"></i></button>
-        </div>
-        <button onclick="cancelPin()" id="pinCancelBtn" class="mt-8 text-ios-blue text-sm font-semibold">Cancel</button>
     </div>
 
     <!-- AUTH SCREEN -->
     <div id="authScreen" class="fixed inset-0 z-[100] flex items-center justify-center bg-ios-light dark:bg-black p-6 animate-fade-in">
-        <div class="w-full max-w-sm">
+        <div class="w-full max-w-sm transition-all duration-300" id="authContainer">
             <div class="text-center mb-10">
                 <div class="w-20 h-20 rounded-[2rem] bg-gradient-to-br from-ios-blue to-ios-purple text-white flex items-center justify-center shadow-2xl mx-auto mb-6">
                     <i class="fa-solid fa-wallet text-3xl"></i>
@@ -163,20 +171,51 @@
                 <p class="text-gray-500 dark:text-gray-400 text-sm">Your Personal Cloud Wallet</p>
             </div>
             
-            <!-- Main Login Form -->
-            <div id="authForm" class="glass rounded-3xl p-8 shadow-lg border border-white/50 dark:border-white/10 hover-lift">
+            <!-- Step 1: Username -->
+            <div id="authStep1" class="glass rounded-3xl p-8 shadow-lg border border-white/50 dark:border-white/10 hover-lift">
                 <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Username</label>
                 <div class="relative">
-                    <input type="text" id="usernameInput" placeholder="Enter name" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-2xl px-5 py-4 text-base font-bold focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition placeholder:font-normal placeholder:text-gray-400">
+                    <input type="text" id="usernameInput" placeholder="Enter username" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-2xl px-5 py-4 text-base font-bold focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition placeholder:font-normal placeholder:text-gray-400">
                     <div id="authLoader" class="absolute right-4 top-1/2 -translate-y-1/2 hidden"><div class="loader !border-gray-400 !border-l-ios-blue"></div></div>
                 </div>
-                <p class="text-[10px] text-gray-400 mt-3 ml-1 leading-tight"><i class="fa-solid fa-lock mr-1"></i> Data synced to your Firebase.</p>
-                <button onclick="handleAuth()" class="w-full bg-ios-blue text-white py-4 rounded-2xl font-bold text-base mt-6 hover:bg-blue-600 transition shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2">
+                <button onclick="checkUsername()" class="w-full bg-ios-blue text-white py-4 rounded-2xl font-bold text-base mt-6 hover:bg-blue-600 transition shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2">
                     <span>Continue</span> <i class="fa-solid fa-arrow-right"></i>
                 </button>
             </div>
 
-            <div class="absolute bottom-4 right-4 text-[10px] text-gray-400 font-mono">v3.0</div>
+            <!-- Step 2: PIN (Login) -->
+            <div id="authStepLogin" class="hidden glass rounded-3xl p-8 shadow-lg border border-white/50 dark:border-white/10 hover-lift">
+                <div class="flex items-center mb-4 cursor-pointer text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition" onclick="resetAuth()">
+                    <i class="fa-solid fa-arrow-left mr-2"></i> <span class="text-xs font-bold uppercase">Back</span>
+                </div>
+                <h2 class="text-xl font-bold mb-1">Welcome back</h2>
+                <p class="text-sm text-gray-500 mb-6" id="loginUserLabel">User</p>
+                
+                <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Enter PIN Code</label>
+                <div class="relative">
+                    <input type="tel" maxlength="4" id="loginPinInput" placeholder="••••" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-2xl px-5 py-4 text-2xl text-center font-bold tracking-[0.5em] focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition placeholder:tracking-widest">
+                </div>
+                <button onclick="loginUser()" class="w-full bg-ios-green text-white py-4 rounded-2xl font-bold text-base mt-6 hover:bg-green-600 transition shadow-lg shadow-green-500/30">
+                    Login
+                </button>
+            </div>
+
+            <!-- Step 3: Register / Create PIN -->
+            <div id="authStepRegister" class="hidden glass rounded-3xl p-8 shadow-lg border border-white/50 dark:border-white/10 hover-lift">
+                <div class="flex items-center mb-4 cursor-pointer text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition" onclick="resetAuth()">
+                    <i class="fa-solid fa-arrow-left mr-2"></i> <span class="text-xs font-bold uppercase">Back</span>
+                </div>
+                <h2 class="text-xl font-bold mb-1">Create Account</h2>
+                <p class="text-sm text-gray-500 mb-6">Set up security for <span id="regUserLabel" class="font-bold text-black dark:text-white"></span></p>
+                
+                <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Create 4-Digit PIN</label>
+                <div class="relative">
+                    <input type="tel" maxlength="4" id="regPinInput" placeholder="••••" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-2xl px-5 py-4 text-2xl text-center font-bold tracking-[0.5em] focus:ring-2 focus:ring-ios-purple outline-none dark:text-white transition placeholder:tracking-widest">
+                </div>
+                <button onclick="registerUser()" class="w-full bg-ios-purple text-white py-4 rounded-2xl font-bold text-base mt-6 hover:bg-purple-600 transition shadow-lg shadow-purple-500/30">
+                    Create Account
+                </button>
+            </div>
         </div>
     </div>
 
@@ -215,6 +254,7 @@
                                 <i class="fa-regular fa-bell"></i>
                                 <span id="notifBadge" class="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 border-2 border-white dark:border-black rounded-full hidden"></span>
                             </button>
+                            <!-- Dropdown -->
                             <div id="notifDropdown" class="fixed left-4 right-4 top-24 md:absolute md:left-auto md:right-0 md:top-full md:mt-2 md:w-80 bg-white dark:bg-[#1c1c1e] rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 opacity-0 pointer-events-none scale-95 transition-all transform origin-top-right z-[100] overflow-hidden">
                                 <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-white/5">
                                     <h3 class="text-sm font-bold dark:text-white">Notifications</h3>
@@ -230,11 +270,10 @@
 
                         <button onclick="toggleCurrency()" class="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-[10px] font-bold hover:bg-gray-300 dark:hover:bg-gray-700 transition active:scale-95 text-ios-blue"><span id="currencyLabel">VND</span></button>
                         
-                        <!-- User Button: Now just a toggle for Settings -->
-                        <div class="relative" id="userMenuContainer">
-                            <button onclick="toggleSettingsView()" class="w-9 h-9 rounded-full bg-gradient-to-br from-ios-blue to-ios-purple text-white flex items-center justify-center hover:opacity-90 transition shadow-md overflow-hidden p-0">
-                                <img id="userAvatarNav" src="" class="w-full h-full object-cover hidden">
-                                <i id="userIconNav" class="fa-solid fa-user text-xs"></i>
+                        <div class="relative">
+                            <button onclick="openSettingsModal()" class="w-9 h-9 rounded-full bg-gradient-to-br from-ios-blue to-ios-purple text-white flex items-center justify-center hover:opacity-90 transition shadow-md overflow-hidden ring-2 ring-white dark:ring-black">
+                                <img id="navbarAvatar" src="https://img.icons8.com/fluency/96/user-male-circle.png" class="w-full h-full object-cover hidden">
+                                <i id="navbarIcon" class="fa-solid fa-user text-xs"></i>
                             </button>
                         </div>
                     </div>
@@ -242,262 +281,262 @@
             </div>
         </nav>
 
-        <!-- Main Content Wrapper -->
-        <main class="flex-grow pt-safe-offset pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full overflow-y-auto custom-scrollbar pb-safe">
-            
-            <!-- DASHBOARD VIEW -->
-            <div id="dashboardView" class="animate-fade-in space-y-6">
-                <!-- ... existing dashboard code ... -->
-                <div class="flex items-center justify-center gap-2 py-2">
-                    <button onclick="changeMonth(-1)" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 transition active:scale-90"><i class="fa-solid fa-chevron-left text-ios-blue text-xs"></i></button>
-                    <h2 id="currentMonthDisplay" class="text-lg font-bold w-36 text-center">October 2023</h2>
-                    <button onclick="changeMonth(1)" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 transition active:scale-90"><i class="fa-solid fa-chevron-right text-ios-blue text-xs"></i></button>
-                    <button onclick="jumpToToday()" class="text-xs text-ios-blue font-semibold absolute right-4 sm:relative sm:right-auto hover:underline">Today</button>
-                </div>
+        <!-- Main Content -->
+        <main class="flex-grow pt-safe-offset pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full space-y-6 overflow-y-auto custom-scrollbar pb-safe">
+            <div class="flex items-center justify-center gap-2 py-2 animate-float-in">
+                <button onclick="changeMonth(-1)" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 transition active:scale-90"><i class="fa-solid fa-chevron-left text-ios-blue text-xs"></i></button>
+                <h2 id="currentMonthDisplay" class="text-lg font-bold w-36 text-center">October 2023</h2>
+                <button onclick="changeMonth(1)" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 transition active:scale-90"><i class="fa-solid fa-chevron-right text-ios-blue text-xs"></i></button>
+                <button onclick="jumpToToday()" class="text-xs text-ios-blue font-semibold absolute right-4 sm:relative sm:right-auto hover:underline">Today</button>
+            </div>
 
-                <div id="lockedMessage" class="hidden text-center">
-                    <span class="inline-block bg-gray-100 dark:bg-gray-800 text-gray-500 text-[10px] uppercase font-bold px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm"><i class="fa-solid fa-lock mr-1"></i> Read Only Mode</span>
-                </div>
+            <div id="lockedMessage" class="hidden text-center animate-float-in">
+                <span class="inline-block bg-gray-100 dark:bg-gray-800 text-gray-500 text-[10px] uppercase font-bold px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm"><i class="fa-solid fa-lock mr-1"></i> Read Only Mode</span>
+            </div>
 
-                <!-- Stats Row -->
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div class="glass rounded-2xl p-4 shadow-sm border-t-4 border-ios-green hover-lift relative group">
-                        <div class="absolute top-2 right-2 opacity-50 hover:opacity-100 transition-opacity cursor-pointer z-10" onclick="toggleStatsView()">
-                            <div class="bg-gray-100 dark:bg-white/10 p-1 rounded-lg text-[10px] font-bold flex gap-1">
-                                <span id="viewModeBadge" class="px-1.5 py-0.5 rounded bg-white dark:bg-gray-700 shadow-sm text-black dark:text-white">Mo</span>
-                            </div>
-                        </div>
-                        <p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1" id="lblIncome">Income</p>
-                        <h3 class="text-base font-bold text-ios-green truncate" id="incomeDisplay">0</h3>
-                    </div>
-                    <div class="glass rounded-2xl p-4 shadow-sm border-t-4 border-ios-red hover-lift"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1" id="lblSpent">Spent</p><h3 class="text-base font-bold text-ios-red truncate" id="spentDisplay">0</h3></div>
-                    <div class="glass rounded-2xl p-4 shadow-sm border-t-4 border-ios-teal hover-lift"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1">Net Worth</p><h3 class="text-base font-bold text-ios-teal truncate" id="walletDisplay">0</h3></div>
-                    <div class="glass rounded-2xl p-4 shadow-sm border-t-4 border-ios-blue hover-lift"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1">Budget Left</p><h3 class="text-base font-bold text-gray-800 dark:text-gray-200 truncate" id="monthlyLeftDisplay">0</h3></div>
-                </div>
-
-                <!-- Main Dashboard Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
-                    
-                    <!-- Column 1: Status & Assets -->
-                    <div class="flex flex-col gap-6">
-                        <!-- Assets / Net Worth Card -->
-                        <div class="glass rounded-3xl shadow-sm p-6 flex flex-col hover-lift">
-                            <div class="flex justify-between items-start mb-4">
-                                <div><h2 class="text-lg font-bold">Assets</h2><p class="text-[10px] text-gray-400">Balances</p></div>
-                                <span class="text-[10px] bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 px-2 py-1 rounded-full font-medium">Continuous</span>
-                            </div>
-                            
-                            <div class="flex flex-col items-center gap-6">
-                                <!-- Bank Wheel -->
-                                <div class="relative w-48 h-48 flex flex-col items-center justify-center">
-                                    <canvas id="bankWheel"></canvas>
-                                    <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                        <span class="text-xs text-gray-400 font-bold uppercase tracking-wider">Bank</span>
-                                        <span class="font-bold text-ios-blue text-lg" id="centerBankBalance">0</span>
-                                    </div>
-                                </div>
-                                <!-- Cash Wheel -->
-                                <div class="flex items-center justify-center gap-4 w-full bg-gray-50 dark:bg-white/5 p-3 rounded-2xl border border-gray-100 dark:border-gray-800">
-                                    <div class="relative w-16 h-16 flex-shrink-0"><canvas id="cashWheel"></canvas></div>
-                                    <div class="flex flex-col">
-                                        <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Cash Wallet</span>
-                                        <span class="font-bold text-ios-green text-base" id="centerCashBalance">0</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="w-full h-px bg-gray-100 dark:bg-gray-800 my-4"></div>
-                            <div class="flex justify-center gap-4 text-xs text-center"><div><span class="block text-gray-400">All Income</span><span class="font-bold text-ios-green" id="footerTotalIncome">0</span></div><div class="w-px bg-gray-200 dark:bg-gray-700"></div><div><span class="block text-gray-400">All Out</span><span class="font-bold text-ios-red" id="footerTotalSpent">0</span></div></div>
-                        </div>
-
-                        <div class="glass rounded-3xl shadow-sm p-6 flex flex-col hover-lift">
-                            <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold flex items-center"><i class="fa-solid fa-repeat mr-2 text-ios-purple"></i>Subscriptions</h2><button onclick="openSubscriptionModal()" id="addSubBtn" class="text-xs bg-ios-purple/10 text-ios-purple px-3 py-1.5 rounded-full font-bold hover:bg-ios-purple/20 transition">+ Add</button></div>
-                            <div class="flex-grow overflow-y-auto max-h-[350px] pr-1 space-y-2 custom-scrollbar" id="subscriptionList"></div>
-                            <div id="emptySubs" class="hidden text-center text-gray-400 text-xs py-4">No subscriptions.</div>
+            <!-- Stats Row -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-green hover-lift relative group">
+                    <div class="absolute top-2 right-2 opacity-50 hover:opacity-100 transition-opacity cursor-pointer z-10" onclick="toggleStatsView()">
+                        <div class="bg-gray-100 dark:bg-white/10 p-1 rounded-lg text-[10px] font-bold flex gap-1">
+                            <span id="viewModeBadge" class="px-1.5 py-0.5 rounded bg-white dark:bg-gray-700 shadow-sm text-black dark:text-white">Mo</span>
                         </div>
                     </div>
+                    <p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1" id="lblIncome">Income</p>
+                    <h3 class="text-base font-bold text-ios-green truncate" id="incomeDisplay">0</h3>
+                </div>
+                <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-red hover-lift"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1" id="lblSpent">Spent</p><h3 class="text-base font-bold text-ios-red truncate" id="spentDisplay">0</h3></div>
+                <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-teal hover-lift"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1">Net Worth</p><h3 class="text-base font-bold text-ios-teal truncate" id="walletDisplay">0</h3></div>
+                <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-blue hover-lift"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1">Budget Left</p><h3 class="text-base font-bold text-gray-800 dark:text-gray-200 truncate" id="monthlyLeftDisplay">0</h3></div>
+            </div>
 
-                    <!-- Column 2: Budgeting -->
-                    <div class="flex flex-col gap-6">
-                        <div class="glass rounded-3xl shadow-sm p-6 flex flex-col hover-lift">
-                            <div class="flex justify-between items-start mb-4"><div><h2 class="text-lg font-bold">Monthly Limit</h2><p class="text-[10px] text-gray-400">General Spending</p></div></div>
-                            <div id="limitControl" class="mb-4 flex gap-2"><input type="text" inputmode="numeric" id="limitInput" onkeyup="formatCurrencyInput(this)" placeholder="Set General Limit" class="flex-grow bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-base focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition"><button onclick="setMonthLimit()" class="bg-ios-blue text-white px-4 rounded-xl text-sm font-semibold hover:bg-blue-600 transition shadow-lg shadow-blue-500/30">Set</button></div>
-                            <div class="flex-grow flex items-center justify-center relative min-h-[200px]"><div class="relative w-52 h-52"><canvas id="budgetWheel"></canvas><div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-4 text-center"><span class="text-xs text-gray-400 font-medium">Available</span><span class="text-xl font-bold text-ios-blue break-all" id="centerBudgetRemaining">0</span><span class="text-[10px] text-gray-400 mt-1" id="centerLimitLabel">Limit: 0</span></div></div></div>
+            <!-- Main Dashboard Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
+                
+                <!-- Column 1: Status & Assets -->
+                <div class="flex flex-col gap-6">
+                    <div class="glass rounded-3xl shadow-sm p-6 flex flex-col animate-float-in hover-lift">
+                        <div class="flex justify-between items-start mb-4">
+                            <div><h2 class="text-lg font-bold">Assets</h2><p class="text-[10px] text-gray-400">Balances</p></div>
+                            <span class="text-[10px] bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 px-2 py-1 rounded-full font-medium">Continuous</span>
                         </div>
                         
-                        <div class="glass rounded-3xl shadow-sm p-6 hover-lift">
-                            <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold flex items-center"><i class="fa-solid fa-list-check text-ios-purple mr-2"></i>Sub-Limits</h2><button onclick="openSubLimitModal()" class="text-xs bg-ios-purple/10 text-ios-purple px-3 py-1.5 rounded-full font-bold hover:bg-ios-purple/20 transition">+ Add</button></div>
-                            <div id="subLimitsContainer" class="grid grid-cols-1 gap-3"></div>
-                            <div id="emptySubLimits" class="hidden text-center text-gray-400 text-xs py-4">No sub-limits created.</div>
-                        </div>
-                    </div>
-
-                    <!-- Column 3: Actions & History -->
-                    <div class="flex flex-col gap-6">
-                        <div class="glass rounded-3xl shadow-sm p-6 hover-lift">
-                            <h2 class="text-lg font-bold mb-4">Add Transaction</h2>
-                            <div id="transControl" class="flex flex-col gap-4">
-                                <div class="bg-gray-100 dark:bg-gray-800 p-1 rounded-xl flex">
-                                    <button onclick="setTransactionAccount('bank')" id="btnAcctBank" class="flex-1 py-2 rounded-lg text-xs font-bold transition bg-white dark:bg-gray-700 text-black dark:text-white shadow-sm">Bank</button>
-                                    <button onclick="setTransactionAccount('cash')" id="btnAcctCash" class="flex-1 py-2 rounded-lg text-xs font-bold transition text-gray-500 dark:text-gray-400">Cash</button>
+                        <div class="flex flex-col items-center gap-6">
+                            <div class="relative w-48 h-48 flex flex-col items-center justify-center">
+                                <canvas id="bankWheel"></canvas>
+                                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                    <span class="text-xs text-gray-400 font-bold uppercase tracking-wider">Bank</span>
+                                    <span class="font-bold text-ios-blue text-lg" id="centerBankBalance">0</span>
                                 </div>
-                                <input type="text" id="descInput" placeholder="Description" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-4 py-4 text-base focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white">
-                                <div class="relative"><span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold" id="inputCurrencySymbol">₫</span><input type="text" inputmode="numeric" id="amountInput" onkeyup="formatCurrencyInput(this)" placeholder="0" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl pl-8 pr-4 py-4 text-xl font-bold focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white"></div>
-                                <div class="relative flex gap-2">
-                                    <input list="categoryList" id="categoryInput" placeholder="Category" class="flex-grow bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white">
-                                    <datalist id="categoryList"></datalist>
-                                    <button onclick="openCategoryModal()" class="bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-300 w-12 rounded-xl flex items-center justify-center hover:bg-gray-200 dark:hover:bg-white/20 transition group"><i class="fa-solid fa-list text-sm"></i></button>
+                            </div>
+                            
+                            <div class="flex items-center justify-center gap-4 w-full bg-gray-50 dark:bg-white/5 p-3 rounded-2xl border border-gray-100 dark:border-gray-800">
+                                <div class="relative w-16 h-16 flex-shrink-0">
+                                    <canvas id="cashWheel"></canvas>
                                 </div>
-                                <div><label class="block text-[10px] text-gray-500 mb-1 ml-1 font-semibold uppercase">Budget Source</label><select id="budgetSelect" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white appearance-none cursor-pointer"><option value="general">General (Monthly Limit)</option></select></div>
-                                <div class="grid grid-cols-3 gap-2 mt-2">
-                                    <button onclick="addTransaction('expense')" class="bg-ios-red text-white py-4 rounded-2xl font-semibold hover:bg-red-600 transition active:scale-95 shadow-lg shadow-red-500/30 flex flex-col items-center justify-center gap-1"><i class="fa-solid fa-arrow-down"></i> <span class="text-xs">Spent</span></button>
-                                    <button onclick="addTransaction('transfer')" class="bg-ios-blue text-white py-4 rounded-2xl font-semibold hover:bg-blue-600 transition active:scale-95 shadow-lg shadow-blue-500/30 flex flex-col items-center justify-center gap-1"><i class="fa-solid fa-right-left"></i> <span class="text-xs">Transfer</span></button>
-                                    <button onclick="addTransaction('revenue')" class="bg-ios-green text-white py-4 rounded-2xl font-semibold hover:bg-green-600 transition active:scale-95 shadow-lg shadow-green-500/30 flex flex-col items-center justify-center gap-1"><i class="fa-solid fa-arrow-up"></i> <span class="text-xs">Income</span></button>
+                                <div class="flex flex-col">
+                                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Cash Wallet</span>
+                                    <span class="font-bold text-ios-green text-base" id="centerCashBalance">0</span>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="glass rounded-3xl shadow-sm p-6 hover-lift flex-grow">
-                             <div class="mb-4 space-y-2">
-                                <div class="flex justify-between items-center"><h2 class="text-lg font-bold">History <span class="text-xs font-normal text-gray-500 ml-2" id="historyMonthLabel"></span></h2></div>
-                                <div class="flex gap-2">
-                                    <div class="relative flex-grow">
-                                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                                        <input type="text" placeholder="Search..." onkeyup="handleSearch(this.value)" class="w-full bg-gray-100 dark:bg-white/10 border-none rounded-xl pl-8 pr-3 py-2 text-xs font-bold focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition">
-                                    </div>
-                                    <select onchange="updateSort(this.value)" class="bg-gray-100 dark:bg-white/10 border-none rounded-xl text-xs font-bold px-3 py-2 focus:ring-0 cursor-pointer dark:text-white w-24">
-                                        <option value="newest">Newest</option>
-                                        <option value="oldest">Oldest</option>
-                                        <option value="high">High</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <ul id="historyList" class="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar pr-1"></ul>
-                        </div>
+                        <div class="w-full h-px bg-gray-100 dark:bg-gray-800 my-4"></div>
+
+                        <div class="flex justify-center gap-4 text-xs text-center"><div><span class="block text-gray-400">All Income</span><span class="font-bold text-ios-green" id="footerTotalIncome">0</span></div><div class="w-px bg-gray-200 dark:bg-gray-700"></div><div><span class="block text-gray-400">All Out</span><span class="font-bold text-ios-red" id="footerTotalSpent">0</span></div></div>
+                    </div>
+
+                    <div class="glass rounded-3xl shadow-sm p-6 flex flex-col animate-float-in hover-lift">
+                        <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold flex items-center"><i class="fa-solid fa-repeat mr-2 text-ios-purple"></i>Subscriptions</h2><button onclick="openSubscriptionModal()" id="addSubBtn" class="text-xs bg-ios-purple/10 text-ios-purple px-3 py-1.5 rounded-full font-bold hover:bg-ios-purple/20 transition">+ Add</button></div>
+                        <div class="flex-grow overflow-y-auto max-h-[350px] pr-1 space-y-2 custom-scrollbar" id="subscriptionList"></div>
+                        <div id="emptySubs" class="hidden text-center text-gray-400 text-xs py-4">No subscriptions.</div>
                     </div>
                 </div>
 
-                <!-- Overview -->
-                <div class="glass rounded-3xl shadow-sm p-6 mb-8 hover-lift">
-                    <h2 class="text-lg font-bold mb-4">6-Month Overview</h2>
-                    <div class="overflow-x-auto custom-scrollbar"><table class="w-full text-left border-collapse"><thead><tr class="text-xs text-gray-400 uppercase tracking-wide border-b border-gray-200 dark:border-gray-700"><th class="pb-3 pl-2">Month</th><th class="pb-3 text-right">Income</th><th class="pb-3 text-right">Spent</th><th class="pb-3 text-right">Savings</th></tr></thead><tbody id="comparisonTableBody" class="text-sm font-medium"></tbody></table></div>
-                </div>
-            </div>
-
-            <!-- SETTINGS VIEW (New) -->
-            <div id="settingsView" class="hidden animate-fade-in space-y-6">
-                <div class="flex items-center gap-3 mb-6">
-                    <button onclick="toggleSettingsView()" class="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 transition flex items-center justify-center"><i class="fa-solid fa-arrow-left"></i></button>
-                    <h1 class="text-2xl font-bold">Settings</h1>
-                </div>
-
-                <!-- Profile Card -->
-                <div class="glass rounded-3xl p-6 shadow-sm">
-                    <h3 class="text-lg font-bold mb-4">Profile</h3>
-                    <div class="flex items-center gap-6">
-                        <div class="relative w-20 h-20 group cursor-pointer" onclick="document.getElementById('avatarInput').click()">
-                            <div class="w-full h-full rounded-full bg-gradient-to-br from-ios-blue to-ios-purple flex items-center justify-center overflow-hidden border-4 border-white dark:border-gray-700 shadow-md">
-                                <img id="settingsAvatar" src="" class="w-full h-full object-cover hidden">
-                                <i id="settingsAvatarIcon" class="fa-solid fa-user text-3xl text-white"></i>
-                            </div>
-                            <div class="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-                                <i class="fa-solid fa-camera text-white"></i>
-                            </div>
-                        </div>
-                        <div>
-                            <h2 class="text-xl font-bold dark:text-white" id="settingsUsername">User</h2>
-                            <p class="text-xs text-gray-500">Personal Account</p>
-                            <button onclick="document.getElementById('avatarInput').click()" class="text-ios-blue text-xs font-bold mt-2 hover:underline">Change Photo</button>
-                        </div>
+                <!-- Column 2: Budgeting -->
+                <div class="flex flex-col gap-6">
+                    <div class="glass rounded-3xl shadow-sm p-6 flex flex-col animate-float-in hover-lift">
+                        <div class="flex justify-between items-start mb-4"><div><h2 class="text-lg font-bold">Monthly Limit</h2><p class="text-[10px] text-gray-400">General Spending</p></div></div>
+                        <div id="limitControl" class="mb-4 flex gap-2"><input type="text" inputmode="numeric" id="limitInput" onkeyup="formatCurrencyInput(this)" placeholder="Set General Limit" class="flex-grow bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-base focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition"><button onclick="setMonthLimit()" class="bg-ios-blue text-white px-4 rounded-xl text-sm font-semibold hover:bg-blue-600 transition shadow-lg shadow-blue-500/30">Set</button></div>
+                        <div class="flex-grow flex items-center justify-center relative min-h-[200px]"><div class="relative w-52 h-52"><canvas id="budgetWheel"></canvas><div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-4 text-center"><span class="text-xs text-gray-400 font-medium">Available</span><span class="text-xl font-bold text-ios-blue break-all" id="centerBudgetRemaining">0</span><span class="text-[10px] text-gray-400 mt-1" id="centerLimitLabel">Limit: 0</span></div></div></div>
                     </div>
-                </div>
-
-                <!-- Preferences Card -->
-                <div class="glass rounded-3xl p-6 shadow-sm space-y-4">
-                    <h3 class="text-lg font-bold mb-2">Preferences</h3>
-                    <div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-500 flex items-center justify-center"><i class="fa-solid fa-moon"></i></div>
-                            <span class="font-bold text-sm dark:text-gray-200">Dark Mode</span>
-                        </div>
-                        <button onclick="toggleTheme()" class="text-gray-400 hover:text-ios-blue transition"><i class="fa-solid fa-toggle-on text-2xl"></i></button>
-                    </div>
-                    <div class="flex items-center justify-between py-2">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-500 flex items-center justify-center"><i class="fa-solid fa-bell"></i></div>
-                            <span class="font-bold text-sm dark:text-gray-200">Notifications</span>
-                        </div>
-                        <button onclick="requestNotificationPermission()" id="btnNotifToggle" class="text-gray-400 hover:text-ios-blue transition"><i class="fa-solid fa-toggle-off text-2xl"></i></button>
-                    </div>
-                </div>
-
-                <!-- Backup & Security -->
-                <div class="glass rounded-3xl p-6 shadow-sm">
-                    <h3 class="text-lg font-bold mb-4">Backup & Security</h3>
                     
-                    <!-- Modified Backup Grid -->
-                    <div class="grid grid-cols-2 gap-3 mb-6">
-                        <button onclick="exportData()" class="py-3 px-4 rounded-xl font-bold bg-green-50 dark:bg-green-500/10 text-green-600 hover:bg-green-100 dark:hover:bg-green-500/20 transition flex flex-col items-center gap-1">
-                            <i class="fa-solid fa-file-export"></i> <span class="text-xs">Export Data</span>
-                        </button>
-                        <button onclick="document.getElementById('importInput').click()" class="py-3 px-4 rounded-xl font-bold bg-blue-50 dark:bg-blue-500/10 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition flex flex-col items-center gap-1">
-                            <i class="fa-solid fa-file-import"></i> <span class="text-xs">Import Data</span>
-                        </button>
+                    <div class="glass rounded-3xl shadow-sm p-6 animate-float-in hover-lift">
+                        <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold flex items-center"><i class="fa-solid fa-list-check text-ios-purple mr-2"></i>Sub-Limits</h2><button onclick="openSubLimitModal()" class="text-xs bg-ios-purple/10 text-ios-purple px-3 py-1.5 rounded-full font-bold hover:bg-ios-purple/20 transition">+ Add</button></div>
+                        <div id="subLimitsContainer" class="grid grid-cols-1 gap-3"></div>
+                        <div id="emptySubLimits" class="hidden text-center text-gray-400 text-xs py-4">No sub-limits created.</div>
                     </div>
+                </div>
 
-                    <button onclick="handleChangePin()" class="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-white/5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition mb-6 group">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-500 flex items-center justify-center"><i class="fa-solid fa-key"></i></div>
-                            <span class="font-bold text-sm dark:text-gray-200">Change PIN Code</span>
+                <!-- Column 3: Actions & History -->
+                <div class="flex flex-col gap-6">
+                    <div class="glass rounded-3xl shadow-sm p-6 animate-float-in hover-lift">
+                        <h2 class="text-lg font-bold mb-4">Add Transaction</h2>
+                        <div id="transControl" class="flex flex-col gap-4">
+                            <!-- Payment Account Toggle -->
+                            <div class="bg-gray-100 dark:bg-gray-800 p-1 rounded-xl flex">
+                                <button onclick="setTransactionAccount('bank')" id="btnAcctBank" class="flex-1 py-2 rounded-lg text-xs font-bold transition bg-white dark:bg-gray-700 text-black dark:text-white shadow-sm">Bank</button>
+                                <button onclick="setTransactionAccount('cash')" id="btnAcctCash" class="flex-1 py-2 rounded-lg text-xs font-bold transition text-gray-500 dark:text-gray-400">Cash</button>
+                            </div>
+
+                            <input type="text" id="descInput" placeholder="Description" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-4 py-4 text-base focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white">
+                            <div class="relative"><span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold" id="inputCurrencySymbol">₫</span><input type="text" inputmode="numeric" id="amountInput" onkeyup="formatCurrencyInput(this)" placeholder="0" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl pl-8 pr-4 py-4 text-xl font-bold focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white"></div>
+                            <div class="relative flex gap-2">
+                                <input list="categoryList" id="categoryInput" placeholder="Category" class="flex-grow bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white">
+                                <datalist id="categoryList"></datalist>
+                                <button onclick="openCategoryModal()" class="bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-300 w-12 rounded-xl flex items-center justify-center hover:bg-gray-200 dark:hover:bg-white/20 transition group"><i class="fa-solid fa-list text-sm"></i></button>
+                            </div>
+                            <div><label class="block text-[10px] text-gray-500 mb-1 ml-1 font-semibold uppercase">Budget Source</label><select id="budgetSelect" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white appearance-none cursor-pointer"><option value="general">General (Monthly Limit)</option></select></div>
+                            
+                            <div class="grid grid-cols-3 gap-2 mt-2">
+                                <button onclick="addTransaction('expense')" class="bg-ios-red text-white py-4 rounded-2xl font-semibold hover:bg-red-600 transition active:scale-95 shadow-lg shadow-red-500/30 flex flex-col items-center justify-center gap-1">
+                                    <i class="fa-solid fa-arrow-down"></i> <span class="text-xs">Spent</span>
+                                </button>
+                                <button onclick="addTransaction('transfer')" class="bg-ios-blue text-white py-4 rounded-2xl font-semibold hover:bg-blue-600 transition active:scale-95 shadow-lg shadow-blue-500/30 flex flex-col items-center justify-center gap-1">
+                                    <i class="fa-solid fa-right-left"></i> <span class="text-xs">Transfer</span>
+                                </button>
+                                <button onclick="addTransaction('revenue')" class="bg-ios-green text-white py-4 rounded-2xl font-semibold hover:bg-green-600 transition active:scale-95 shadow-lg shadow-green-500/30 flex flex-col items-center justify-center gap-1">
+                                    <i class="fa-solid fa-arrow-up"></i> <span class="text-xs">Income</span>
+                                </button>
+                            </div>
                         </div>
-                        <i class="fa-solid fa-chevron-right text-gray-400 text-xs group-hover:translate-x-1 transition"></i>
-                    </button>
+                    </div>
 
-                    <h4 class="text-xs font-bold text-gray-400 uppercase mb-3">Activity Security (Logins)</h4>
-                    <div id="activityLogContainer" class="space-y-3">
-                        <!-- Populated by JS -->
-                        <p class="text-center text-xs text-gray-400 py-2">No activity recorded.</p>
+                    <div class="glass rounded-3xl shadow-sm p-6 animate-float-in hover-lift flex-grow">
+                         <div class="mb-4 space-y-2">
+                            <div class="flex justify-between items-center"><h2 class="text-lg font-bold">History <span class="text-xs font-normal text-gray-500 ml-2" id="historyMonthLabel"></span></h2></div>
+                            <div class="flex gap-2">
+                                <div class="relative flex-grow">
+                                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                                    <input type="text" placeholder="Search..." onkeyup="handleSearch(this.value)" class="w-full bg-gray-100 dark:bg-white/10 border-none rounded-xl pl-8 pr-3 py-2 text-xs font-bold focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition">
+                                </div>
+                                <select onchange="updateSort(this.value)" class="bg-gray-100 dark:bg-white/10 border-none rounded-xl text-xs font-bold px-3 py-2 focus:ring-0 cursor-pointer dark:text-white w-24">
+                                    <option value="newest">Newest</option>
+                                    <option value="oldest">Oldest</option>
+                                    <option value="high">High</option>
+                                </select>
+                            </div>
+                        </div>
+                        <ul id="historyList" class="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar pr-1"></ul>
                     </div>
                 </div>
 
-                <!-- Danger Zone -->
-                <div class="glass rounded-3xl p-6 shadow-sm border border-red-100 dark:border-red-900/30">
-                    <h3 class="text-lg font-bold mb-4 text-red-500">Danger Zone</h3>
-                    <div class="space-y-3">
-                        <button onclick="handleLogout()" class="w-full py-3 rounded-xl font-bold bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 transition text-gray-700 dark:text-gray-300">Log Out</button>
-                        <button onclick="handleDeleteAccount()" class="w-full py-3 rounded-xl font-bold bg-red-50 dark:bg-red-500/10 text-red-500 hover:bg-red-100 dark:hover:bg-red-500/20 transition">Delete Account</button>
-                    </div>
-                </div>
-                <div class="text-center text-[10px] text-gray-300 mt-8 mb-4 font-mono">App Version 2.9</div>
-                <div class="h-10"></div>
             </div>
 
+            <!-- Overview -->
+            <div class="glass rounded-3xl shadow-sm p-6 animate-float-in mb-8 hover-lift">
+                <h2 class="text-lg font-bold mb-4">6-Month Overview</h2>
+                <div class="overflow-x-auto custom-scrollbar"><table class="w-full text-left border-collapse"><thead><tr class="text-xs text-gray-400 uppercase tracking-wide border-b border-gray-200 dark:border-gray-700"><th class="pb-3 pl-2">Month</th><th class="pb-3 text-right">Income</th><th class="pb-3 text-right">Spent</th><th class="pb-3 text-right">Savings</th></tr></thead><tbody id="comparisonTableBody" class="text-sm font-medium"></tbody></table></div>
+            </div>
         </main>
     </div>
 
-    <!-- Cropper Modal -->
-    <div id="cropperModal" class="fixed inset-0 z-[200] hidden flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
-        <div class="bg-white dark:bg-[#1c1c1e] rounded-3xl w-full max-w-sm p-6 shadow-2xl relative flex flex-col items-center">
-            <h3 class="text-lg font-bold mb-4 dark:text-white">Adjust Photo</h3>
-            
-            <!-- Viewport -->
-            <div class="relative w-56 h-56 rounded-full overflow-hidden border-4 border-ios-blue shadow-inner bg-black mb-6">
-                <canvas id="cropperCanvas" class="cursor-move"></canvas>
-            </div>
-            
-            <!-- Controls -->
-            <div class="w-full flex items-center gap-4 mb-6">
-                <i class="fa-solid fa-image text-gray-400 text-xs"></i>
-                <input type="range" id="cropperZoom" min="1" max="3" step="0.01" value="1" class="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-ios-blue">
-                <i class="fa-solid fa-image text-gray-400 text-lg"></i>
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="fixed inset-0 z-[150] hidden flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-all duration-300">
+        <div class="bg-white dark:bg-[#1c1c1e] rounded-3xl w-full max-w-md p-6 shadow-2xl relative animate-fade-in max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold dark:text-white">Settings</h2>
+                <button onclick="closeSettingsModal()" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/20 transition"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
-            <div class="grid grid-cols-2 gap-3 w-full">
-                <button onclick="closeCropper()" class="bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 py-3 rounded-xl text-sm font-bold hover:bg-gray-200 dark:hover:bg-white/20 transition">Cancel</button>
-                <button onclick="saveCrop()" class="bg-ios-blue text-white py-3 rounded-xl text-sm font-bold hover:bg-blue-600 transition shadow-lg shadow-blue-500/20">Save</button>
+            <!-- Profile Section -->
+            <div class="flex flex-col items-center mb-8">
+                <div class="relative group">
+                    <div class="w-24 h-24 rounded-full bg-gradient-to-br from-ios-blue to-ios-purple p-1 shadow-lg overflow-hidden">
+                        <div class="w-full h-full rounded-full bg-white dark:bg-black overflow-hidden flex items-center justify-center relative">
+                            <img id="settingsAvatar" src="https://img.icons8.com/fluency/96/user-male-circle.png" class="w-full h-full object-cover">
+                            <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer" onclick="document.getElementById('avatarInput').click()">
+                                <i class="fa-solid fa-camera text-white"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="removeAvatar()" class="absolute bottom-0 right-0 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md hover:bg-red-600 transition" title="Remove Photo"><i class="fa-solid fa-trash text-xs"></i></button>
+                    <input type="file" id="avatarInput" class="hidden" accept="image/*" onchange="handleAvatarUpload(this)">
+                </div>
+                <h3 class="mt-3 text-lg font-bold dark:text-white" id="settingsUsername">User</h3>
+                <p class="text-xs text-gray-500">Finance Tracker User</p>
+            </div>
+
+            <!-- Menu Items -->
+            <div class="space-y-3">
+                <div class="bg-gray-50 dark:bg-white/5 rounded-2xl p-2">
+                    <button onclick="toggleTheme()" class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-gray-200 dark:hover:bg-white/10 transition">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-ios-purple/20 text-ios-purple flex items-center justify-center"><i class="fa-solid fa-moon"></i></div>
+                            <span class="text-sm font-bold dark:text-white">Dark Mode</span>
+                        </div>
+                        <i class="fa-solid fa-toggle-on text-2xl text-ios-green dark:text-gray-600" id="themeToggleIcon"></i>
+                    </button>
+                    <button onclick="openChangePinModal()" class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-gray-200 dark:hover:bg-white/10 transition mt-1">
+                         <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-ios-blue/20 text-ios-blue flex items-center justify-center"><i class="fa-solid fa-shield-halved"></i></div>
+                            <span class="text-sm font-bold dark:text-white">Change PIN</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-gray-400 text-xs"></i>
+                    </button>
+                </div>
+
+                <div class="bg-gray-50 dark:bg-white/5 rounded-2xl p-4">
+                    <h4 class="text-xs font-bold text-gray-400 uppercase mb-3">Activity Security</h4>
+                    <div id="securityLogsList" class="space-y-3 max-h-40 overflow-y-auto custom-scrollbar">
+                        <!-- Logs injected here -->
+                        <p class="text-xs text-gray-400 text-center">No recent activity.</p>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 dark:bg-white/5 rounded-2xl p-2">
+                     <button onclick="requestNotificationPermission()" class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-gray-200 dark:hover:bg-white/10 transition">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-ios-orange/20 text-ios-orange flex items-center justify-center"><i class="fa-solid fa-bell"></i></div>
+                            <span class="text-sm font-bold dark:text-white">Enable Notifications</span>
+                        </div>
+                    </button>
+                    <button onclick="handleLogout()" class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-gray-200 dark:hover:bg-white/10 transition mt-1">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 flex items-center justify-center"><i class="fa-solid fa-arrow-right-from-bracket"></i></div>
+                            <span class="text-sm font-bold dark:text-white">Logout</span>
+                        </div>
+                    </button>
+                     <button onclick="handleDeleteAccount()" class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition mt-1 group">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-red-100 dark:bg-red-500/20 text-red-500 flex items-center justify-center"><i class="fa-solid fa-trash"></i></div>
+                            <span class="text-sm font-bold text-red-500">Delete Account</span>
+                        </div>
+                    </button>
+                </div>
+                
+                <p class="text-center text-[10px] text-gray-400 mt-4">App Version 2.2.2</p>
             </div>
         </div>
     </div>
 
+    <!-- PIN Change/Create Modal (Generic) -->
+    <div id="pinModal" class="fixed inset-0 z-[200] hidden flex items-center justify-center bg-black/60 backdrop-blur-md p-4 transition-all duration-300">
+        <div class="bg-white dark:bg-[#1c1c1e] rounded-3xl w-full max-w-xs p-6 shadow-2xl text-center">
+            <h3 class="text-lg font-bold mb-2 dark:text-white" id="pinModalTitle">Set PIN Code</h3>
+            <p class="text-sm text-gray-500 mb-6" id="pinModalDesc">Create a 4-digit code for security.</p>
+            <input type="tel" maxlength="4" id="genericPinInput" placeholder="••••" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-2xl px-5 py-4 text-2xl text-center font-bold tracking-[0.5em] focus:ring-2 focus:ring-ios-blue outline-none dark:text-white mb-6 transition placeholder:tracking-widest">
+            <div class="flex gap-2">
+                <button onclick="closePinModal()" class="flex-1 bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 py-3 rounded-xl font-bold">Cancel</button>
+                <button onclick="submitGenericPin()" class="flex-1 bg-ios-blue text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-500/30">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Legacy Account PIN Prompt Modal (Force) -->
+    <div id="legacyPinModal" class="fixed inset-0 z-[200] hidden flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+        <div class="bg-white dark:bg-[#1c1c1e] rounded-3xl w-full max-w-xs p-8 shadow-2xl text-center">
+             <div class="w-16 h-16 rounded-full bg-ios-orange/20 text-ios-orange flex items-center justify-center mx-auto mb-4">
+                <i class="fa-solid fa-shield-halved text-2xl"></i>
+            </div>
+            <h3 class="text-xl font-bold mb-2 dark:text-white">Security Update</h3>
+            <p class="text-sm text-gray-500 mb-6">We've added PIN protection. Please create a 4-digit code to secure your existing account.</p>
+            <input type="tel" maxlength="4" id="legacyPinInput" placeholder="••••" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-2xl px-5 py-4 text-2xl text-center font-bold tracking-[0.5em] focus:ring-2 focus:ring-ios-orange outline-none dark:text-white mb-6 transition placeholder:tracking-widest">
+            <button onclick="saveLegacyPin()" class="w-full bg-ios-orange text-white py-3 rounded-xl font-bold shadow-lg shadow-orange-500/30">Secure Account</button>
+        </div>
+    </div>
+
+    <!-- Reused Modals (Sub-Limit, Subscription, Category) are preserved from previous code -->
     <!-- Sub-Limit Modal -->
     <div id="subLimitModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-all duration-300">
         <div class="bg-white dark:bg-[#1c1c1e] rounded-3xl w-full max-w-xs p-6 shadow-2xl relative animate-fade-in">
@@ -505,27 +544,11 @@
                 <h2 class="text-lg font-bold dark:text-white" id="subLimitModalTitle">New Sub-Limit</h2>
                 <button onclick="closeSubLimitModal()" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/20 transition"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            
             <div class="space-y-4">
-                <div>
-                    <label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Name</label>
-                    <input type="text" id="subLimitNameInput" placeholder="e.g. Groceries" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl px-4 py-3 text-base font-bold focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition">
-                </div>
-                <div>
-                    <label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Limit Amount</label>
-                    <div class="relative">
-                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold" id="subLimitCurrencySymbol">₫</span>
-                        <input type="text" inputmode="numeric" id="subLimitAmountInput" onkeyup="formatCurrencyInput(this)" placeholder="0" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl pl-8 pr-4 py-3 text-base font-bold focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition text-right">
-                    </div>
-                </div>
-                
-                <button onclick="saveSubLimit()" id="subLimitSaveBtn" class="w-full bg-ios-purple text-white py-3.5 rounded-xl font-bold hover:bg-purple-600 transition shadow-lg shadow-purple-500/20 flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-check"></i> <span>Create Budget</span>
-                </button>
-                
-                <button onclick="deleteSubLimitFromModal()" id="subLimitDeleteBtn" class="w-full bg-red-50 dark:bg-red-500/10 text-red-500 py-3.5 rounded-xl font-bold hover:bg-red-100 dark:hover:bg-red-500/20 transition hidden flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-trash"></i> Delete Budget
-                </button>
+                <div><label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Name</label><input type="text" id="subLimitNameInput" placeholder="e.g. Groceries" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl px-4 py-3 text-base font-bold focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition"></div>
+                <div><label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Limit Amount</label><div class="relative"><span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold" id="subLimitCurrencySymbol">₫</span><input type="text" inputmode="numeric" id="subLimitAmountInput" onkeyup="formatCurrencyInput(this)" placeholder="0" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl pl-8 pr-4 py-3 text-base font-bold focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition text-right"></div></div>
+                <button onclick="saveSubLimit()" id="subLimitSaveBtn" class="w-full bg-ios-purple text-white py-3.5 rounded-xl font-bold hover:bg-purple-600 transition shadow-lg shadow-purple-500/20 flex items-center justify-center gap-2"><i class="fa-solid fa-check"></i> <span>Create Budget</span></button>
+                <button onclick="deleteSubLimitFromModal()" id="subLimitDeleteBtn" class="w-full bg-red-50 dark:bg-red-500/10 text-red-500 py-3.5 rounded-xl font-bold hover:bg-red-100 dark:hover:bg-red-500/20 transition hidden flex items-center justify-center gap-2"><i class="fa-solid fa-trash"></i> Delete Budget</button>
             </div>
         </div>
     </div>
@@ -537,40 +560,15 @@
                 <h2 class="text-lg font-bold dark:text-white" id="subModalTitle">New Subscription</h2>
                 <button onclick="closeSubscriptionModal()" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/20 transition"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            
             <div class="space-y-4">
-                <div>
-                    <label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Name</label>
-                    <input type="text" id="modalSubName" placeholder="e.g. Netflix" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl px-4 py-3 text-base font-bold focus:ring-2 focus:ring-ios-purple outline-none dark:text-white transition">
-                </div>
-                <div>
-                    <label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Amount</label>
-                    <div class="relative">
-                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold" id="modalSubCurrency">₫</span>
-                        <input type="text" inputmode="numeric" id="modalSubAmount" onkeyup="formatCurrencyInput(this)" placeholder="0" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl pl-8 pr-4 py-3 text-base font-bold focus:ring-2 focus:ring-ios-purple outline-none dark:text-white transition text-right">
-                    </div>
-                </div>
+                <div><label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Name</label><input type="text" id="modalSubName" placeholder="e.g. Netflix" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl px-4 py-3 text-base font-bold focus:ring-2 focus:ring-ios-purple outline-none dark:text-white transition"></div>
+                <div><label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Amount</label><div class="relative"><span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold" id="modalSubCurrency">₫</span><input type="text" inputmode="numeric" id="modalSubAmount" onkeyup="formatCurrencyInput(this)" placeholder="0" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl pl-8 pr-4 py-3 text-base font-bold focus:ring-2 focus:ring-ios-purple outline-none dark:text-white transition text-right"></div></div>
                 <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Frequency</label>
-                        <select id="modalSubFreq" onchange="toggleModalDate()" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl px-3 py-3 text-sm font-bold focus:ring-2 focus:ring-ios-purple outline-none dark:text-white transition appearance-none cursor-pointer">
-                            <option value="monthly">Monthly</option>
-                            <option value="yearly">Yearly</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Start / Due Date</label>
-                        <input type="date" id="modalSubDate" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl px-3 py-3 text-sm font-bold focus:ring-2 focus:ring-ios-purple outline-none dark:text-white transition">
-                    </div>
+                    <div><label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Frequency</label><select id="modalSubFreq" onchange="toggleModalDate()" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl px-3 py-3 text-sm font-bold focus:ring-2 focus:ring-ios-purple outline-none dark:text-white transition appearance-none cursor-pointer"><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select></div>
+                    <div><label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Start / Due Date</label><input type="date" id="modalSubDate" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl px-3 py-3 text-sm font-bold focus:ring-2 focus:ring-ios-purple outline-none dark:text-white transition"></div>
                 </div>
-
-                <button onclick="saveSubscription()" id="subSaveBtn" class="w-full bg-ios-purple text-white py-3.5 rounded-xl font-bold hover:bg-purple-600 transition shadow-lg shadow-purple-500/20 flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-check"></i> <span>Add Subscription</span>
-                </button>
-                
-                <button onclick="deleteSubscriptionFromModal()" id="subDeleteBtn" class="w-full bg-red-50 dark:bg-red-500/10 text-red-500 py-3.5 rounded-xl font-bold hover:bg-red-100 dark:hover:bg-red-500/20 transition hidden flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-trash"></i> Delete
-                </button>
+                <button onclick="saveSubscription()" id="subSaveBtn" class="w-full bg-ios-purple text-white py-3.5 rounded-xl font-bold hover:bg-purple-600 transition shadow-lg shadow-purple-500/20 flex items-center justify-center gap-2"><i class="fa-solid fa-check"></i> <span>Add Subscription</span></button>
+                <button onclick="deleteSubscriptionFromModal()" id="subDeleteBtn" class="w-full bg-red-50 dark:bg-red-500/10 text-red-500 py-3.5 rounded-xl font-bold hover:bg-red-100 dark:hover:bg-red-500/20 transition hidden flex items-center justify-center gap-2"><i class="fa-solid fa-trash"></i> Delete</button>
             </div>
         </div>
     </div>
@@ -580,61 +578,68 @@
         <div class="bg-white dark:bg-[#1c1c1e] rounded-3xl w-full max-w-xs p-6 shadow-2xl relative animate-fade-in flex flex-col max-h-[80vh]">
             <button onclick="closeCategoryModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><i class="fa-solid fa-xmark text-lg"></i></button>
             <h2 class="text-lg font-bold mb-4 text-center dark:text-white">Categories</h2>
-            <div id="categoryListContainer" class="flex-grow overflow-y-auto custom-scrollbar space-y-2 pr-1">
-                <!-- Populated by JS -->
-            </div>
+            <div id="categoryListContainer" class="flex-grow overflow-y-auto custom-scrollbar space-y-2 pr-1"></div>
         </div>
     </div>
 
-    <!-- Hidden Inputs -->
-    <input type="file" id="avatarInput" hidden accept="image/*" onchange="handleAvatarFile(this)">
-    <input type="file" id="importInput" hidden accept=".json" onchange="handleImportFile(this)">
-
     <script>
         // *** CONFIGURATION ZONE ***
-        // DELETE the config below and PASTE YOUR OWN KEYS here if they differ
         const FIREBASE_CONFIG = {
             apiKey: "AIzaSyBLLUnNGyFxJFEJXOTZ42tAgo41rylZEpA",
             authDomain: "baowalletapp.firebaseapp.com",
             projectId: "baowalletapp",
             storageBucket: "baowalletapp.firebasestorage.app",
             messagingSenderId: "973567102982",
-            appId: "1:973567102982:web:1b5abf693464c03e85f387",
-            measurementId: "G-PL5D78BY4V"
+            appId: "1:973567102982:web:1b5abf693464c03e85f387"
         };
         // *************************************************
 
         let db, auth, currentUserDocId = null, unsubscribeSnapshot = null;
         let exchangeRate = 26300, isManualRate = false, viewDate = new Date();
-        let budgetChart, bankChart, cashChart, currentSort = 'newest', searchQuery = '', confirmCallback = null;
+        let budgetChart, bankChart, cashChart, currentSort = 'newest', searchQuery = '', confirmCallback = null, pinCallback = null;
         let selectedTransAccount = 'bank';
-        let statsViewMode = 'monthly'; // 'monthly' or 'all'
-        let appData = { currency: 'VND', limits: {}, transactions: [], subscriptions: [], subLimits: [], categories: ['Food', 'Transport', 'Utilities', 'Entertainment', 'Shopping', 'Health', 'Education', 'Bill', 'Exchange'], customRate: null, notifications: [], pin: null, avatar: null, activityLog: [] };
+        let statsViewMode = 'monthly';
+        let cropper = null; // Global cropper instance
+        let appData = { 
+            currency: 'VND', 
+            limits: {}, 
+            transactions: [], 
+            subscriptions: [], 
+            subLimits: [], 
+            categories: ['Food', 'Transport', 'Utilities', 'Entertainment', 'Shopping', 'Health', 'Education', 'Bill', 'Exchange'], 
+            customRate: null, 
+            notifications: [],
+            pin: null, // New PIN field
+            avatar: null, // Base64 string for avatar
+            securityLogs: [] // { timestamp, device }
+        };
         const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
         if(!Array.isArray(appData.subLimits)) appData.subLimits = [];
         let editingSubLimitId = null;
         let editingSubId = null;
 
-        // PIN variables
-        let pinInput = "";
-        let pinMode = "login"; // 'login', 'create', 'confirm', 'change'
-        let firstPinEntry = "";
-        let tempUserDoc = null; // Stores doc snapshot during PIN entry
-        let tempUsername = null; // Stores username during new account creation
-
-        // Cropper variables
-        let cropperState = { img: null, x: 0, y: 0, scale: 1, isDragging: false, startX: 0, startY: 0 };
-
         const currentAppId = typeof __app_id !== 'undefined' ? __app_id : (FIREBASE_CONFIG.appId || 'default-app-id');
 
-        // Helper to check if viewing current month
         function isCurrentViewMonth() {
             const now = new Date();
             return viewDate.getMonth() === now.getMonth() && viewDate.getFullYear() === now.getFullYear();
         }
 
+        // --- HELPER: Unified Data Path ---
+        function getUserRef(username) {
+            if (!db || !username) return null;
+            // Ensure we use the exact same appId logic as everywhere else
+            const appIdToUse = typeof __app_id !== 'undefined' ? __app_id : (FIREBASE_CONFIG.appId || 'default-app-id');
+            // Public data path ensures sync across devices for the same app ID
+            return window.fb.doc(db, 'artifacts', appIdToUse, 'public', 'data', 'finance_users', username);
+        }
+
         async function init() {
             loadTheme();
+            // Clear input on load to prevent ghost sessions
+            const userInput = document.getElementById('usernameInput');
+            if(userInput) userInput.value = '';
+
             if (!window.fb) await new Promise(r => window.addEventListener('firebaseLoaded', r));
             let configToUse = FIREBASE_CONFIG;
             if (typeof __firebase_config !== 'undefined') { try { configToUse = JSON.parse(__firebase_config); } catch(e) {} }
@@ -644,1121 +649,421 @@
                 const app = window.fb.initializeApp(configToUse);
                 auth = window.fb.getAuth(app);
                 db = window.fb.getFirestore(app);
+                // Auth check is manual now via the form, but we need anonymous auth for Firestore access
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await window.fb.signInWithCustomToken(auth, __initial_auth_token);
                 else await window.fb.signInAnonymously(auth);
             } catch (e) {
                 console.error("Firebase Init Error:", e);
                 if(e.message === "Missing Config") showToast("⚠️ Missing Firebase Keys in Code");
             }
-
-            const storedUser = localStorage.getItem('finTrack_username');
-            
-            // Auto Login Check
-            if (storedUser) {
-                handleAuth(storedUser); 
-            }
             
             // Real-time currency sync
-            fetchLiveRate(); // Initial fetch
-            setInterval(fetchLiveRate, 60000); // Poll every minute if online
+            fetchLiveRate();
+            setInterval(fetchLiveRate, 60000);
             window.addEventListener('online', () => { showToast("Back Online: Syncing Rates..."); fetchLiveRate(); });
             window.addEventListener('offline', () => showToast("Offline Mode Enabled"));
 
-            // Check Notifications on load
-            setTimeout(() => {
-                if(Notification.permission !== "denied") {
-                    // Logic to check could happen here, but better after data is loaded
-                }
-            }, 2000);
-
             initCharts();
-            setStatsView('monthly'); // Default init view mode UI
-            initCropperEvents();
+            setStatsView('monthly');
         }
 
-        async function fetchLiveRate() { 
-            if(!navigator.onLine) {
-                const rateEl = document.getElementById('rateDisplay');
-                if(rateEl) { rateEl.classList.add('text-amber-500'); rateEl.classList.remove('text-ios-blue'); }
-                const mob = document.getElementById('rateDisplayMobile');
-                if(mob) { mob.classList.add('text-amber-500'); mob.classList.remove('text-ios-blue'); }
-                return;
-            }
-            try { 
-                const r=await fetch('https://open.er-api.com/v6/latest/USD'); 
-                const d=await r.json(); 
-                exchangeRate = d.rates.VND; 
-                isManualRate = false; 
-                appData.customRate = null; 
-                updateRateDisplay(); 
-                updateUI(); 
-            } catch(e) { console.warn("Rate fetch failed"); } 
-        }
+        // --- AUTH FLOW ---
 
-        function editExchangeRate() { 
-            const r=prompt("Custom Rate (USD->VND):", parseInt(exchangeRate)); 
-            if(r){ 
-                exchangeRate=parseFloat(r); 
-                isManualRate=true; 
-                appData.customRate=exchangeRate; 
-                saveData(); 
-                showToast("Manual Rate Set");
-                updateRateDisplay();
-                updateUI();
-            } 
-        }
+        let pendingUsername = '';
 
-        function updateRateDisplay() { 
-            const text = `1$ ≈ ${new Intl.NumberFormat().format(parseInt(exchangeRate))}₫`;
-            const el = document.getElementById('rateDisplay');
-            if(el) el.innerText = text; 
-            const mob = document.getElementById('rateDisplayMobile');
-            if(mob) mob.innerText = text;
-            if(isManualRate || !navigator.onLine) {
-                if(el) { el.classList.add('text-amber-500'); el.classList.remove('text-ios-blue'); }
-                if(mob) { mob.classList.add('text-amber-500'); mob.classList.remove('text-ios-blue'); }
-            } else {
-                if(el) { el.classList.remove('text-amber-500'); el.classList.add('text-ios-blue'); }
-                if(mob) { mob.classList.remove('text-amber-500'); mob.classList.add('text-ios-blue'); }
-            }
-        }
-        
-        function toggleCurrency() { appData.currency = appData.currency === 'USD' ? 'VND' : 'USD'; updateUI(); saveData(); }
-
-        // --- Render Functions (Restored) ---
-        function renderSubLimits(spentMap) {
-            const c = document.getElementById('subLimitsContainer'); c.innerHTML = '';
-            if(appData.subLimits.length===0) document.getElementById('emptySubLimits').classList.remove('hidden');
-            else document.getElementById('emptySubLimits').classList.add('hidden');
-            
-            appData.subLimits.forEach(sl => {
-                const s = spentMap[sl.id] || 0;
-                const rem = Math.max(0, sl.limit - s);
-                const pct = Math.min(100, (rem/sl.limit)*100);
-                const col = rem > 0 ? 'bg-ios-purple' : 'bg-ios-red';
-                const txt = rem > 0 ? 'text-ios-purple' : 'text-ios-red';
-                
-                const delBtn = isCurrentViewMonth() 
-                    ? `<button onclick="deleteSubLimit(${sl.id})" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><i class="fa-solid fa-xmark"></i></button>`
-                    : '';
-                const editBtn = isCurrentViewMonth()
-                    ? `<button onclick="openSubLimitModal(${sl.id})" class="absolute top-2 right-8 text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition"><i class="fa-solid fa-pen"></i></button>`
-                    : '';
-
-                c.innerHTML += `
-                <div class="bg-white/50 dark:bg-white/5 p-4 rounded-2xl flex flex-col justify-between relative group border border-gray-100 dark:border-gray-800 hover-lift">
-                    ${editBtn}
-                    ${delBtn}
-                    <div class="mb-2"><h3 class="text-sm font-bold truncate dark:text-white">${sl.name}</h3><p class="text-[10px] text-gray-400">Limit: ${formatMoney(sl.limit)}</p></div>
-                    <div class="w-full"><div class="flex justify-between items-end mb-1"><span class="text-[10px] font-semibold text-gray-500">Left</span><span class="text-xs font-bold ${txt}">${formatMoney(rem)}</span></div><div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden"><div class="h-full rounded-full transition-all duration-500 ${col}" style="width: ${pct}%"></div></div></div>
-                </div>`;
-            });
-        }
-
-        function renderSubs() {
-            const l = document.getElementById('subscriptionList'); l.innerHTML = '';
-            if(appData.subscriptions.length===0) document.getElementById('emptySubs').classList.remove('hidden'); else document.getElementById('emptySubs').classList.add('hidden');
-            appData.subscriptions.forEach(s => {
-                let dateDisplay = '';
-                if (s.dueDate) {
-                    const d = new Date(s.dueDate);
-                    const day = d.getDate();
-                    if(s.frequency === 'yearly') {
-                        dateDisplay = `${monthNames[d.getMonth()]} ${day}`;
-                    } else {
-                        dateDisplay = `Day ${day}`;
-                    }
-                } else {
-                    dateDisplay = s.frequency === 'yearly' ? monthNames[s.dueMonth] : 'Monthly';
-                }
-
-                const tag = s.frequency === 'yearly' 
-                    ? `<span class="text-[9px] bg-orange-100 text-orange-600 px-1.5 rounded font-bold">YR</span>` 
-                    : `<span class="text-[9px] bg-purple-100 text-purple-600 px-1.5 rounded font-bold">MO</span>`;
-                
-                const editBtn = isCurrentViewMonth()
-                    ? `<button onclick="openSubscriptionModal(${s.id})" class="text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100"><i class="fa-solid fa-pen"></i></button>`
-                    : '';
-
-                l.innerHTML += `
-                <div class="flex justify-between items-center bg-white/50 dark:bg-white/5 p-3 rounded-xl mb-2 group">
-                    <div class="flex items-center gap-2 overflow-hidden">
-                        ${tag}
-                        <div class="flex flex-col">
-                            <span class="text-sm font-medium dark:text-gray-200 truncate">${s.name}</span>
-                            <span class="text-[10px] text-gray-400 font-medium">Due: ${dateDisplay}</span>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-3 shrink-0">
-                        <span class="text-sm font-bold text-gray-700 dark:text-gray-300">-${formatMoney(s.amount)}</span>
-                        ${editBtn}
-                    </div>
-                </div>`;
-            });
-        }
-
-        function renderHistory(t) {
-            const l = document.getElementById('historyList'); l.innerHTML = '';
-            if(t.length===0) { l.innerHTML = `<li class="text-center text-gray-400 text-sm py-4">No activity.</li>`; return; }
-            
-            let sorted = [...t];
-            if (searchQuery) {
-                sorted = sorted.filter(item => {
-                    const descMatch = (item.desc || '').toLowerCase().includes(searchQuery);
-                    const catMatch = (item.category || '').toLowerCase().includes(searchQuery);
-                    let subLimitMatch = false;
-                    if(item.subLimitId) {
-                        const sl = appData.subLimits.find(s => s.id === item.subLimitId);
-                        if(sl && sl.name.toLowerCase().includes(searchQuery)) subLimitMatch = true;
-                    }
-                    return descMatch || catMatch || subLimitMatch;
-                });
-                if(sorted.length === 0) { l.innerHTML = `<li class="text-center text-gray-400 text-sm py-4">No matches found.</li>`; return; }
-            }
-
-            if(currentSort === 'newest') sorted.sort((a,b)=>new Date(b.date)-new Date(a.date));
-            else if(currentSort === 'oldest') sorted.sort((a,b)=>new Date(a.date)-new Date(b.date));
-            else if(currentSort === 'high') sorted.sort((a,b)=>b.amount-a.amount);
-
-            sorted.forEach(x => {
-                const isExp = x.type==='expense';
-                let cat = '';
-                if(x.subLimitId) { const s = appData.subLimits.find(z=>z.id===x.subLimitId); if(s) cat = `<span class="text-[9px] bg-indigo-100 text-indigo-600 px-1.5 rounded ml-2 font-bold">${s.name}</span>`; }
-                else if(x.category && x.category !== 'Uncategorized') cat = `<span class="text-[9px] bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-300 px-1.5 rounded ml-2 font-bold">${x.category}</span>`;
-                
-                const acct = x.account || 'bank';
-                const acctIcon = acct === 'cash' 
-                    ? `<i class="fa-solid fa-money-bill-wave text-[10px] ml-1 text-gray-400" title="Cash"></i>`
-                    : `<i class="fa-solid fa-building-columns text-[10px] ml-1 text-gray-400" title="Bank"></i>`;
-
-                const delBtn = isCurrentViewMonth()
-                    ? `<button onclick="deleteTransaction(${x.id})" class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100"><i class="fa-solid fa-trash"></i></button>`
-                    : '';
-
-                l.innerHTML += `
-                <li class="flex justify-between items-center bg-white/50 dark:bg-white/5 p-4 rounded-2xl group transition hover:bg-white/80 dark:hover:bg-white/10 hover-lift">
-                    <div class="flex items-center gap-3 min-w-0">
-                        <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isExp?'bg-red-100 text-red-500 dark:bg-red-500/20':'bg-green-100 text-green-500 dark:bg-green-500/20'}"><i class="fa-solid ${isExp?'fa-bag-shopping':'fa-coins'} text-sm"></i></div>
-                        <div class="min-w-0"><div class="flex items-center"><p class="font-bold text-sm dark:text-gray-100 truncate">${x.desc}</p>${cat}${acctIcon}</div><p class="text-[10px] text-gray-400">${new Date(x.date).toLocaleDateString()}</p></div>
-                    </div>
-                    <div class="flex items-center gap-3 shrink-0"><span class="font-bold ${isExp?'text-ios-red':'text-ios-green'}">${isExp?'-':'+'}${formatMoney(x.amount)}</span>${delBtn}</div>
-                </li>`;
-            });
-        }
-
-        function renderComparison() {
-            const b = document.getElementById('comparisonTableBody'); b.innerHTML = '';
-            for(let i=0; i<6; i++) {
-                let d = new Date(viewDate.getFullYear(), viewDate.getMonth()-i, 1);
-                let inc=0, exp=0;
-                appData.transactions.forEach(t=>{ 
-                    const isExchange = (t.category || '').toLowerCase() === 'exchange';
-                    if(!isExchange) {
-                        const td=new Date(t.date); if(td.getMonth()===d.getMonth() && td.getFullYear()===d.getFullYear()) { if(t.type==='revenue') inc+=t.amount; else exp+=t.amount; } 
-                    }
-                });
-                const sav = inc - exp;
-                b.innerHTML += `<tr class="border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-white/50 dark:hover:bg-white/5"><td class="py-3 pl-2 text-gray-500 dark:text-gray-400 font-medium">${d.toLocaleDateString('en-US',{month:'short'})}</td><td class="py-3 text-right text-ios-green">${formatMoney(inc)}</td><td class="py-3 text-right text-ios-red">${formatMoney(exp)}</td><td class="py-3 text-right font-bold ${sav>=0?'text-ios-blue':'text-ios-orange'}">${formatMoney(sav)}</td></tr>`;
-            }
-        }
-
-        function updateUI() {
-            const isMonthly = statsViewMode === 'monthly';
-            const badge = document.getElementById('viewModeBadge');
-            badge.innerText = isMonthly ? 'Mo' : 'All';
-            
-            const notifBadge = document.getElementById('notifBadge');
-            if(appData.notifications && appData.notifications.some(n => !n.read)) {
-                notifBadge.classList.remove('hidden');
-            } else {
-                notifBadge.classList.add('hidden');
-            }
-
-            document.getElementById('currencyLabel').innerText = appData.currency;
-            document.getElementById('inputCurrencySymbol').innerText = appData.currency === 'VND' ? '₫' : '$';
-            document.getElementById('currentMonthDisplay').innerText = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-            
-            const sel = document.getElementById('budgetSelect'); const oldVal = sel.value;
-            sel.innerHTML = `<option value="general">General (Monthly Limit)</option>`;
-            appData.subLimits.forEach(sl => { const o = document.createElement('option'); o.value = sl.id; o.text = sl.name; sel.appendChild(o); });
-            sel.value = oldVal;
-
-            const dl = document.getElementById('categoryList'); dl.innerHTML = '';
-            appData.categories.sort().forEach(c => { const o = document.createElement('option'); o.value = c; dl.appendChild(o); });
-
-            let allInc = 0, allExp = 0; 
-            let bankRealInc = 0, bankRealExp = 0;
-            let bankTransIn = 0, bankTransOut = 0;
-            let cashRealInc = 0, cashRealExp = 0;
-            let cashTransIn = 0, cashTransOut = 0;
-
-            appData.transactions.forEach(t => { 
-                const acct = t.account || 'bank'; 
-                const isExchange = (t.category || '').toLowerCase() === 'exchange';
-                
-                if (t.type==='revenue') {
-                    if (acct === 'bank') {
-                        if (isExchange) bankTransIn += t.amount; else bankRealInc += t.amount;
-                    } else { 
-                        if (isExchange) cashTransIn += t.amount; else cashRealInc += t.amount;
-                    }
-                    if(!isExchange) allInc += t.amount;
-                } else { 
-                    if (acct === 'bank') {
-                        if (isExchange) bankTransOut += t.amount; else bankRealExp += t.amount;
-                    } else { 
-                        if (isExchange) cashTransOut += t.amount; else cashRealExp += t.amount;
-                    }
-                    if(!isExchange) allExp += t.amount;
-                }
-            });
-            
-            let subCostAllTime = 0; 
-            const now = new Date();
-            appData.subscriptions.forEach(s => {
-               let m = 0;
-               while(m <= now.getMonth()) {
-                   const isCurrentMonth = m === now.getMonth();
-                   let dueDay = 1;
-                   if (s.dueDate) dueDay = new Date(s.dueDate).getDate();
-                   let shouldCharge = false;
-                   if (s.frequency === 'monthly') {
-                       if (!isCurrentMonth) shouldCharge = true; 
-                       else if (now.getDate() >= dueDay) shouldCharge = true;
-                   } else if (s.frequency === 'yearly') {
-                       const dueM = s.dueDate ? new Date(s.dueDate).getMonth() : s.dueMonth;
-                       if (dueM === m) {
-                           if (!isCurrentMonth) shouldCharge = true;
-                           else if (now.getDate() >= dueDay) shouldCharge = true;
-                       }
-                   }
-                   if (shouldCharge) subCostAllTime += s.amount;
-                   m++;
-               }
-            });
-            
-            bankRealExp += subCostAllTime;
-            allExp += subCostAllTime;
-
-            const bankBalance = (bankRealInc + bankTransIn) - (bankRealExp + bankTransOut);
-            const cashBalance = (cashRealInc + cashTransIn) - (cashRealExp + cashTransOut);
-            const totalWallet = bankBalance + cashBalance;
-
-            let displayInc = 0, displayExp = 0;
-
-            if (isMonthly) {
-                const mTrans = appData.transactions.filter(t => new Date(t.date).getMonth() === viewDate.getMonth() && new Date(t.date).getFullYear() === viewDate.getFullYear());
-                mTrans.forEach(t => { 
-                    const isExchange = (t.category || '').toLowerCase() === 'exchange';
-                    if(!isExchange) {
-                        if(t.type==='revenue') displayInc+=t.amount; else displayExp+=t.amount; 
-                    }
-                });
-                appData.subscriptions.forEach(s => {
-                    const dueM = s.dueDate ? new Date(s.dueDate).getMonth() : s.dueMonth;
-                    if(s.frequency === 'monthly' || (s.frequency === 'yearly' && dueM === viewDate.getMonth())) {
-                         displayExp += s.amount;
-                    }
-                });
-            } else {
-                displayInc = allInc;
-                displayExp = allExp;
-            }
-
-            document.getElementById('incomeDisplay').innerText = formatMoney(displayInc);
-            document.getElementById('spentDisplay').innerText = formatMoney(displayExp); 
-            document.getElementById('walletDisplay').innerText = formatMoney(totalWallet);
-            
-            const mTransCurrent = appData.transactions.filter(t => new Date(t.date).getMonth() === viewDate.getMonth() && new Date(t.date).getFullYear() === viewDate.getFullYear());
-            let genSpent = 0, subSpent = {};
-            mTransCurrent.forEach(t => { 
-                const isExchange = (t.category || '').toLowerCase() === 'exchange';
-                if(t.type==='expense' && !isExchange) { 
-                    if(t.subLimitId) subSpent[t.subLimitId] = (subSpent[t.subLimitId]||0)+t.amount; else genSpent += t.amount; 
-                }
-            });
-            
-            const mSubs = appData.subscriptions.reduce((s, sub) => {
-                const dueM = sub.dueDate ? new Date(sub.dueDate).getMonth() : sub.dueMonth;
-                const isDueMonth = (sub.frequency==='monthly' || (sub.frequency==='yearly' && dueM === viewDate.getMonth()));
-                return isDueMonth ? s+sub.amount : s;
-            }, 0);
-
-            const limit = appData.limits[getMonthKey(viewDate)] || 0;
-            const mainRem = Math.max(0, limit - (genSpent + mSubs));
-            document.getElementById('monthlyLeftDisplay').innerText = formatMoney(mainRem);
-            
-            const isDark = document.documentElement.classList.contains('dark');
-            const bg = isDark ? '#2C2C2E' : '#E5E7EB';
-            
-            const p = limit > 0 ? mainRem / limit : 0;
-            const col = p < 0.2 ? '#FF3B30' : (p < 0.5 ? '#FF9500' : '#007AFF');
-            document.getElementById('centerBudgetRemaining').innerText = formatMoney(mainRem);
-            document.getElementById('centerLimitLabel').innerText = "Limit: " + formatMoney(limit);
-            if(budgetChart) {
-                budgetChart.data.datasets[0].data = limit === 0 ? [0, 100] : [mainRem, limit - mainRem];
-                budgetChart.data.datasets[0].backgroundColor = limit === 0 ? [bg, bg] : [col, bg];
-                budgetChart.update();
-            }
-
-            const bankNetTransfer = bankTransIn - bankTransOut;
-            let bankChartData = bankNetTransfer >= 0 ? [bankBalance, bankRealExp] : [bankBalance, bankRealExp + Math.abs(bankNetTransfer)];
-            const cashNetTransfer = cashTransIn - cashTransOut;
-            let cashChartData = cashNetTransfer >= 0 ? [cashBalance, cashRealExp] : [cashBalance, cashRealExp + Math.abs(cashNetTransfer)];
-
-            if (bankChartData[0] <= 0) bankChartData = [0, 100]; 
-            if (cashChartData[0] <= 0) cashChartData = [0, 100];
-
-            document.getElementById('centerBankBalance').innerText = formatMoney(bankBalance);
-            document.getElementById('centerCashBalance').innerText = formatMoney(cashBalance);
-            document.getElementById('footerTotalIncome').innerText = formatMoney(allInc);
-            document.getElementById('footerTotalSpent').innerText = formatMoney(allExp);
-
-            if(bankChart) {
-                bankChart.data.datasets[0].data = bankChartData; 
-                bankChart.data.datasets[0].backgroundColor = bankBalance <= 0 ? [bg, bg] : ['#007AFF', '#FF3B30'];
-                bankChart.update();
-            }
-            if(cashChart) {
-                cashChart.data.datasets[0].data = cashChartData;
-                cashChart.data.datasets[0].backgroundColor = cashBalance <= 0 ? [bg, bg] : ['#34C759', '#FF3B30'];
-                cashChart.update();
-            }
-
-            const isCurrent = isCurrentViewMonth();
-            const lockMsg = document.getElementById('lockedMessage');
-            const inputs = ['limitControl', 'transControl'];
-            const addSubBtn = document.getElementById('addSubBtn');
-            
-            if (isCurrent) {
-                lockMsg.classList.add('hidden');
-                inputs.forEach(id => document.getElementById(id).classList.remove('disabled-overlay'));
-                addSubBtn.classList.remove('pointer-events-none', 'opacity-50');
-            } else {
-                lockMsg.classList.remove('hidden');
-                inputs.forEach(id => document.getElementById(id).classList.add('disabled-overlay'));
-                addSubBtn.classList.add('pointer-events-none', 'opacity-50');
-            }
-
-            renderSubs();
-            renderSubLimits(subSpent);
-            renderHistory(mTransCurrent);
-            renderComparison();
-        }
-
-        async function handleAuth(autoUser = null) {
+        async function checkUsername() {
             const usernameInput = document.getElementById('usernameInput');
-            let username = autoUser;
+            const username = usernameInput.value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (username.length < 3) { showToast("Username too short"); return; }
             
-            if (!username) {
-                username = usernameInput.value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-                if (username.length < 3) { showToast("Username too short"); return; }
-                document.getElementById('authLoader').classList.remove('hidden');
-                usernameInput.disabled = true;
-            }
+            document.getElementById('authLoader').classList.remove('hidden');
+            usernameInput.disabled = true;
 
             try {
-                if (!auth.currentUser) await window.fb.signInAnonymously(auth);
-                let userRef;
-                if (typeof __app_id !== 'undefined') userRef = window.fb.doc(db, 'artifacts', __app_id, 'public', 'data', 'finance_users', username);
-                else userRef = window.fb.doc(db, 'finance_users', username);
-                
-                // Fetch doc directly first to determine PIN status
-                let docSnap = await window.fb.getDoc(userRef);
-                
-                if (docSnap && docSnap.exists()) {
+                const userRef = getUserRef(username);
+                const docSnap = await window.fb.getDoc(userRef);
+                pendingUsername = username;
+
+                if (docSnap.exists()) {
+                    // User exists
                     const data = docSnap.data();
-                    tempUserDoc = docSnap; // Store for later access
-                    
                     if (data.pin) {
-                        // User has PIN
-                        if (autoUser) {
-                            // AUTO-LOGIN: Bypass PIN if previously logged in
-                            finishLogin(docSnap);
-                        } else {
-                            // MANUAL LOGIN: Ask for PIN
-                            showPinScreen('login', username);
-                        }
+                        showLoginStep();
                     } else {
-                        // LEGACY USER (No PIN): Force create
-                        showPinScreen('create', username, true); // true = forced
+                        // Legacy: User exists but no PIN
+                        await completeLogin(username, true);
                     }
                 } else {
-                    // NEW USER
-                    if (autoUser) {
-                        // Should not happen if localstorage is correct, but safe fallback
-                        localStorage.removeItem('finTrack_username');
-                        location.reload();
-                    } else {
-                        tempUsername = username;
-                        tempUserDoc = null; 
-                        showPinScreen('create', username, true);
-                    }
+                    // User does not exist
+                    showRegisterStep();
                 }
+            } catch (e) {
+                console.error(e);
+                showToast("Connection Error: " + (e.message || "Unknown"));
+                usernameInput.disabled = false;
+            } finally {
+                document.getElementById('authLoader').classList.add('hidden');
+            }
+        }
 
+        function showLoginStep() {
+            document.getElementById('authStep1').classList.add('hidden');
+            document.getElementById('authStepLogin').classList.remove('hidden');
+            document.getElementById('loginUserLabel').innerText = pendingUsername;
+            document.getElementById('loginPinInput').value = '';
+            document.getElementById('loginPinInput').focus();
+        }
+
+        function showRegisterStep() {
+            document.getElementById('authStep1').classList.add('hidden');
+            document.getElementById('authStepRegister').classList.remove('hidden');
+            document.getElementById('regUserLabel').innerText = pendingUsername;
+            document.getElementById('regPinInput').value = '';
+            document.getElementById('regPinInput').focus();
+        }
+
+        function resetAuth() {
+            document.getElementById('authStep1').classList.remove('hidden');
+            document.getElementById('authStepLogin').classList.add('hidden');
+            document.getElementById('authStepRegister').classList.add('hidden');
+            document.getElementById('usernameInput').disabled = false;
+            document.getElementById('usernameInput').value = ''; // Clear value
+            document.getElementById('usernameInput').focus();
+            pendingUsername = '';
+        }
+
+        async function loginUser() {
+            const pin = document.getElementById('loginPinInput').value;
+            if (pin.length !== 4) { showToast("Enter 4 digits"); return; }
+
+            const userRef = getUserRef(pendingUsername);
+
+            try {
+                const docSnap = await window.fb.getDoc(userRef);
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    if (data.pin === pin) {
+                        await completeLogin(pendingUsername, false);
+                    } else {
+                        showToast("Incorrect PIN");
+                        document.getElementById('loginPinInput').value = '';
+                    }
+                } else {
+                    showToast("Account not found");
+                    resetAuth();
+                }
+            } catch (e) { showToast("Error verifying PIN"); }
+        }
+
+        async function registerUser() {
+            const pin = document.getElementById('regPinInput').value;
+            if (pin.length !== 4) { showToast("Enter 4 digits"); return; }
+
+            const userRef = getUserRef(pendingUsername);
+
+            try {
+                // Initialize default data
+                // Clean appData just in case
+                appData.pin = pin;
+                appData.securityLogs = [{ timestamp: Date.now(), device: navigator.userAgent }];
+                // Ensure no undefined values which Firestore hates
+                const cleanData = JSON.parse(JSON.stringify(appData));
+                
+                await window.fb.setDoc(userRef, cleanData);
+                await completeLogin(pendingUsername, false);
             } catch (e) { 
                 console.error(e); 
-                showToast("Connection failed."); 
-                // Revert UI if error
-                if(!autoUser) {
-                    document.getElementById('authScreen').classList.remove('hidden');
-                    document.getElementById('pinScreen').classList.add('hidden');
-                }
-            } 
-            finally { 
-                document.getElementById('authLoader').classList.add('hidden'); 
-                usernameInput.disabled = false; 
+                showToast("Registration failed: " + e.code); 
             }
         }
 
-        // --- IMPORT / EXPORT LOGIC ---
-        
-        function exportData() {
-            // Clean up internal keys or sensitive data if needed before export
-            // For restore purposes, we export everything relevant to the state
-            const exportObj = { ...appData };
-            // Remove activity log if user wants privacy? keeping for full backup
+        async function completeLogin(username, isLegacyNoPin) {
+            currentUserDocId = username;
             
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObj));
-            const downloadAnchorNode = document.createElement('a');
-            downloadAnchorNode.setAttribute("href", dataStr);
-            downloadAnchorNode.setAttribute("download", `finance_backup_${currentUserDocId}_${new Date().toISOString().split('T')[0]}.json`);
-            document.body.appendChild(downloadAnchorNode); 
-            downloadAnchorNode.click();
-            downloadAnchorNode.remove();
-            showToast("Data Exported");
-        }
-
-        function handleImportFile(input) {
-            const file = input.files[0];
-            if(!file) return;
-
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    const json = JSON.parse(e.target.result);
-                    // Basic validation
-                    if (!json.categories || !Array.isArray(json.transactions)) {
-                        throw new Error("Invalid Format");
-                    }
-                    
-                    // Confirmation
-                    if (confirm("This will overwrite your current data. Proceed?")) {
-                        // Merge or Overwrite? Overwrite safest for full restore
-                        appData = { ...appData, ...json };
-                        // Ensure pin is preserved from import or keep current?
-                        // Usually restore means restore everything including PIN settings
-                        
-                        await saveData();
-                        updateUI();
-                        updateAvatarUI();
-                        showToast("Data Imported Successfully");
-                    }
-                } catch(err) {
-                    console.error(err);
-                    showToast("Import Failed: Invalid JSON");
-                }
-            };
-            reader.readAsText(file);
-            input.value = ''; // Reset
-        }
-
-        // --- PIN LOGIC ---
-
-        function showPinScreen(mode, username, forced = false) {
-            pinMode = mode;
-            pinInput = "";
-            updatePinDots();
-            
-            const title = document.getElementById('pinTitle');
-            const sub = document.getElementById('pinSubtitle');
-            const cancelBtn = document.getElementById('pinCancelBtn');
-
-            document.getElementById('authScreen').classList.add('hidden');
-            document.getElementById('appUI').classList.add('hidden'); // Hide app if switching pin
-            document.getElementById('pinScreen').classList.remove('hidden');
-
-            if (mode === 'login') {
-                title.innerText = "Enter PIN";
-                sub.innerText = `Welcome back, ${username}`;
-                cancelBtn.classList.remove('hidden');
-            } else if (mode === 'create') {
-                title.innerText = "Create PIN";
-                sub.innerText = "Set a 4-digit code for security";
-                // If forced (new account/legacy), prevent cancel to force setup
-                if (forced) cancelBtn.classList.add('hidden'); else cancelBtn.classList.remove('hidden');
-            }
-        }
-
-        function cancelPin() {
-            if (currentUserDocId && pinMode === 'create') {
-                // Was changing pin, go back to app
-                document.getElementById('pinScreen').classList.add('hidden');
-                document.getElementById('appUI').classList.remove('hidden');
-                document.getElementById('appUI').classList.add('flex');
-            } else {
-                // Was logging in, go back to auth
-                pinInput = "";
-                firstPinEntry = "";
-                tempUserDoc = null;
-                tempUsername = null;
-                document.getElementById('pinScreen').classList.add('hidden');
-                document.getElementById('authScreen').classList.remove('hidden');
-            }
-        }
-
-        // --- New Settings Navigation ---
-        function toggleSettingsView() {
-            const dashboard = document.getElementById('dashboardView');
-            const settings = document.getElementById('settingsView');
-            
-            if (settings.classList.contains('hidden')) {
-                dashboard.classList.add('hidden');
-                settings.classList.remove('hidden');
-                renderSettings();
-            } else {
-                settings.classList.add('hidden');
-                dashboard.classList.remove('hidden');
-            }
-        }
-
-        function renderSettings() {
-            // Render Profile
-            document.getElementById('settingsUsername').innerText = currentUserDocId;
-            const imgEl = document.getElementById('settingsAvatar');
-            const iconEl = document.getElementById('settingsAvatarIcon');
-            if (appData.avatar) {
-                imgEl.src = appData.avatar;
-                imgEl.classList.remove('hidden');
-                iconEl.classList.add('hidden');
-            } else {
-                imgEl.classList.add('hidden');
-                iconEl.classList.remove('hidden');
-            }
-
-            // Render Notifications Toggle
-            const notifBtn = document.getElementById('btnNotifToggle');
-            const icon = notifBtn.querySelector('i');
-            
-            if ("Notification" in window) {
-                if (Notification.permission === "granted") {
-                    icon.className = "fa-solid fa-toggle-on text-2xl text-ios-blue";
-                    notifBtn.classList.remove('text-gray-400');
-                    notifBtn.classList.add('text-ios-blue');
-                } else {
-                    icon.className = "fa-solid fa-toggle-off text-2xl";
-                    notifBtn.classList.add('text-gray-400');
-                    notifBtn.classList.remove('text-ios-blue');
-                }
-            }
-
-            // Render Activity Log
-            const container = document.getElementById('activityLogContainer');
-            container.innerHTML = '';
-            
-            if (!appData.activityLog || appData.activityLog.length === 0) {
-                container.innerHTML = '<p class="text-center text-xs text-gray-400 py-2">No activity recorded.</p>';
-            } else {
-                // Show last 5
-                appData.activityLog.slice(0, 5).forEach(log => {
-                    const date = new Date(log.date);
-                    const isToday = new Date().toDateString() === date.toDateString();
-                    const dateStr = isToday ? `Today, ${date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}` : date.toLocaleDateString();
-                    
-                    container.innerHTML += `
-                        <div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-100 dark:border-gray-800">
-                            <div class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center shrink-0">
-                                <i class="fa-solid fa-mobile-screen-button text-gray-500 dark:text-gray-400 text-xs"></i>
-                            </div>
-                            <div class="flex-grow">
-                                <p class="text-xs font-bold dark:text-white truncate">${log.device}</p>
-                                <p class="text-[10px] text-gray-400">${dateStr}</p>
-                            </div>
-                            <div class="text-[8px] text-gray-300 font-mono bg-gray-200 dark:bg-gray-700 px-1 rounded">${log.sessionId || '---'}</div>
-                        </div>
-                    `;
+            // Log Security Event
+            try {
+                const userRef = getUserRef(username);
+                // Add log entry
+                await window.fb.updateDoc(userRef, {
+                    securityLogs: window.fb.arrayUnion({ timestamp: Date.now(), device: navigator.userAgent })
                 });
-            }
-        }
+            } catch(e) {}
 
-        function logActivity() {
-            if (!currentUserDocId) return;
-            
-            const ua = navigator.userAgent;
-            let device = "Unknown Device";
-            if (ua.includes("iPhone")) device = "iPhone";
-            else if (ua.includes("iPad")) device = "iPad";
-            else if (ua.includes("Android")) device = "Android Device";
-            else if (ua.includes("Windows")) device = "Windows PC";
-            else if (ua.includes("Mac")) device = "Mac";
-            else if (ua.includes("Linux")) device = "Linux PC";
-            
-            // Generate Session ID
-            const sessionId = Math.random().toString(36).substr(2, 6).toUpperCase();
-
-            const entry = {
-                date: new Date().toISOString(),
-                device: device,
-                sessionId: sessionId
-            };
-            
-            if (!appData.activityLog) appData.activityLog = [];
-            appData.activityLog.unshift(entry);
-            // Keep last 20
-            if (appData.activityLog.length > 20) appData.activityLog = appData.activityLog.slice(0, 20);
-            saveData();
-        }
-
-        function handleChangePin() {
-            // Check if user is logged in
-            if (!currentUserDocId) return;
-            
-            pinMode = 'create';
-            tempUserDoc = { id: currentUserDocId, data: () => appData }; // Mock docSnap logic
-            showPinScreen('create', currentUserDocId, false);
-        }
-
-        function handlePinInput(val) {
-            if (val === 'back') {
-                pinInput = pinInput.slice(0, -1);
-            } else if (pinInput.length < 4) {
-                pinInput += val;
-            }
-            
-            updatePinDots();
-
-            if (pinInput.length === 4) {
-                setTimeout(processPin, 100);
-            }
-        }
-
-        function updatePinDots() {
-            const dots = document.querySelectorAll('.pin-dot');
-            dots.forEach((dot, idx) => {
-                if (idx < pinInput.length) {
-                    dot.classList.add('active');
-                } else {
-                    dot.classList.remove('active');
-                }
-            });
-        }
-
-        async function processPin() {
-            const pinDotsContainer = document.getElementById('pinDotsContainer');
-
-            if (pinMode === 'login') {
-                if (tempUserDoc.data().pin === pinInput) {
-                    // Success Login
-                    await finishLogin(tempUserDoc);
-                } else {
-                    // Wrong PIN
-                    pinDotsContainer.classList.add('animate-shake');
-                    showToast("Incorrect PIN");
-                    setTimeout(() => {
-                        pinDotsContainer.classList.remove('animate-shake');
-                        pinInput = "";
-                        updatePinDots();
-                    }, 500);
-                }
-            } else if (pinMode === 'create') {
-                // First entry for creation
-                firstPinEntry = pinInput;
-                pinMode = 'confirm';
-                pinInput = "";
-                updatePinDots();
-                document.getElementById('pinTitle').innerText = "Confirm PIN";
-                document.getElementById('pinSubtitle').innerText = "Re-enter to confirm";
-            } else if (pinMode === 'confirm') {
-                if (pinInput === firstPinEntry) {
-                    // PINs Match -> Save
-                    if (tempUserDoc) {
-                        // Legacy User Update OR PIN Change
-                        const username = tempUserDoc.id;
-                        let userRef;
-                        if (typeof __app_id !== 'undefined') userRef = window.fb.doc(db, 'artifacts', __app_id, 'public', 'data', 'finance_users', username);
-                        else userRef = window.fb.doc(db, 'finance_users', username);
-                        
-                        const updates = { pin: pinInput };
-                        await window.fb.setDoc(userRef, updates, { merge: true });
-                        
-                        if (currentUserDocId) {
-                            // Was Changing PIN
-                            showToast("PIN Changed!");
-                            appData.pin = pinInput; // Update local state
-                            document.getElementById('pinScreen').classList.add('hidden');
-                            document.getElementById('appUI').classList.remove('hidden');
-                            document.getElementById('appUI').classList.add('flex');
-                        } else {
-                            // Was Legacy Setup
-                            showToast("PIN Created!");
-                            await finishLogin(tempUserDoc);
-                        }
-                    } else {
-                        // New User Creation
-                        let userRef;
-                        if (typeof __app_id !== 'undefined') userRef = window.fb.doc(db, 'artifacts', __app_id, 'public', 'data', 'finance_users', tempUsername);
-                        else userRef = window.fb.doc(db, 'finance_users', tempUsername);
-                        
-                        const newUserData = { ...appData, pin: pinInput };
-                        
-                        await window.fb.setDoc(userRef, newUserData, { merge: true });
-                        showToast(`Account Created!`);
-                        currentUserDocId = tempUsername;
-                        finishLoadSequence(tempUsername);
-                    }
-                } else {
-                    // Mismatch
-                    pinDotsContainer.classList.add('animate-shake');
-                    showToast("PINs do not match. Try again.");
-                    setTimeout(() => {
-                        pinDotsContainer.classList.remove('animate-shake');
-                        // Reset to Create Mode
-                        pinMode = 'create';
-                        pinInput = "";
-                        firstPinEntry = "";
-                        updatePinDots();
-                        document.getElementById('pinTitle').innerText = "Create PIN";
-                        document.getElementById('pinSubtitle').innerText = "Set a 4-digit code for security";
-                    }, 500);
-                }
-            }
-        }
-
-        async function finishLogin(docSnap) {
-             const username = docSnap.id;
-             currentUserDocId = username;
-             finishLoadSequence(username);
-        }
-
-        function finishLoadSequence(username) {
-            localStorage.setItem('finTrack_username', username);
-            
-            const settingsNameEl = document.getElementById('settingsUsername');
-            if (settingsNameEl) settingsNameEl.innerText = username;
-            
-            // Record Activity (will auto-save)
-            logActivity();
-            
             subscribeToData();
-            document.getElementById('pinScreen').classList.add('hidden');
+            
+            // UI Transition
             document.getElementById('authScreen').classList.add('hidden');
             document.getElementById('appUI').classList.remove('hidden');
             document.getElementById('appUI').classList.add('flex');
+            
+            // Update Settings UI placeholders
+            document.getElementById('settingsUsername').innerText = username;
+            
+            if (isLegacyNoPin) {
+                document.getElementById('legacyPinModal').classList.remove('hidden');
+            }
         }
 
-        // --- Avatar Cropper Logic ---
-        function handleAvatarFile(input) {
-            const file = input.files[0];
-            if (!file) return;
+        // --- LEGACY PIN HANDLING ---
+        async function saveLegacyPin() {
+            const pin = document.getElementById('legacyPinInput').value;
+            if (pin.length !== 4) { showToast("Enter 4 digits"); return; }
             
-            if (file.size > 2 * 1024 * 1024) {
-                showToast("Image too large (Max 2MB)");
-                return;
+            appData.pin = pin;
+            await saveData();
+            document.getElementById('legacyPinModal').classList.add('hidden');
+            showToast("Account Secured!");
+        }
+
+        // --- SETTINGS LOGIC ---
+        function openSettingsModal() {
+            document.getElementById('settingsModal').classList.remove('hidden');
+            
+            // Render Avatar
+            const img = document.getElementById('settingsAvatar');
+            const navImg = document.getElementById('navbarAvatar');
+            if (appData.avatar) {
+                img.src = appData.avatar;
+                navImg.src = appData.avatar;
+            } else {
+                img.src = "https://img.icons8.com/fluency/96/user-male-circle.png";
+            }
+            
+            // Render Security Logs
+            const logList = document.getElementById('securityLogsList');
+            logList.innerHTML = '';
+            if (appData.securityLogs && appData.securityLogs.length > 0) {
+                // Show last 10
+                const logs = [...appData.securityLogs].sort((a,b) => b.timestamp - a.timestamp).slice(0, 10);
+                logs.forEach(log => {
+                    const d = new Date(log.timestamp);
+                    let device = "Unknown Device";
+                    if (log.device.includes("iPhone")) device = "iPhone";
+                    else if (log.device.includes("Android")) device = "Android";
+                    else if (log.device.includes("Windows")) device = "Windows PC";
+                    else if (log.device.includes("Mac")) device = "Mac";
+                    
+                    logList.innerHTML += `
+                        <div class="flex justify-between items-center text-xs p-2 border-b border-gray-100 dark:border-gray-700">
+                            <span class="text-gray-600 dark:text-gray-300 font-medium">${device}</span>
+                            <span class="text-gray-400">${d.toLocaleDateString()} ${d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>
+                        </div>
+                    `;
+                });
+            } else {
+                logList.innerHTML = `<p class="text-xs text-gray-400 text-center">No logs available.</p>`;
             }
 
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = new Image();
-                img.onload = () => {
-                    initCropper(img);
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-            // Reset input
+            // Sync Theme Toggle
+            const isDark = document.documentElement.classList.contains('dark');
+            const toggle = document.getElementById('themeToggleIcon');
+            toggle.className = isDark ? "fa-solid fa-toggle-on text-2xl text-ios-green" : "fa-solid fa-toggle-off text-2xl text-gray-300";
+        }
+
+        function closeSettingsModal() { document.getElementById('settingsModal').classList.add('hidden'); }
+
+        // Avatar Logic - UPDATED WITH CROPPER & SLIDER
+        function handleAvatarUpload(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                if (file.size > 5000000) { showToast("Image too large (Max 5MB)"); return; }
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const cropImage = document.getElementById('cropImage');
+                    cropImage.src = e.target.result;
+                    document.getElementById('cropModal').classList.remove('hidden');
+                    
+                    // Reset zoom slider
+                    document.getElementById('zoomRange').value = 1;
+
+                    // Initialize Cropper
+                    if (cropper) { cropper.destroy(); }
+                    cropper = new Cropper(cropImage, {
+                        aspectRatio: 1, 
+                        viewMode: 1, 
+                        dragMode: 'move', 
+                        autoCropArea: 0.8,
+                        guides: true,
+                        background: false, 
+                        highlight: false,
+                        cropBoxMovable: false,
+                        cropBoxResizable: false,
+                        toggleDragModeOnDblclick: false,
+                        ready: function () {
+                           // Set initial slider val if needed
+                        },
+                        zoom: function(e) {
+                            // Update slider when zooming via touch/scroll
+                            // Normalize zoom ratio to slider values roughly if possible, or just let slider be relative
+                            // It's tricky to map exact ratio back to slider without knowing initial fit, so we keep slider as a "setter" mostly
+                        }
+                    });
+                }
+                reader.readAsDataURL(file);
+            }
             input.value = '';
         }
 
-        function initCropper(img) {
-            cropperState.img = img;
-            // Center crop initially
-            const canvas = document.getElementById('cropperCanvas');
-            // Viewport is 224x224 (w-56 h-56)
-            canvas.width = 224;
-            canvas.height = 224;
-            
-            // Calc scale to cover
-            const scaleW = canvas.width / img.width;
-            const scaleH = canvas.height / img.height;
-            const startScale = Math.max(scaleW, scaleH);
-            
-            cropperState.scale = startScale;
-            // Center
-            cropperState.x = (canvas.width - img.width * startScale) / 2;
-            cropperState.y = (canvas.height - img.height * startScale) / 2;
-            
-            // Reset slider
-            const slider = document.getElementById('cropperZoom');
-            slider.min = startScale;
-            slider.max = startScale * 3;
-            slider.step = "0.01"; // Smoother steps
-            slider.value = startScale;
-            
-            document.getElementById('cropperModal').classList.remove('hidden');
-            renderCropper();
-        }
+        // Slider listener
+        document.getElementById('zoomRange').addEventListener('input', function(e) {
+            if(cropper) {
+                cropper.zoomTo(parseFloat(e.target.value));
+            }
+        });
+        
+        function rotateCropper(deg) { if(cropper) cropper.rotate(deg); }
+        function resetCropper() { if(cropper) { cropper.reset(); document.getElementById('zoomRange').value = 1; } }
 
-        // Render loop variable
-        let rAF = null;
-        function scheduleRender() {
-            if (rAF) return;
-            rAF = requestAnimationFrame(() => {
-                renderCropper();
-                rAF = null;
+        function saveCroppedAvatar() {
+            if (!cropper) return;
+            const canvas = cropper.getCroppedCanvas({
+                width: 300, 
+                height: 300,
+                imageSmoothingEnabled: true,
+                imageSmoothingQuality: 'high',
             });
-        }
-
-        function initCropperEvents() {
-            const canvas = document.getElementById('cropperCanvas');
-            const slider = document.getElementById('cropperZoom');
+            const base64 = canvas.toDataURL('image/jpeg', 0.85); 
             
-            // Zoom
-            slider.oninput = (e) => {
-                const oldScale = cropperState.scale;
-                const newScale = parseFloat(e.target.value);
-                
-                // Zoom towards center
-                const cx = canvas.width / 2;
-                const cy = canvas.height / 2;
-                
-                cropperState.x = cx - (cx - cropperState.x) * (newScale / oldScale);
-                cropperState.y = cy - (cy - cropperState.y) * (newScale / oldScale);
-                cropperState.scale = newScale;
-                
-                scheduleRender();
-            };
-
-            // Drag
-            const startDrag = (x, y) => {
-                cropperState.isDragging = true;
-                cropperState.startX = x - cropperState.x;
-                cropperState.startY = y - cropperState.y;
-            };
-            
-            const moveDrag = (x, y) => {
-                if(!cropperState.isDragging) return;
-                cropperState.x = x - cropperState.startX;
-                cropperState.y = y - cropperState.startY;
-                scheduleRender();
-            };
-            
-            const endDrag = () => { cropperState.isDragging = false; };
-
-            // Mouse
-            canvas.addEventListener('mousedown', e => startDrag(e.offsetX, e.offsetY));
-            canvas.addEventListener('mousemove', e => moveDrag(e.offsetX, e.offsetY));
-            window.addEventListener('mouseup', endDrag);
-            
-            // Touch
-            canvas.addEventListener('touchstart', e => {
-                const rect = canvas.getBoundingClientRect();
-                startDrag(e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top);
-            });
-            canvas.addEventListener('touchmove', e => {
-                e.preventDefault(); // Prevent scrolling while dragging
-                const rect = canvas.getBoundingClientRect();
-                moveDrag(e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top);
-            });
-            window.addEventListener('touchend', endDrag);
-        }
-
-        function renderCropper() {
-            const canvas = document.getElementById('cropperCanvas');
-            const ctx = canvas.getContext('2d');
-            const { img, x, y, scale } = cropperState;
-            
-            if(!img) return;
-            
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            // Draw image
-            ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-        }
-
-        function saveCrop() {
-            const canvas = document.getElementById('cropperCanvas');
-            // Export
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-            
-            appData.avatar = dataUrl;
+            appData.avatar = base64;
             saveData();
-            updateAvatarUI();
-            renderSettings();
             
-            closeCropper();
+            document.getElementById('settingsAvatar').src = base64;
+            document.getElementById('navbarAvatar').src = base64;
+            document.getElementById('navbarAvatar').classList.remove('hidden');
+            document.getElementById('navbarIcon').classList.add('hidden');
+            
+            closeCropModal();
             showToast("Profile Picture Updated");
         }
 
-        function closeCropper() {
-            document.getElementById('cropperModal').classList.add('hidden');
-            cropperState.img = null;
+        function closeCropModal() {
+            document.getElementById('cropModal').classList.add('hidden');
+            if(cropper) { cropper.destroy(); cropper = null; }
+            document.getElementById('cropImage').src = "";
         }
 
-        function updateAvatarUI() {
-            const imgEl = document.getElementById('userAvatarNav');
-            const iconEl = document.getElementById('userIconNav');
-            
-            if (appData.avatar) {
-                imgEl.src = appData.avatar;
-                imgEl.classList.remove('hidden');
-                iconEl.classList.add('hidden');
-            } else {
-                imgEl.classList.add('hidden');
-                iconEl.classList.remove('hidden');
-            }
+        function removeAvatar() {
+            appData.avatar = null;
+            saveData();
+            document.getElementById('settingsAvatar').src = "https://img.icons8.com/fluency/96/user-male-circle.png";
+            document.getElementById('navbarAvatar').classList.add('hidden');
+            document.getElementById('navbarIcon').classList.remove('hidden');
+            showToast("Photo Removed");
         }
+
+        // Generic PIN Modal Logic
+        function openChangePinModal() {
+            document.getElementById('pinModalTitle').innerText = "Change PIN";
+            document.getElementById('pinModalDesc').innerText = "Enter new 4-digit code";
+            document.getElementById('genericPinInput').value = '';
+            document.getElementById('pinModal').classList.remove('hidden');
+            pinCallback = async (newPin) => {
+                appData.pin = newPin;
+                await saveData();
+                showToast("PIN Changed Successfully");
+                closePinModal();
+            };
+        }
+        
+        function submitGenericPin() {
+            const val = document.getElementById('genericPinInput').value;
+            if (val.length !== 4) { showToast("Must be 4 digits"); return; }
+            if (pinCallback) pinCallback(val);
+        }
+
+        function closePinModal() {
+            document.getElementById('pinModal').classList.add('hidden');
+            pinCallback = null;
+        }
+
+        // --- CORE FUNCTIONS ---
 
         function subscribeToData() {
             if(!currentUserDocId) return;
-            let userRef;
-            if (typeof __app_id !== 'undefined') userRef = window.fb.doc(db, 'artifacts', __app_id, 'public', 'data', 'finance_users', currentUserDocId);
-            else userRef = window.fb.doc(db, 'finance_users', currentUserDocId);
+            const userRef = getUserRef(currentUserDocId);
 
             unsubscribeSnapshot = window.fb.onSnapshot(userRef, (doc) => {
                 if(doc.exists()) {
-                    appData = { ...appData, ...doc.data() };
-                    // Ensure defaults
+                    const newData = doc.data();
+                    appData = { ...appData, ...newData };
+                    
                     if (!appData.categories) appData.categories = ['Food', 'Transport', 'Shopping', 'Bill', 'Exchange'];
                     if (!Array.isArray(appData.subLimits)) appData.subLimits = [];
                     if (!Array.isArray(appData.transactions)) appData.transactions = [];
                     if (!Array.isArray(appData.subscriptions)) appData.subscriptions = [];
                     if (!Array.isArray(appData.notifications)) appData.notifications = [];
-                    if (!Array.isArray(appData.activityLog)) appData.activityLog = [];
+                    
+                    if(appData.avatar) {
+                         document.getElementById('navbarAvatar').src = appData.avatar;
+                         document.getElementById('navbarAvatar').classList.remove('hidden');
+                         document.getElementById('navbarIcon').classList.add('hidden');
+                    } else {
+                         document.getElementById('navbarAvatar').classList.add('hidden');
+                         document.getElementById('navbarIcon').classList.remove('hidden');
+                    }
 
-                    cleanupNotifications(); // Retention Policy
-                    checkSubscriptionNotifications(); // Check for charges
+                    cleanupNotifications();
+                    checkSubscriptionNotifications();
 
-                    // If online, force fetch to sync with real world, ignoring old saved manual rate if needed
                     if(navigator.onLine) fetchLiveRate();
                     else if (appData.customRate) { exchangeRate = appData.customRate; isManualRate = true; updateRateDisplay(); }
                     
-                    updateAvatarUI(); // Sync avatar
                     updateUI();
                 }
             });
         }
 
-        async function saveData(isManualSync = false) { 
+        async function saveData() { 
             if(currentUserDocId) {
-                let userRef;
-                if (typeof __app_id !== 'undefined') userRef = window.fb.doc(db, 'artifacts', __app_id, 'public', 'data', 'finance_users', currentUserDocId);
-                else userRef = window.fb.doc(db, 'finance_users', currentUserDocId);
-                await window.fb.setDoc(userRef, appData, { merge: true }); 
-                
-                if(isManualSync) showToast("Cloud Sync Complete");
+                const userRef = getUserRef(currentUserDocId);
+                // Deep clean data to remove undefined fields which cause setDoc to fail
+                const cleanData = JSON.parse(JSON.stringify(appData));
+                await window.fb.setDoc(userRef, cleanData, { merge: true }); 
             }
         }
 
-        // --- Notification Logic ---
+        // --- Existing Helper Functions ---
 
         function requestNotificationPermission() {
-            if (!("Notification" in window)) {
-                showToast("Browser doesn't support notifications");
-                return;
-            }
-            
-            // Check if already on (granted) - if so, this acts as a 'toggle off' visually
-            // But we can't revoke browser permission programmatically.
-            // So we just tell user. Or we can treat this button as "Sync/Request".
-            
-            if (Notification.permission === "granted") {
-                // User wants to turn OFF? 
-                // We can't turn off browser perms via JS.
-                // We can only stop sending them (logic side) or tell user to block.
-                // For simplicity, we just show a toast "Manage in Browser Settings".
-                showToast("Turn off in Browser Settings");
-            } else if (Notification.permission === "denied") {
-                showToast("Blocked. Enable in Browser Settings.");
-                renderSettings(); // Ensure UI is off
-            } else {
-                // Default -> Request
-                Notification.requestPermission().then(permission => {
-                    if (permission === "granted") {
-                        showToast("Notifications Enabled!");
-                        new Notification("MyFinance", { body: "You will now receive subscription alerts.", icon: "https://img.icons8.com/fluency/512/wallet.png" });
-                    } else {
-                        showToast("Notifications Denied");
-                    }
-                    renderSettings(); // Update UI
-                });
-            }
+            if (!("Notification" in window)) { showToast("Browser doesn't support notifications"); return; }
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") {
+                    showToast("Notifications Enabled!");
+                    new Notification("MyFinance", { body: "You will now receive subscription alerts.", icon: "https://img.icons8.com/fluency/512/wallet.png" });
+                } else { showToast("Notifications Denied"); }
+            });
         }
 
         function checkSubscriptionNotifications() {
-            const now = new Date();
-            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-            let changed = false;
-
-            appData.subscriptions.forEach(s => {
-                if (!s.dueDate) return; // Skip legacy subs without explicit dates for now
-                
+             const now = new Date();
+             let changed = false;
+             appData.subscriptions.forEach(s => {
+                if (!s.dueDate) return;
                 const d = new Date(s.dueDate);
                 let triggerDate = null;
-                let isDue = false;
-
-                // Determine the "Current" due date
-                if (s.frequency === 'monthly') {
-                    // Due date in CURRENT month
-                    triggerDate = new Date(now.getFullYear(), now.getMonth(), d.getDate());
-                    // If d.getDate() > days in month, simple JS logic rolls it over, but for simplicity:
-                    // We check if "Today" matches the due day
-                } else if (s.frequency === 'yearly') {
-                    // Due date in CURRENT year
-                    triggerDate = new Date(now.getFullYear(), d.getMonth(), d.getDate());
-                }
+                if (s.frequency === 'monthly') triggerDate = new Date(now.getFullYear(), now.getMonth(), d.getDate());
+                else if (s.frequency === 'yearly') triggerDate = new Date(now.getFullYear(), d.getMonth(), d.getDate());
 
                 if (triggerDate) {
-                    // Check if today is the day OR we missed it recently (e.g. user didn't open app yesterday)
-                    // We define "Recently" as within the last 3 days to avoid spamming old stuff
-                    // BUT crucial: We must not have notified for this specific cycle yet.
-                    
-                    // Unique ID for this cycle notification: SubID + Year + Month (for monthly) or SubID + Year (for yearly)
-                    const cycleId = s.frequency === 'monthly' 
-                        ? `${s.id}_${now.getFullYear()}_${now.getMonth()}`
-                        : `${s.id}_${now.getFullYear()}`;
-                    
-                    // We store lastNotifiedCycle in the subscription object
-                    if (s.lastNotifiedCycle !== cycleId) {
-                        // Check if time is right
-                        const tDiff = now.getTime() - triggerDate.getTime();
-                        // If it's today (tDiff >= 0 and < 24h) OR passed within last 3 days
-                        // Actually, if it's PAST the due date, we notify.
-                        if (triggerDate.getTime() <= now.getTime()) {
-                            // Trigger!
-                            const notifId = Date.now() + Math.random();
-                            const msg = `Subscription charged: ${s.name} (-${formatMoney(s.amount)})`;
-                            
-                            // Add to App Notifications
-                            appData.notifications.unshift({
-                                id: notifId,
-                                title: "Subscription Charge",
-                                message: msg,
-                                date: new Date().toISOString(),
-                                read: false,
-                                type: 'subscription'
-                            });
-
-                            // Browser Notification
-                            if (Notification.permission === "granted") {
-                                new Notification("MyFinance: Subscription Paid", { body: msg, icon: "https://img.icons8.com/fluency/512/wallet.png" });
-                            }
-
-                            s.lastNotifiedCycle = cycleId;
-                            changed = true;
-                        }
+                    const cycleId = s.frequency === 'monthly' ? `${s.id}_${now.getFullYear()}_${now.getMonth()}` : `${s.id}_${now.getFullYear()}`;
+                    if (s.lastNotifiedCycle !== cycleId && triggerDate.getTime() <= now.getTime()) {
+                        const notifId = Date.now() + Math.random();
+                        const msg = `Subscription charged: ${s.name} (-${formatMoney(s.amount)})`;
+                        appData.notifications.unshift({ id: notifId, title: "Subscription Charge", message: msg, date: new Date().toISOString(), read: false, type: 'subscription' });
+                        if (Notification.permission === "granted") new Notification("MyFinance: Subscription Paid", { body: msg, icon: "https://img.icons8.com/fluency/512/wallet.png" });
+                        s.lastNotifiedCycle = cycleId;
+                        changed = true;
                     }
                 }
             });
-
             if(changed) saveData();
         }
 
         function cleanupNotifications() {
-            // Remove notifications older than 6 months
             const sixMonthsAgo = Date.now() - (1000 * 60 * 60 * 24 * 30 * 6);
             const originalLen = appData.notifications.length;
             appData.notifications = appData.notifications.filter(n => new Date(n.date).getTime() > sixMonthsAgo);
-            
-            // If we filtered anything, save (though usually happens on sync, good to be explicit if large change)
             if(appData.notifications.length !== originalLen) saveData();
         }
 
@@ -1766,15 +1071,8 @@
             e.stopPropagation();
             const dropdown = document.getElementById('notifDropdown');
             const isHidden = dropdown.classList.contains('opacity-0');
-            
-            if (isHidden) {
-                dropdown.classList.remove('opacity-0', 'pointer-events-none', 'scale-95');
-                renderNotificationsDropdown();
-            } else {
-                dropdown.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
-            }
-            
-            // Close User Menu if open
+            if (isHidden) { dropdown.classList.remove('opacity-0', 'pointer-events-none', 'scale-95'); renderNotificationsDropdown(); }
+            else { dropdown.classList.add('opacity-0', 'pointer-events-none', 'scale-95'); }
             // document.getElementById('userMenuDropdown').classList.add('opacity-0', 'pointer-events-none', 'scale-95');
         }
 
@@ -1782,138 +1080,342 @@
             const list = document.getElementById('notifList');
             const empty = document.getElementById('notifEmpty');
             const badge = document.getElementById('notifBadge');
-            
             list.innerHTML = '';
-            
-            if (!appData.notifications || appData.notifications.length === 0) {
-                empty.classList.remove('hidden');
-                badge.classList.add('hidden');
-                return;
-            }
-
+            if (!appData.notifications || appData.notifications.length === 0) { empty.classList.remove('hidden'); badge.classList.add('hidden'); return; }
             empty.classList.add('hidden');
-            
-            // Sort new first
             const sorted = [...appData.notifications].sort((a,b) => new Date(b.date) - new Date(a.date));
             const hasUnread = sorted.some(n => !n.read);
             if(hasUnread) badge.classList.remove('hidden'); else badge.classList.add('hidden');
-
             sorted.forEach(n => {
                 const date = new Date(n.date);
                 const isUnread = !n.read;
-                const row = document.createElement('div');
-                row.className = `px-4 py-3 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-white/5 transition flex gap-3 ${isUnread ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`;
-                row.innerHTML = `
-                    <div class="mt-1 w-2 h-2 rounded-full ${isUnread ? 'bg-ios-blue' : 'bg-transparent shrink-0'}"></div>
-                    <div>
-                        <p class="text-xs font-bold text-gray-800 dark:text-gray-200">${n.title}</p>
-                        <p class="text-[10px] text-gray-500 dark:text-gray-400 leading-tight my-1">${n.message}</p>
-                        <p class="text-[9px] text-gray-400">${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
-                    </div>
-                `;
-                list.appendChild(row);
+                list.innerHTML += `<div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-white/5 transition flex gap-3 ${isUnread ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}"><div class="mt-1 w-2 h-2 rounded-full ${isUnread ? 'bg-ios-blue' : 'bg-transparent shrink-0'}"></div><div><p class="text-xs font-bold text-gray-800 dark:text-gray-200">${n.title}</p><p class="text-[10px] text-gray-500 dark:text-gray-400 leading-tight my-1">${n.message}</p><p class="text-[9px] text-gray-400">${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p></div></div>`;
             });
-            
-            // Mark all as read when opened (simple logic)
-            if (hasUnread) {
-                setTimeout(() => {
-                    appData.notifications.forEach(n => n.read = true);
-                    saveData();
-                    badge.classList.add('hidden');
-                }, 2000);
-            }
+            if (hasUnread) { setTimeout(() => { appData.notifications.forEach(n => n.read = true); saveData(); badge.classList.add('hidden'); }, 2000); }
         }
 
-        function clearAllNotifications() {
-            appData.notifications = [];
-            saveData();
-            renderNotificationsDropdown();
-        }
+        function clearAllNotifications() { appData.notifications = []; saveData(); renderNotificationsDropdown(); }
 
-        // Logic Helpers
         const getMonthKey = (d) => `${d.getFullYear()}-${d.getMonth()}`;
         function formatCurrencyInput(i) { let v = i.value.replace(/\D/g, ""); i.value = v === "" ? "" : Number(v).toLocaleString('de-DE'); }
         function parseFormattedNumber(v) { return v ? parseFloat(v.replace(/\./g, '')) : 0; }
         function formatMoney(v) { return appData.currency === 'VND' ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v) : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v / exchangeRate); }
         function showToast(m) { const el = document.getElementById('toast'); document.getElementById('toastMsg').innerText = m; el.classList.remove('opacity-0', 'translate-y-[-10px]'); setTimeout(() => el.classList.add('opacity-0', 'translate-y-[-10px]'), 2500); }
-        function toggleTheme() { document.documentElement.classList.toggle('dark'); localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light'); updateUI(); }
+        function toggleTheme() { 
+            document.documentElement.classList.toggle('dark'); 
+            const isDark = document.documentElement.classList.contains('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light'); 
+            
+            // Update toggle in settings if open
+            const toggle = document.getElementById('themeToggleIcon');
+            if(toggle) toggle.className = isDark ? "fa-solid fa-toggle-on text-2xl text-ios-green" : "fa-solid fa-toggle-off text-2xl text-gray-300";
+            
+            updateUI(); 
+        }
         function loadTheme() { if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark'); }
         function changeMonth(d) { viewDate.setMonth(viewDate.getMonth() + d); updateUI(); }
         function jumpToToday() { viewDate = new Date(); updateUI(); showToast("Jumped to today"); }
-        // function toggleUserMenu(e) { e.stopPropagation(); const m = document.getElementById('userMenuDropdown'); m.classList.toggle('opacity-0'); m.classList.toggle('pointer-events-none'); m.classList.toggle('scale-95'); document.getElementById('notifDropdown').classList.add('opacity-0', 'pointer-events-none', 'scale-95'); }
+        function toggleUserMenu(e) { 
+            e.stopPropagation(); 
+            // Legacy functionality kept but hidden mostly
+            // const m = document.getElementById('userMenuDropdown'); 
+            // if(m) { m.classList.toggle('opacity-0'); m.classList.toggle('pointer-events-none'); m.classList.toggle('scale-95'); }
+            document.getElementById('notifDropdown').classList.add('opacity-0', 'pointer-events-none', 'scale-95'); 
+        }
         
-        // Window Click Handler for Modals
         window.onclick = (e) => { 
-            // Notif Menu
-            if(!document.getElementById('notifContainer').contains(e.target)) {
-                const drop = document.getElementById('notifDropdown');
-                if(drop) drop.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
+            // Legacy User Menu check - strictly safe
+            const umc = document.getElementById('userMenuContainer');
+            if(umc && !umc.contains(e.target)) {
+                 const umd = document.getElementById('userMenuDropdown');
+                 if(umd) umd.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
             }
-            // Sub Limit Modal
-            const subModal = document.getElementById('subLimitModal');
-            if (subModal && !subModal.classList.contains('hidden') && e.target === subModal) {
-                closeSubLimitModal();
+
+            // Notification Dropdown - strictly safe
+            const nc = document.getElementById('notifContainer');
+            if(nc && !nc.contains(e.target)) {
+                const nd = document.getElementById('notifDropdown');
+                if(nd) nd.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
             }
-            // Subscription Modal
-            const sModal = document.getElementById('subscriptionModal');
-            if (sModal && !sModal.classList.contains('hidden') && e.target === sModal) {
-                closeSubscriptionModal();
-            }
-            // Category Modal
-            const catModal = document.getElementById('categoryModal');
-            if (catModal && !catModal.classList.contains('hidden') && e.target === catModal) {
-                closeCategoryModal();
-            }
-            // Confirm Modal
-            const confModal = document.getElementById('confirmModal');
-            if (confModal && !confModal.classList.contains('hidden') && e.target === confModal) {
-                closeConfirm(false);
-            }
+
+            // Modals - strictly safe
+            const sm = document.getElementById('settingsModal'); 
+            if(sm && !sm.classList.contains('hidden') && e.target===sm) closeSettingsModal();
+            
+            const pm = document.getElementById('pinModal'); 
+            if(pm && !pm.classList.contains('hidden') && e.target===pm) closePinModal();
+            
+            const slm = document.getElementById('subLimitModal'); 
+            if (slm && !slm.classList.contains('hidden') && e.target === slm) closeSubLimitModal();
+            
+            const subm = document.getElementById('subscriptionModal'); 
+            if (subm && !subm.classList.contains('hidden') && e.target === subm) closeSubscriptionModal();
+            
+            const catm = document.getElementById('categoryModal'); 
+            if (catm && !catm.classList.contains('hidden') && e.target === catm) closeCategoryModal();
+            
+            const cm = document.getElementById('confirmModal'); 
+            if (cm && !cm.classList.contains('hidden') && e.target === cm) closeConfirm(false);
+            
+            const cpm = document.getElementById('cropModal'); 
+            if (cpm && !cpm.classList.contains('hidden') && e.target === cpm) closeCropModal();
         };
 
-        // Search & Filter
         function handleSearch(val) { searchQuery = val.toLowerCase(); updateUI(); }
-        
-        // Stats View Toggle
-        function toggleStatsView() {
-            setStatsView(statsViewMode === 'monthly' ? 'all' : 'monthly');
-        }
-
-        function setStatsView(mode) {
-            statsViewMode = mode;
-            updateUI();
-        }
-
-        // Category Management
+        function toggleStatsView() { setStatsView(statsViewMode === 'monthly' ? 'all' : 'monthly'); }
+        function setStatsView(mode) { statsViewMode = mode; updateUI(); }
         function openCategoryModal() {
             if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
             const list = document.getElementById('categoryListContainer');
             list.innerHTML = '';
             appData.categories.sort().forEach(cat => {
-                list.innerHTML += `
-                    <div class="flex justify-between items-center bg-gray-100 dark:bg-white/5 p-3 rounded-xl group">
-                        <span class="text-sm font-bold dark:text-gray-200">${cat}</span>
-                        <button onclick="deleteCategory('${cat}')" class="text-gray-400 hover:text-red-500 transition"><i class="fa-solid fa-trash"></i></button>
-                    </div>`;
+                list.innerHTML += `<div class="flex justify-between items-center bg-gray-100 dark:bg-white/5 p-3 rounded-xl group"><span class="text-sm font-bold dark:text-gray-200">${cat}</span><button onclick="deleteCategory('${cat}')" class="text-gray-400 hover:text-red-500 transition"><i class="fa-solid fa-trash"></i></button></div>`;
             });
             document.getElementById('categoryModal').classList.remove('hidden');
         }
         function closeCategoryModal() { document.getElementById('categoryModal').classList.add('hidden'); }
-        function deleteCategory(cat) {
-            showConfirm(`Delete category "${cat}"?`, () => {
-                appData.categories = appData.categories.filter(c => c !== cat);
-                saveData();
-                openCategoryModal(); // Re-render list
-                updateUI(); // Update main UI
-            });
+        function deleteCategory(cat) { showConfirm(`Delete category "${cat}"?`, () => { appData.categories = appData.categories.filter(c => c !== cat); saveData(); openCategoryModal(); updateUI(); }); }
+        function setTransactionAccount(acct) {
+            selectedTransAccount = acct;
+            const btnBank = document.getElementById('btnAcctBank');
+            const btnCash = document.getElementById('btnAcctCash');
+            const activeClass = ['bg-white', 'dark:bg-gray-700', 'text-black', 'dark:text-white', 'shadow-sm'];
+            const inactiveClass = ['text-gray-500', 'dark:text-gray-400'];
+            if(acct === 'bank') { btnBank.classList.add(...activeClass); btnBank.classList.remove(...inactiveClass); btnCash.classList.remove(...activeClass); btnCash.classList.add(...inactiveClass); } 
+            else { btnCash.classList.add(...activeClass); btnCash.classList.remove(...inactiveClass); btnBank.classList.remove(...activeClass); btnBank.classList.add(...inactiveClass); }
+        }
+        function addTransaction(type) {
+            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
+            const descInput = document.getElementById('descInput');
+            const amtInput = document.getElementById('amountInput');
+            const catInput = document.getElementById('categoryInput');
+            const isTransfer = type === 'transfer';
+            const val = parseFormattedNumber(amtInput.value);
+            let cat = isTransfer ? 'Exchange' : (catInput.value.trim() || 'Uncategorized');
+            const desc = descInput.value.trim() || (isTransfer ? 'Transfer' : (type === 'expense' ? 'Expense' : 'Income'));
+            const source = document.getElementById('budgetSelect').value;
+            if (val > 0) {
+                const amount = appData.currency === 'USD' ? val * exchangeRate : val;
+                const date = new Date().toISOString();
+                const ts = Date.now();
+                if (isTransfer) {
+                    const otherAccount = selectedTransAccount === 'bank' ? 'cash' : 'bank';
+                    const transferDesc = desc === 'Transfer' ? `Transfer to ${otherAccount}` : desc;
+                    const t1 = { id: ts, date: date, desc: transferDesc, amount: amount, type: 'expense', category: 'Exchange', account: selectedTransAccount };
+                    const t2 = { id: ts + 1, date: date, desc: `Received from ${selectedTransAccount}`, amount: amount, type: 'revenue', category: 'Exchange', account: otherAccount };
+                    appData.transactions.unshift(t1); appData.transactions.unshift(t2);
+                    showToast(`Transferred: ${selectedTransAccount} ➝ ${otherAccount}`);
+                } else {
+                    const t = { id: ts, date: date, desc, amount: amount, type, category: cat, account: selectedTransAccount };
+                    if(type === 'expense' && source !== 'general') t.subLimitId = parseInt(source);
+                    if (cat && !appData.categories.includes(cat)) appData.categories.push(cat);
+                    appData.transactions.unshift(t);
+                    showToast("Transaction added");
+                }
+                descInput.value = ''; amtInput.value = ''; catInput.value = ''; saveData();
+            }
+        }
+        function deleteTransaction(id) { if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; } showConfirm("Delete?", () => { appData.transactions = appData.transactions.filter(t => t.id !== id); saveData(); showToast("Deleted"); }); }
+        function setMonthLimit() { if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; } const v = parseFormattedNumber(document.getElementById('limitInput').value); if(v>=0) { appData.limits[getMonthKey(viewDate)] = appData.currency === 'USD' ? v * exchangeRate : v; document.getElementById('limitInput').value = ''; saveData(); showToast("Limit set"); } }
+        function saveSubLimit() {
+            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
+            const name = document.getElementById('subLimitNameInput').value.trim();
+            const limitVal = parseFormattedNumber(document.getElementById('subLimitAmountInput').value);
+            if (name && limitVal > 0) {
+                const storeLimit = appData.currency === 'USD' ? limitVal * exchangeRate : limitVal;
+                if (editingSubLimitId) { const index = appData.subLimits.findIndex(s => s.id === editingSubLimitId); if (index !== -1) { appData.subLimits[index].name = name; appData.subLimits[index].limit = storeLimit; showToast("Sub-limit updated"); } } 
+                else { appData.subLimits.push({ id: Date.now(), name: name, limit: storeLimit }); showToast("Sub-limit created"); }
+                closeSubLimitModal(); saveData(); updateUI();
+            }
+        }
+        function deleteSubLimit(id) { if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; } showConfirm("Delete budget?", () => { appData.subLimits = appData.subLimits.filter(s => s.id !== id); saveData(); }); }
+        function deleteSubLimitFromModal() { if (editingSubLimitId) { deleteSubLimit(editingSubLimitId); closeSubLimitModal(); } }
+        // ... (Subscription functions identical to previous, ensuring edit checks current month) ...
+        function openSubscriptionModal(id = null) {
+            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
+            const modal = document.getElementById('subscriptionModal');
+            const title = document.getElementById('subModalTitle');
+            const saveBtn = document.getElementById('subSaveBtn');
+            const deleteBtn = document.getElementById('subDeleteBtn');
+            const nameIn = document.getElementById('modalSubName');
+            const amtIn = document.getElementById('modalSubAmount');
+            const freqIn = document.getElementById('modalSubFreq');
+            const dateIn = document.getElementById('modalSubDate');
+            document.getElementById('modalSubCurrency').innerText = appData.currency === 'VND' ? '₫' : '$';
+            if (id) {
+                const s = appData.subscriptions.find(sub => sub.id === id); if (!s) return;
+                editingSubId = id; title.innerText = "Edit Subscription"; saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Update Subscription</span>'; deleteBtn.classList.remove('hidden');
+                nameIn.value = s.name; let val = s.amount; if (appData.currency === 'USD') val = val / exchangeRate; amtIn.value = Number(Math.round(val)).toLocaleString('de-DE'); freqIn.value = s.frequency || 'monthly';
+                if (s.dueDate) dateIn.value = s.dueDate.split('T')[0]; else { const now = new Date(); const m = s.dueMonth !== undefined ? s.dueMonth : now.getMonth(); dateIn.value = new Date(now.getFullYear(), m, 1).toISOString().split('T')[0]; }
+            } else { editingSubId = null; title.innerText = "New Subscription"; saveBtn.innerHTML = '<i class="fa-solid fa-plus"></i> <span>Add Subscription</span>'; deleteBtn.classList.add('hidden'); nameIn.value = ''; amtIn.value = ''; freqIn.value = 'monthly'; dateIn.value = new Date().toISOString().split('T')[0]; }
+            modal.classList.remove('hidden'); nameIn.focus();
+        }
+        function closeSubscriptionModal() { document.getElementById('subscriptionModal').classList.add('hidden'); }
+        function deleteSubscriptionFromModal() { if(editingSubId) { deleteSubscription(editingSubId); closeSubscriptionModal(); } }
+        function toggleModalDate() { }
+        function saveSubscription() {
+            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
+            const name = document.getElementById('modalSubName').value.trim(); const val = parseFormattedNumber(document.getElementById('modalSubAmount').value); const freq = document.getElementById('modalSubFreq').value; const dateStr = document.getElementById('modalSubDate').value;
+            if (name && val > 0 && dateStr) {
+                const amount = appData.currency === 'USD' ? val * exchangeRate : val; const d = new Date(dateStr);
+                const subData = { name, amount, frequency: freq, dueDate: d.toISOString(), dueMonth: d.getMonth() };
+                if (editingSubId) { const idx = appData.subscriptions.findIndex(s => s.id === editingSubId); if (idx !== -1) { appData.subscriptions[idx] = { ...appData.subscriptions[idx], ...subData }; showToast("Subscription updated"); } } 
+                else { appData.subscriptions.push({ id: Date.now(), ...subData }); showToast("Subscription added"); }
+                closeSubscriptionModal(); saveData(); updateUI();
+            } else { showToast("Please fill all fields"); }
+        }
+        function deleteSubscription(id) { if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; } showConfirm("Delete sub?", () => { appData.subscriptions = appData.subscriptions.filter(s => s.id !== id); saveData(); }); }
+        
+        function showConfirm(m, cb) { document.getElementById('confirmMessage').innerText = m; confirmCallback = cb; document.getElementById('confirmModal').classList.remove('hidden'); }
+        function closeConfirm(y) { document.getElementById('confirmModal').classList.add('hidden'); if(y && confirmCallback) confirmCallback(); }
+        document.getElementById('confirmYesBtn').onclick = () => closeConfirm(true);
+        function updateSort(v) { currentSort = v; updateUI(); }
+        
+        function handleLogout() {
+             // Explicitly clear memory and reload
+             appData = {};
+             localStorage.removeItem('finTrack_username'); 
+             if(auth) window.fb.signOut(auth);
+             location.reload(); 
         }
 
+        function handleDeleteAccount() { 
+            showConfirm("PERMANENTLY DELETE?", async () => { 
+                if(currentUserDocId) { 
+                    try {
+                        const userRef = getUserRef(currentUserDocId);
+                        await window.fb.deleteDoc(userRef); 
+                        showToast("Account Deleted");
+                        setTimeout(handleLogout, 1000);
+                    } catch(e) {
+                        console.error(e);
+                        showToast("Delete Failed: " + e.code);
+                    }
+                } else {
+                    handleLogout();
+                }
+            }); 
+        }
+        
+        async function fetchLiveRate() { 
+            if(!navigator.onLine) {
+                const rateEl = document.getElementById('rateDisplay'); rateEl.classList.add('text-amber-500'); rateEl.classList.remove('text-ios-blue');
+                const mob = document.getElementById('rateDisplayMobile'); if(mob) { mob.classList.add('text-amber-500'); mob.classList.remove('text-ios-blue'); }
+                return;
+            }
+            try { const r=await fetch('https://open.er-api.com/v6/latest/USD'); const d=await r.json(); exchangeRate = d.rates.VND; isManualRate = false; appData.customRate = null; updateRateDisplay(); updateUI(); } catch(e) { console.warn("Rate fetch failed"); } 
+        }
+        function editExchangeRate() { const r=prompt("Custom Rate (USD->VND):", parseInt(exchangeRate)); if(r){ exchangeRate=parseFloat(r); isManualRate=true; appData.customRate=exchangeRate; saveData(); showToast("Manual Rate Set"); updateRateDisplay(); updateUI(); } }
+        function updateRateDisplay() { 
+            const text = `1$ ≈ ${new Intl.NumberFormat().format(parseInt(exchangeRate))}₫`;
+            const el = document.getElementById('rateDisplay'); if(el) el.innerText = text; 
+            const mob = document.getElementById('rateDisplayMobile'); if(mob) mob.innerText = text;
+            if(isManualRate || !navigator.onLine) { if(el) { el.classList.add('text-amber-500'); el.classList.remove('text-ios-blue'); } if(mob) { mob.classList.add('text-amber-500'); mob.classList.remove('text-ios-blue'); } } 
+            else { if(el) { el.classList.remove('text-amber-500'); el.classList.add('text-ios-blue'); } if(mob) { mob.classList.remove('text-amber-500'); mob.classList.add('text-ios-blue'); } }
+        }
+        function toggleCurrency() { appData.currency = appData.currency === 'USD' ? 'VND' : 'USD'; updateUI(); saveData(); }
+
+        // Render functions (updateUI, renderSubLimits, renderSubs, renderHistory, renderComparison, initCharts) are kept as they were, ensuring they reference appData correctly.
+        // I'm condensing them slightly here for brevity as they haven't changed logic, only context.
+        function updateUI() {
+            const isMonthly = statsViewMode === 'monthly';
+            const badge = document.getElementById('viewModeBadge'); badge.innerText = isMonthly ? 'Mo' : 'All';
+            const notifBadge = document.getElementById('notifBadge'); if(appData.notifications && appData.notifications.some(n => !n.read)) notifBadge.classList.remove('hidden'); else notifBadge.classList.add('hidden');
+            document.getElementById('currencyLabel').innerText = appData.currency; document.getElementById('inputCurrencySymbol').innerText = appData.currency === 'VND' ? '₫' : '$'; document.getElementById('currentMonthDisplay').innerText = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            const sel = document.getElementById('budgetSelect'); const oldVal = sel.value; sel.innerHTML = `<option value="general">General (Monthly Limit)</option>`; appData.subLimits.forEach(sl => { const o = document.createElement('option'); o.value = sl.id; o.text = sl.name; sel.appendChild(o); }); sel.value = oldVal;
+            const dl = document.getElementById('categoryList'); dl.innerHTML = ''; appData.categories.sort().forEach(c => { const o = document.createElement('option'); o.value = c; dl.appendChild(o); });
+            
+            // Calc Stats
+            let allInc = 0, allExp = 0, bankRealInc = 0, bankRealExp = 0, bankTransIn = 0, bankTransOut = 0, cashRealInc = 0, cashRealExp = 0, cashTransIn = 0, cashTransOut = 0;
+            appData.transactions.forEach(t => { 
+                const acct = t.account || 'bank'; const isExchange = (t.category || '').toLowerCase() === 'exchange';
+                if (t.type==='revenue') { if (acct === 'bank') { if (isExchange) bankTransIn += t.amount; else bankRealInc += t.amount; } else { if (isExchange) cashTransIn += t.amount; else cashRealInc += t.amount; } if(!isExchange) allInc += t.amount; } 
+                else { if (acct === 'bank') { if (isExchange) bankTransOut += t.amount; else bankRealExp += t.amount; } else { if (isExchange) cashTransOut += t.amount; else cashRealExp += t.amount; } if(!isExchange) allExp += t.amount; }
+            });
+            let subCostAllTime = 0; const now = new Date(); appData.subscriptions.forEach(s => { let m = 0; while(m <= now.getMonth()) { const isCurrentMonth = m === now.getMonth(); let dueDay = 1; if (s.dueDate) dueDay = new Date(s.dueDate).getDate(); let shouldCharge = false; if (s.frequency === 'monthly') { if (!isCurrentMonth) shouldCharge = true; else if (now.getDate() >= dueDay) shouldCharge = true; } else if (s.frequency === 'yearly') { const dueM = s.dueDate ? new Date(s.dueDate).getMonth() : s.dueMonth; if (dueM === m) { if (!isCurrentMonth) shouldCharge = true; else if (now.getDate() >= dueDay) shouldCharge = true; } } if (shouldCharge) subCostAllTime += s.amount; m++; } });
+            bankRealExp += subCostAllTime; allExp += subCostAllTime;
+            const bankBalance = (bankRealInc + bankTransIn) - (bankRealExp + bankTransOut); const cashBalance = (cashRealInc + cashTransIn) - (cashRealExp + cashTransOut); const totalWallet = bankBalance + cashBalance;
+            let displayInc = 0, displayExp = 0;
+            if (isMonthly) {
+                const mTrans = appData.transactions.filter(t => new Date(t.date).getMonth() === viewDate.getMonth() && new Date(t.date).getFullYear() === viewDate.getFullYear());
+                mTrans.forEach(t => { const isExchange = (t.category || '').toLowerCase() === 'exchange'; if(!isExchange) { if(t.type==='revenue') displayInc+=t.amount; else displayExp+=t.amount; } });
+                appData.subscriptions.forEach(s => { const dueM = s.dueDate ? new Date(s.dueDate).getMonth() : s.dueMonth; if(s.frequency === 'monthly' || (s.frequency === 'yearly' && dueM === viewDate.getMonth())) displayExp += s.amount; });
+            } else { displayInc = allInc; displayExp = allExp; }
+            document.getElementById('incomeDisplay').innerText = formatMoney(displayInc); document.getElementById('spentDisplay').innerText = formatMoney(displayExp); document.getElementById('walletDisplay').innerText = formatMoney(totalWallet);
+            
+            const mTransCurrent = appData.transactions.filter(t => new Date(t.date).getMonth() === viewDate.getMonth() && new Date(t.date).getFullYear() === viewDate.getFullYear());
+            let genSpent = 0, subSpent = {}; mTransCurrent.forEach(t => { const isExchange = (t.category || '').toLowerCase() === 'exchange'; if(t.type==='expense' && !isExchange) { if(t.subLimitId) subSpent[t.subLimitId] = (subSpent[t.subLimitId]||0)+t.amount; else genSpent += t.amount; } });
+            const mSubs = appData.subscriptions.reduce((s, sub) => { const dueM = sub.dueDate ? new Date(sub.dueDate).getMonth() : sub.dueMonth; const isDueMonth = (sub.frequency==='monthly' || (sub.frequency==='yearly' && dueM === viewDate.getMonth())); return isDueMonth ? s+sub.amount : s; }, 0);
+            const limit = appData.limits[getMonthKey(viewDate)] || 0; const mainRem = Math.max(0, limit - (genSpent + mSubs)); document.getElementById('monthlyLeftDisplay').innerText = formatMoney(mainRem);
+            
+            // Charts Update
+            const isDark = document.documentElement.classList.contains('dark'); const bg = isDark ? '#2C2C2E' : '#E5E7EB';
+            const p = limit > 0 ? mainRem / limit : 0; const col = p < 0.2 ? '#FF3B30' : (p < 0.5 ? '#FF9500' : '#007AFF');
+            document.getElementById('centerBudgetRemaining').innerText = formatMoney(mainRem); document.getElementById('centerLimitLabel').innerText = "Limit: " + formatMoney(limit);
+            if(budgetChart) { budgetChart.data.datasets[0].data = limit === 0 ? [0, 100] : [mainRem, limit - mainRem]; budgetChart.data.datasets[0].backgroundColor = limit === 0 ? [bg, bg] : [col, bg]; budgetChart.update(); }
+            
+            const bankNetTransfer = bankTransIn - bankTransOut; let bankChartData = []; if (bankNetTransfer >= 0) bankChartData = [bankBalance, bankRealExp]; else bankChartData = [bankBalance, bankRealExp + Math.abs(bankNetTransfer)];
+            const cashNetTransfer = cashTransIn - cashTransOut; let cashChartData = []; if (cashNetTransfer >= 0) cashChartData = [cashBalance, cashRealExp]; else cashChartData = [cashBalance, cashRealExp + Math.abs(cashNetTransfer)];
+            if (bankChartData[0] <= 0) bankChartData = [0, 100]; if (cashChartData[0] <= 0) cashChartData = [0, 100];
+            document.getElementById('centerBankBalance').innerText = formatMoney(bankBalance); document.getElementById('centerCashBalance').innerText = formatMoney(cashBalance); document.getElementById('footerTotalIncome').innerText = formatMoney(allInc); document.getElementById('footerTotalSpent').innerText = formatMoney(allExp);
+            if(bankChart) { bankChart.data.datasets[0].data = bankChartData; bankChart.data.datasets[0].backgroundColor = bankBalance <= 0 ? [bg, bg] : ['#007AFF', '#FF3B30']; bankChart.update(); }
+            if(cashChart) { cashChart.data.datasets[0].data = cashChartData; cashChart.data.datasets[0].backgroundColor = cashBalance <= 0 ? [bg, bg] : ['#34C759', '#FF3B30']; cashChart.update(); }
+
+            // Handle Locking
+            const isCurrent = isCurrentViewMonth(); const lockMsg = document.getElementById('lockedMessage'); const inputs = ['limitControl', 'transControl']; const addSubBtn = document.getElementById('addSubBtn');
+            if (isCurrent) { lockMsg.classList.add('hidden'); inputs.forEach(id => document.getElementById(id).classList.remove('disabled-overlay')); addSubBtn.classList.remove('pointer-events-none', 'opacity-50'); } 
+            else { lockMsg.classList.remove('hidden'); inputs.forEach(id => document.getElementById(id).classList.add('disabled-overlay')); addSubBtn.classList.add('pointer-events-none', 'opacity-50'); }
+
+            renderSubs(); renderSubLimits(subSpent); renderHistory(mTransCurrent); renderComparison();
+        }
+
+        // Sub-function definitions (renderSubLimits, renderSubs, renderHistory, renderComparison) are identical to previous version, ensuring they correctly format and display data.
+        function renderSubLimits(spentMap) {
+            const c = document.getElementById('subLimitsContainer'); c.innerHTML = '';
+            if(appData.subLimits.length===0) document.getElementById('emptySubLimits').classList.remove('hidden'); else document.getElementById('emptySubLimits').classList.add('hidden');
+            appData.subLimits.forEach(sl => {
+                const s = spentMap[sl.id] || 0; const rem = Math.max(0, sl.limit - s); const pct = Math.min(100, (rem/sl.limit)*100);
+                const col = rem > 0 ? 'bg-ios-purple' : 'bg-ios-red'; const txt = rem > 0 ? 'text-ios-purple' : 'text-ios-red';
+                const delBtn = isCurrentViewMonth() ? `<button onclick="deleteSubLimit(${sl.id})" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><i class="fa-solid fa-xmark"></i></button>` : '';
+                const editBtn = isCurrentViewMonth() ? `<button onclick="openSubLimitModal(${sl.id})" class="absolute top-2 right-8 text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition"><i class="fa-solid fa-pen"></i></button>` : '';
+                c.innerHTML += `<div class="bg-white/50 dark:bg-white/5 p-4 rounded-2xl flex flex-col justify-between relative group border border-gray-100 dark:border-gray-800 hover-lift">${editBtn}${delBtn}<div class="mb-2"><h3 class="text-sm font-bold truncate dark:text-white">${sl.name}</h3><p class="text-[10px] text-gray-400">Limit: ${formatMoney(sl.limit)}</p></div><div class="w-full"><div class="flex justify-between items-end mb-1"><span class="text-[10px] font-semibold text-gray-500">Left</span><span class="text-xs font-bold ${txt}">${formatMoney(rem)}</span></div><div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden"><div class="h-full rounded-full transition-all duration-500 ${col}" style="width: ${pct}%"></div></div></div></div>`;
+            });
+        }
+        
+        // ... (renderSubs, renderHistory, renderComparison follow same pattern as before) ...
+        function renderSubs() {
+             const l = document.getElementById('subscriptionList'); l.innerHTML = '';
+             if(appData.subscriptions.length===0) document.getElementById('emptySubs').classList.remove('hidden'); else document.getElementById('emptySubs').classList.add('hidden');
+             appData.subscriptions.forEach(s => {
+                let dateDisplay = ''; if (s.dueDate) { const d = new Date(s.dueDate); const day = d.getDate(); if(s.frequency === 'yearly') dateDisplay = `${monthNames[d.getMonth()]} ${day}`; else dateDisplay = `Day ${day}`; } else { dateDisplay = s.frequency === 'yearly' ? monthNames[s.dueMonth] : 'Monthly'; }
+                const tag = s.frequency === 'yearly' ? `<span class="text-[9px] bg-orange-100 text-orange-600 px-1.5 rounded font-bold">YR</span>` : `<span class="text-[9px] bg-purple-100 text-purple-600 px-1.5 rounded font-bold">MO</span>`;
+                const editBtn = isCurrentViewMonth() ? `<button onclick="openSubscriptionModal(${s.id})" class="text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100"><i class="fa-solid fa-pen"></i></button>` : '';
+                l.innerHTML += `<div class="flex justify-between items-center bg-white/50 dark:bg-white/5 p-3 rounded-xl mb-2 group"><div class="flex items-center gap-2 overflow-hidden">${tag}<div class="flex flex-col"><span class="text-sm font-medium dark:text-gray-200 truncate">${s.name}</span><span class="text-[10px] text-gray-400 font-medium">Due: ${dateDisplay}</span></div></div><div class="flex items-center gap-3 shrink-0"><span class="text-sm font-bold text-gray-700 dark:text-gray-300">-${formatMoney(s.amount)}</span>${editBtn}</div></div>`;
+             });
+        }
+        function renderHistory(t) {
+            const l = document.getElementById('historyList'); l.innerHTML = '';
+            if(t.length===0) { l.innerHTML = `<li class="text-center text-gray-400 text-sm py-4">No activity.</li>`; return; }
+            let sorted = [...t];
+            if (searchQuery) { sorted = sorted.filter(item => { const descMatch = (item.desc || '').toLowerCase().includes(searchQuery); const catMatch = (item.category || '').toLowerCase().includes(searchQuery); let subLimitMatch = false; if(item.subLimitId) { const sl = appData.subLimits.find(s => s.id === item.subLimitId); if(sl && sl.name.toLowerCase().includes(searchQuery)) subLimitMatch = true; } return descMatch || catMatch || subLimitMatch; }); if(sorted.length === 0) { l.innerHTML = `<li class="text-center text-gray-400 text-sm py-4">No matches found.</li>`; return; } }
+            if(currentSort === 'newest') sorted.sort((a,b)=>new Date(b.date)-new Date(a.date)); else if(currentSort === 'oldest') sorted.sort((a,b)=>new Date(a.date)-new Date(b.date)); else if(currentSort === 'high') sorted.sort((a,b)=>b.amount-a.amount);
+            sorted.forEach(x => {
+                const isExp = x.type==='expense'; let cat = ''; if(x.subLimitId) { const s = appData.subLimits.find(z=>z.id===x.subLimitId); if(s) cat = `<span class="text-[9px] bg-indigo-100 text-indigo-600 px-1.5 rounded ml-2 font-bold">${s.name}</span>`; } else if(x.category && x.category !== 'Uncategorized') cat = `<span class="text-[9px] bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-300 px-1.5 rounded ml-2 font-bold">${x.category}</span>`;
+                const acct = x.account || 'bank'; const acctIcon = acct === 'cash' ? `<i class="fa-solid fa-money-bill-wave text-[10px] ml-1 text-gray-400" title="Cash"></i>` : `<i class="fa-solid fa-building-columns text-[10px] ml-1 text-gray-400" title="Bank"></i>`;
+                const delBtn = isCurrentViewMonth() ? `<button onclick="deleteTransaction(${x.id})" class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100"><i class="fa-solid fa-trash"></i></button>` : '';
+                l.innerHTML += `<li class="flex justify-between items-center bg-white/50 dark:bg-white/5 p-4 rounded-2xl group transition hover:bg-white/80 dark:hover:bg-white/10 hover-lift"><div class="flex items-center gap-3 min-w-0"><div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isExp?'bg-red-100 text-red-500 dark:bg-red-500/20':'bg-green-100 text-green-500 dark:bg-green-500/20'}"><i class="fa-solid ${isExp?'fa-bag-shopping':'fa-coins'} text-sm"></i></div><div class="min-w-0"><div class="flex items-center"><p class="font-bold text-sm dark:text-gray-100 truncate">${x.desc}</p>${cat}${acctIcon}</div><p class="text-[10px] text-gray-400">${new Date(x.date).toLocaleDateString()}</p></div></div><div class="flex items-center gap-3 shrink-0"><span class="font-bold ${isExp?'text-ios-red':'text-ios-green'}">${isExp?'-':'+'}${formatMoney(x.amount)}</span>${delBtn}</div></li>`;
+            });
+        }
+        function renderComparison() {
+            const b = document.getElementById('comparisonTableBody'); b.innerHTML = '';
+            for(let i=0; i<6; i++) {
+                let d = new Date(viewDate.getFullYear(), viewDate.getMonth()-i, 1); let inc=0, exp=0; appData.transactions.forEach(t=>{ const isExchange = (t.category || '').toLowerCase() === 'exchange'; if(!isExchange) { const td=new Date(t.date); if(td.getMonth()===d.getMonth() && td.getFullYear()===d.getFullYear()) { if(t.type==='revenue') inc+=t.amount; else exp+=t.amount; } } });
+                const sav = inc - exp; b.innerHTML += `<tr class="border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-white/50 dark:hover:bg-white/5"><td class="py-3 pl-2 text-gray-500 dark:text-gray-400 font-medium">${d.toLocaleDateString('en-US',{month:'short'})}</td><td class="py-3 text-right text-ios-green">${formatMoney(inc)}</td><td class="py-3 text-right text-ios-red">${formatMoney(exp)}</td><td class="py-3 text-right font-bold ${sav>=0?'text-ios-blue':'text-ios-orange'}">${formatMoney(sav)}</td></tr>`;
+            }
+        }
         function initCharts() {
             const cfg = { type: 'doughnut', options: { responsive: true, maintainAspectRatio: false, cutout: '80%', plugins: { legend: {display:false}, tooltip: {enabled:false} }, animation: { duration: 600 } } };
-            
             budgetChart = new Chart(document.getElementById('budgetWheel'), { ...cfg, data: { datasets: [{ data: [100, 0], backgroundColor: ['#007AFF', '#eee'], borderWidth: 0 }] } });
-            
-            // Replaced Wallet Chart with Bank & Cash
             bankChart = new Chart(document.getElementById('bankWheel'), { ...cfg, data: { datasets: [{ data: [50, 50], backgroundColor: ['#007AFF', '#eee'], borderWidth: 0 }] } });
             cashChart = new Chart(document.getElementById('cashWheel'), { ...cfg, data: { datasets: [{ data: [50, 50], backgroundColor: ['#34C759', '#eee'], borderWidth: 0 }] } });
         }
