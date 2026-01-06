@@ -11,6 +11,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="MyFinance">
+    <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -31,7 +33,7 @@
         /* Performance Optimization for Glassmorphism */
         .glass {
             background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(12px); /* Reduced from 20px for performance */
+            backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.4);
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
@@ -64,8 +66,11 @@
         /* Animations */
         @keyframes floatIn { 0% { opacity: 0; transform: translateY(15px); } 100% { opacity: 1; transform: translateY(0); } }
         @keyframes fadeIn { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }
+        @keyframes slideUp { 0% { transform: translateY(100%); } 100% { transform: translateY(0); } }
+        
         .animate-float-in { animation: floatIn 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
         .animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
+        .animate-slide-up { animation: slideUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
         
         /* PIN Input Styling */
         .pin-input { letter-spacing: 0.5em; text-align: center; font-family: monospace; }
@@ -78,6 +83,9 @@
         input[type=range] { -webkit-appearance: none; background: transparent; }
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%; background: #ffffff; cursor: pointer; margin-top: -8px; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
         input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: rgba(255,255,255,0.2); border-radius: 2px; }
+
+        /* Backdrop for mobile modals */
+        .backdrop-mobile { background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
 
         @media (hover: hover) {
             .hover-lift { transition: transform 0.2s ease; }
@@ -263,14 +271,19 @@
                                 <i class="fa-regular fa-bell"></i>
                                 <span id="notifBadge" class="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 border-2 border-white dark:border-black rounded-full hidden"></span>
                             </button>
-                            <!-- Dropdown -->
-                            <div id="notifDropdown" class="fixed left-4 right-4 top-24 md:absolute md:left-auto md:right-0 md:top-full md:mt-2 md:w-80 bg-white dark:bg-[#1c1c1e] rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 opacity-0 pointer-events-none scale-95 transition-all transform origin-top-right z-[100] overflow-hidden gpu-accel">
-                                <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-white/5">
+                            <!-- Dropdown / Bottom Sheet -->
+                            <div id="notifBackdrop" class="fixed inset-0 backdrop-mobile z-40 hidden md:hidden" onclick="toggleNotifications(event)"></div>
+                            <div id="notifDropdown" class="fixed inset-x-0 bottom-0 top-auto m-0 rounded-t-3xl rounded-b-none p-0 bg-white dark:bg-[#1c1c1e] shadow-2xl border-t border-gray-100 dark:border-gray-700 translate-y-full transition-transform duration-300 ease-out z-50 md:absolute md:left-auto md:right-0 md:top-full md:bottom-auto md:mt-2 md:w-80 md:rounded-xl md:border md:translate-y-0 md:opacity-0 md:pointer-events-none md:scale-95 md:transform md:origin-top-right overflow-hidden flex flex-col max-h-[80vh] md:max-h-96">
+                                <!-- Mobile Handle -->
+                                <div class="w-full flex justify-center pt-3 pb-1 md:hidden">
+                                    <div class="w-12 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
+                                </div>
+                                <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-white/5 shrink-0">
                                     <h3 class="text-sm font-bold dark:text-white">Notifications</h3>
                                     <button onclick="clearAllNotifications()" class="text-[10px] text-ios-blue font-bold hover:underline">Clear All</button>
                                 </div>
-                                <div id="notifList" class="max-h-60 overflow-y-auto custom-scrollbar"></div>
-                                <div id="notifEmpty" class="py-8 text-center hidden">
+                                <div id="notifList" class="overflow-y-auto custom-scrollbar flex-grow"></div>
+                                <div id="notifEmpty" class="py-8 text-center hidden shrink-0">
                                     <i class="fa-regular fa-bell-slash text-gray-300 text-2xl mb-2"></i>
                                     <p class="text-xs text-gray-400">No new notifications</p>
                                 </div>
@@ -514,7 +527,7 @@
                     </button>
                 </div>
                 
-                <p class="text-center text-[10px] text-gray-400 mt-4">App Version 2.2.4</p>
+                <p class="text-center text-[10px] text-gray-400 mt-4">App Version 2.3.0</p>
             </div>
         </div>
     </div>
@@ -644,34 +657,21 @@
             return window.fb.doc(db, 'artifacts', appIdToUse, 'public', 'data', 'finance_users', username);
         }
 
-        // --- SMART DEVICE DETECTION ---
+        // --- DEVICE DETECTION (Simplified) ---
         function getDeviceModel() {
             const ua = navigator.userAgent;
-            const width = window.screen.width;
-            const height = window.screen.height;
-            const pixelRatio = window.devicePixelRatio || 1;
-            
-            // Heuristic detection for specific iPhones based on logical points/resolution
-            if (/iPhone/.test(ua)) {
-                if (height === 932 && width === 430) return "iPhone 14/15/16 Pro Max";
-                if (height === 852 && width === 393) return "iPhone 14/15/16 Pro";
-                if (height === 926 && width === 428) return "iPhone 13/14 Plus";
-                if (height === 844 && width === 390) return "iPhone 12/13/14";
-                if (height === 812 && width === 375) return "iPhone X/XS/11 Pro";
-                if (height === 896 && width === 414) return "iPhone XR/11";
-                if (height === 667 && width === 375) return "iPhone SE/8/7/6s";
-                return "iPhone (Unknown Model)";
-            }
-            if (/iPad/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) return "iPad";
+            if (/iPhone/.test(ua)) return "iPhone";
+            if (/iPad/.test(ua)) return "iPad";
             if (/Mac/.test(ua)) return "Mac";
             if (/Android/.test(ua)) return "Android Device";
             if (/Windows/.test(ua)) return "Windows PC";
-            
             return "Unknown Device";
         }
 
         async function init() {
             loadTheme();
+            registerServiceWorker(); // PWA Capability
+            
             // Clear inputs
             document.getElementById('usernameInput').value = '';
             document.getElementById('loginPinInput').value = '';
@@ -710,6 +710,29 @@
 
             initCharts();
             setStatsView('monthly');
+        }
+
+        // --- SERVICE WORKER FOR PWA ---
+        function registerServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                const swCode = `
+                    self.addEventListener('install', (e) => {
+                        self.skipWaiting();
+                    });
+                    self.addEventListener('activate', (e) => {
+                        e.waitUntil(self.clients.claim());
+                    });
+                    self.addEventListener('fetch', (e) => {
+                        // Basic pass-through caching or offline strategy could go here
+                        // For now, just ensuring it's installable
+                    });
+                `;
+                const blob = new Blob([swCode], {type: 'text/javascript'});
+                const swUrl = URL.createObjectURL(blob);
+                navigator.serviceWorker.register(swUrl)
+                    .then(reg => console.log('SW Registered'))
+                    .catch(err => console.log('SW Fail', err));
+            }
         }
 
         // --- AUTH FLOW ---
@@ -1141,10 +1164,21 @@
         function toggleNotifications(e) {
             e.stopPropagation();
             const dropdown = document.getElementById('notifDropdown');
-            const isHidden = dropdown.classList.contains('opacity-0');
-            if (isHidden) { dropdown.classList.remove('opacity-0', 'pointer-events-none', 'scale-95'); renderNotificationsDropdown(); }
-            else { dropdown.classList.add('opacity-0', 'pointer-events-none', 'scale-95'); }
-            // document.getElementById('userMenuDropdown').classList.add('opacity-0', 'pointer-events-none', 'scale-95');
+            const backdrop = document.getElementById('notifBackdrop');
+            
+            // Check for desktop class structure to determine state
+            const isHidden = dropdown.classList.contains('md:opacity-0') && dropdown.classList.contains('translate-y-full');
+            
+            if (isHidden) {
+                // Show
+                dropdown.classList.remove('md:opacity-0', 'md:pointer-events-none', 'md:scale-95', 'translate-y-full');
+                backdrop.classList.remove('hidden');
+                renderNotificationsDropdown();
+            } else {
+                // Hide
+                dropdown.classList.add('md:opacity-0', 'md:pointer-events-none', 'md:scale-95', 'translate-y-full');
+                backdrop.classList.add('hidden');
+            }
         }
 
         function renderNotificationsDropdown() {
@@ -1191,7 +1225,7 @@
             // Legacy functionality kept but hidden mostly
             // const m = document.getElementById('userMenuDropdown'); 
             // if(m) { m.classList.toggle('opacity-0'); m.classList.toggle('pointer-events-none'); m.classList.toggle('scale-95'); }
-            document.getElementById('notifDropdown').classList.add('opacity-0', 'pointer-events-none', 'scale-95'); 
+            // document.getElementById('notifDropdown').classList.add('opacity-0', 'pointer-events-none', 'scale-95'); 
         }
         
         window.onclick = (e) => { 
@@ -1205,8 +1239,13 @@
             // Notification Dropdown - strictly safe
             const nc = document.getElementById('notifContainer');
             if(nc && !nc.contains(e.target)) {
-                const nd = document.getElementById('notifDropdown');
-                if(nd) nd.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
+                // If clicking outside, perform hide logic (mimic toggle false)
+                const dropdown = document.getElementById('notifDropdown');
+                const backdrop = document.getElementById('notifBackdrop');
+                if (!dropdown.classList.contains('md:opacity-0')) {
+                    dropdown.classList.add('md:opacity-0', 'md:pointer-events-none', 'md:scale-95', 'translate-y-full');
+                    backdrop.classList.add('hidden');
+                }
             }
 
             // Modals - strictly safe
