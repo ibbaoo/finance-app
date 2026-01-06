@@ -162,7 +162,9 @@
                 <h1 class="text-3xl font-bold tracking-tight mb-2">MyFinance</h1>
                 <p class="text-gray-500 dark:text-gray-400 text-sm">Your Personal Cloud Wallet</p>
             </div>
-            <div class="glass rounded-3xl p-8 shadow-lg border border-white/50 dark:border-white/10 hover-lift">
+            
+            <!-- Main Login Form -->
+            <div id="authForm" class="glass rounded-3xl p-8 shadow-lg border border-white/50 dark:border-white/10 hover-lift">
                 <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Username</label>
                 <div class="relative">
                     <input type="text" id="usernameInput" placeholder="Enter name" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-2xl px-5 py-4 text-base font-bold focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition placeholder:font-normal placeholder:text-gray-400">
@@ -173,7 +175,8 @@
                     <span>Continue</span> <i class="fa-solid fa-arrow-right"></i>
                 </button>
             </div>
-            <div class="absolute bottom-4 right-4 text-[10px] text-gray-400 font-mono">v2.5</div>
+
+            <div class="absolute bottom-4 right-4 text-[10px] text-gray-400 font-mono">v3.0</div>
         </div>
     </div>
 
@@ -244,6 +247,7 @@
             
             <!-- DASHBOARD VIEW -->
             <div id="dashboardView" class="animate-fade-in space-y-6">
+                <!-- ... existing dashboard code ... -->
                 <div class="flex items-center justify-center gap-2 py-2">
                     <button onclick="changeMonth(-1)" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 transition active:scale-90"><i class="fa-solid fa-chevron-left text-ios-blue text-xs"></i></button>
                     <h2 id="currentMonthDisplay" class="text-lg font-bold w-36 text-center">October 2023</h2>
@@ -402,7 +406,7 @@
                         <div>
                             <h2 class="text-xl font-bold dark:text-white" id="settingsUsername">User</h2>
                             <p class="text-xs text-gray-500">Personal Account</p>
-                            <button onclick="document.getElementById('avatarInput').click()" class="text-ios-blue text-xs font-bold mt-1 hover:underline">Change Photo</button>
+                            <button onclick="document.getElementById('avatarInput').click()" class="text-ios-blue text-xs font-bold mt-2 hover:underline">Change Photo</button>
                         </div>
                     </div>
                 </div>
@@ -426,10 +430,20 @@
                     </div>
                 </div>
 
-                <!-- Security Card (New Activity Log) -->
+                <!-- Backup & Security -->
                 <div class="glass rounded-3xl p-6 shadow-sm">
-                    <h3 class="text-lg font-bold mb-4">Security</h3>
+                    <h3 class="text-lg font-bold mb-4">Backup & Security</h3>
                     
+                    <!-- Modified Backup Grid -->
+                    <div class="grid grid-cols-2 gap-3 mb-6">
+                        <button onclick="exportData()" class="py-3 px-4 rounded-xl font-bold bg-green-50 dark:bg-green-500/10 text-green-600 hover:bg-green-100 dark:hover:bg-green-500/20 transition flex flex-col items-center gap-1">
+                            <i class="fa-solid fa-file-export"></i> <span class="text-xs">Export Data</span>
+                        </button>
+                        <button onclick="document.getElementById('importInput').click()" class="py-3 px-4 rounded-xl font-bold bg-blue-50 dark:bg-blue-500/10 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition flex flex-col items-center gap-1">
+                            <i class="fa-solid fa-file-import"></i> <span class="text-xs">Import Data</span>
+                        </button>
+                    </div>
+
                     <button onclick="handleChangePin()" class="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-white/5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition mb-6 group">
                         <div class="flex items-center gap-3">
                             <div class="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-500 flex items-center justify-center"><i class="fa-solid fa-key"></i></div>
@@ -453,7 +467,7 @@
                         <button onclick="handleDeleteAccount()" class="w-full py-3 rounded-xl font-bold bg-red-50 dark:bg-red-500/10 text-red-500 hover:bg-red-100 dark:hover:bg-red-500/20 transition">Delete Account</button>
                     </div>
                 </div>
-                <div class="text-center text-[10px] text-gray-300 mt-8 mb-4 font-mono">App Version 2.5</div>
+                <div class="text-center text-[10px] text-gray-300 mt-8 mb-4 font-mono">App Version 2.9</div>
                 <div class="h-10"></div>
             </div>
 
@@ -572,8 +586,9 @@
         </div>
     </div>
 
-    <!-- Hidden File Input -->
+    <!-- Hidden Inputs -->
     <input type="file" id="avatarInput" hidden accept="image/*" onchange="handleAvatarFile(this)">
+    <input type="file" id="importInput" hidden accept=".json" onchange="handleImportFile(this)">
 
     <script>
         // *** CONFIGURATION ZONE ***
@@ -661,6 +676,376 @@
             initCropperEvents();
         }
 
+        async function fetchLiveRate() { 
+            if(!navigator.onLine) {
+                const rateEl = document.getElementById('rateDisplay');
+                if(rateEl) { rateEl.classList.add('text-amber-500'); rateEl.classList.remove('text-ios-blue'); }
+                const mob = document.getElementById('rateDisplayMobile');
+                if(mob) { mob.classList.add('text-amber-500'); mob.classList.remove('text-ios-blue'); }
+                return;
+            }
+            try { 
+                const r=await fetch('https://open.er-api.com/v6/latest/USD'); 
+                const d=await r.json(); 
+                exchangeRate = d.rates.VND; 
+                isManualRate = false; 
+                appData.customRate = null; 
+                updateRateDisplay(); 
+                updateUI(); 
+            } catch(e) { console.warn("Rate fetch failed"); } 
+        }
+
+        function editExchangeRate() { 
+            const r=prompt("Custom Rate (USD->VND):", parseInt(exchangeRate)); 
+            if(r){ 
+                exchangeRate=parseFloat(r); 
+                isManualRate=true; 
+                appData.customRate=exchangeRate; 
+                saveData(); 
+                showToast("Manual Rate Set");
+                updateRateDisplay();
+                updateUI();
+            } 
+        }
+
+        function updateRateDisplay() { 
+            const text = `1$ ≈ ${new Intl.NumberFormat().format(parseInt(exchangeRate))}₫`;
+            const el = document.getElementById('rateDisplay');
+            if(el) el.innerText = text; 
+            const mob = document.getElementById('rateDisplayMobile');
+            if(mob) mob.innerText = text;
+            if(isManualRate || !navigator.onLine) {
+                if(el) { el.classList.add('text-amber-500'); el.classList.remove('text-ios-blue'); }
+                if(mob) { mob.classList.add('text-amber-500'); mob.classList.remove('text-ios-blue'); }
+            } else {
+                if(el) { el.classList.remove('text-amber-500'); el.classList.add('text-ios-blue'); }
+                if(mob) { mob.classList.remove('text-amber-500'); mob.classList.add('text-ios-blue'); }
+            }
+        }
+        
+        function toggleCurrency() { appData.currency = appData.currency === 'USD' ? 'VND' : 'USD'; updateUI(); saveData(); }
+
+        // --- Render Functions (Restored) ---
+        function renderSubLimits(spentMap) {
+            const c = document.getElementById('subLimitsContainer'); c.innerHTML = '';
+            if(appData.subLimits.length===0) document.getElementById('emptySubLimits').classList.remove('hidden');
+            else document.getElementById('emptySubLimits').classList.add('hidden');
+            
+            appData.subLimits.forEach(sl => {
+                const s = spentMap[sl.id] || 0;
+                const rem = Math.max(0, sl.limit - s);
+                const pct = Math.min(100, (rem/sl.limit)*100);
+                const col = rem > 0 ? 'bg-ios-purple' : 'bg-ios-red';
+                const txt = rem > 0 ? 'text-ios-purple' : 'text-ios-red';
+                
+                const delBtn = isCurrentViewMonth() 
+                    ? `<button onclick="deleteSubLimit(${sl.id})" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><i class="fa-solid fa-xmark"></i></button>`
+                    : '';
+                const editBtn = isCurrentViewMonth()
+                    ? `<button onclick="openSubLimitModal(${sl.id})" class="absolute top-2 right-8 text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition"><i class="fa-solid fa-pen"></i></button>`
+                    : '';
+
+                c.innerHTML += `
+                <div class="bg-white/50 dark:bg-white/5 p-4 rounded-2xl flex flex-col justify-between relative group border border-gray-100 dark:border-gray-800 hover-lift">
+                    ${editBtn}
+                    ${delBtn}
+                    <div class="mb-2"><h3 class="text-sm font-bold truncate dark:text-white">${sl.name}</h3><p class="text-[10px] text-gray-400">Limit: ${formatMoney(sl.limit)}</p></div>
+                    <div class="w-full"><div class="flex justify-between items-end mb-1"><span class="text-[10px] font-semibold text-gray-500">Left</span><span class="text-xs font-bold ${txt}">${formatMoney(rem)}</span></div><div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden"><div class="h-full rounded-full transition-all duration-500 ${col}" style="width: ${pct}%"></div></div></div>
+                </div>`;
+            });
+        }
+
+        function renderSubs() {
+            const l = document.getElementById('subscriptionList'); l.innerHTML = '';
+            if(appData.subscriptions.length===0) document.getElementById('emptySubs').classList.remove('hidden'); else document.getElementById('emptySubs').classList.add('hidden');
+            appData.subscriptions.forEach(s => {
+                let dateDisplay = '';
+                if (s.dueDate) {
+                    const d = new Date(s.dueDate);
+                    const day = d.getDate();
+                    if(s.frequency === 'yearly') {
+                        dateDisplay = `${monthNames[d.getMonth()]} ${day}`;
+                    } else {
+                        dateDisplay = `Day ${day}`;
+                    }
+                } else {
+                    dateDisplay = s.frequency === 'yearly' ? monthNames[s.dueMonth] : 'Monthly';
+                }
+
+                const tag = s.frequency === 'yearly' 
+                    ? `<span class="text-[9px] bg-orange-100 text-orange-600 px-1.5 rounded font-bold">YR</span>` 
+                    : `<span class="text-[9px] bg-purple-100 text-purple-600 px-1.5 rounded font-bold">MO</span>`;
+                
+                const editBtn = isCurrentViewMonth()
+                    ? `<button onclick="openSubscriptionModal(${s.id})" class="text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100"><i class="fa-solid fa-pen"></i></button>`
+                    : '';
+
+                l.innerHTML += `
+                <div class="flex justify-between items-center bg-white/50 dark:bg-white/5 p-3 rounded-xl mb-2 group">
+                    <div class="flex items-center gap-2 overflow-hidden">
+                        ${tag}
+                        <div class="flex flex-col">
+                            <span class="text-sm font-medium dark:text-gray-200 truncate">${s.name}</span>
+                            <span class="text-[10px] text-gray-400 font-medium">Due: ${dateDisplay}</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 shrink-0">
+                        <span class="text-sm font-bold text-gray-700 dark:text-gray-300">-${formatMoney(s.amount)}</span>
+                        ${editBtn}
+                    </div>
+                </div>`;
+            });
+        }
+
+        function renderHistory(t) {
+            const l = document.getElementById('historyList'); l.innerHTML = '';
+            if(t.length===0) { l.innerHTML = `<li class="text-center text-gray-400 text-sm py-4">No activity.</li>`; return; }
+            
+            let sorted = [...t];
+            if (searchQuery) {
+                sorted = sorted.filter(item => {
+                    const descMatch = (item.desc || '').toLowerCase().includes(searchQuery);
+                    const catMatch = (item.category || '').toLowerCase().includes(searchQuery);
+                    let subLimitMatch = false;
+                    if(item.subLimitId) {
+                        const sl = appData.subLimits.find(s => s.id === item.subLimitId);
+                        if(sl && sl.name.toLowerCase().includes(searchQuery)) subLimitMatch = true;
+                    }
+                    return descMatch || catMatch || subLimitMatch;
+                });
+                if(sorted.length === 0) { l.innerHTML = `<li class="text-center text-gray-400 text-sm py-4">No matches found.</li>`; return; }
+            }
+
+            if(currentSort === 'newest') sorted.sort((a,b)=>new Date(b.date)-new Date(a.date));
+            else if(currentSort === 'oldest') sorted.sort((a,b)=>new Date(a.date)-new Date(b.date));
+            else if(currentSort === 'high') sorted.sort((a,b)=>b.amount-a.amount);
+
+            sorted.forEach(x => {
+                const isExp = x.type==='expense';
+                let cat = '';
+                if(x.subLimitId) { const s = appData.subLimits.find(z=>z.id===x.subLimitId); if(s) cat = `<span class="text-[9px] bg-indigo-100 text-indigo-600 px-1.5 rounded ml-2 font-bold">${s.name}</span>`; }
+                else if(x.category && x.category !== 'Uncategorized') cat = `<span class="text-[9px] bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-300 px-1.5 rounded ml-2 font-bold">${x.category}</span>`;
+                
+                const acct = x.account || 'bank';
+                const acctIcon = acct === 'cash' 
+                    ? `<i class="fa-solid fa-money-bill-wave text-[10px] ml-1 text-gray-400" title="Cash"></i>`
+                    : `<i class="fa-solid fa-building-columns text-[10px] ml-1 text-gray-400" title="Bank"></i>`;
+
+                const delBtn = isCurrentViewMonth()
+                    ? `<button onclick="deleteTransaction(${x.id})" class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100"><i class="fa-solid fa-trash"></i></button>`
+                    : '';
+
+                l.innerHTML += `
+                <li class="flex justify-between items-center bg-white/50 dark:bg-white/5 p-4 rounded-2xl group transition hover:bg-white/80 dark:hover:bg-white/10 hover-lift">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isExp?'bg-red-100 text-red-500 dark:bg-red-500/20':'bg-green-100 text-green-500 dark:bg-green-500/20'}"><i class="fa-solid ${isExp?'fa-bag-shopping':'fa-coins'} text-sm"></i></div>
+                        <div class="min-w-0"><div class="flex items-center"><p class="font-bold text-sm dark:text-gray-100 truncate">${x.desc}</p>${cat}${acctIcon}</div><p class="text-[10px] text-gray-400">${new Date(x.date).toLocaleDateString()}</p></div>
+                    </div>
+                    <div class="flex items-center gap-3 shrink-0"><span class="font-bold ${isExp?'text-ios-red':'text-ios-green'}">${isExp?'-':'+'}${formatMoney(x.amount)}</span>${delBtn}</div>
+                </li>`;
+            });
+        }
+
+        function renderComparison() {
+            const b = document.getElementById('comparisonTableBody'); b.innerHTML = '';
+            for(let i=0; i<6; i++) {
+                let d = new Date(viewDate.getFullYear(), viewDate.getMonth()-i, 1);
+                let inc=0, exp=0;
+                appData.transactions.forEach(t=>{ 
+                    const isExchange = (t.category || '').toLowerCase() === 'exchange';
+                    if(!isExchange) {
+                        const td=new Date(t.date); if(td.getMonth()===d.getMonth() && td.getFullYear()===d.getFullYear()) { if(t.type==='revenue') inc+=t.amount; else exp+=t.amount; } 
+                    }
+                });
+                const sav = inc - exp;
+                b.innerHTML += `<tr class="border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-white/50 dark:hover:bg-white/5"><td class="py-3 pl-2 text-gray-500 dark:text-gray-400 font-medium">${d.toLocaleDateString('en-US',{month:'short'})}</td><td class="py-3 text-right text-ios-green">${formatMoney(inc)}</td><td class="py-3 text-right text-ios-red">${formatMoney(exp)}</td><td class="py-3 text-right font-bold ${sav>=0?'text-ios-blue':'text-ios-orange'}">${formatMoney(sav)}</td></tr>`;
+            }
+        }
+
+        function updateUI() {
+            const isMonthly = statsViewMode === 'monthly';
+            const badge = document.getElementById('viewModeBadge');
+            badge.innerText = isMonthly ? 'Mo' : 'All';
+            
+            const notifBadge = document.getElementById('notifBadge');
+            if(appData.notifications && appData.notifications.some(n => !n.read)) {
+                notifBadge.classList.remove('hidden');
+            } else {
+                notifBadge.classList.add('hidden');
+            }
+
+            document.getElementById('currencyLabel').innerText = appData.currency;
+            document.getElementById('inputCurrencySymbol').innerText = appData.currency === 'VND' ? '₫' : '$';
+            document.getElementById('currentMonthDisplay').innerText = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            
+            const sel = document.getElementById('budgetSelect'); const oldVal = sel.value;
+            sel.innerHTML = `<option value="general">General (Monthly Limit)</option>`;
+            appData.subLimits.forEach(sl => { const o = document.createElement('option'); o.value = sl.id; o.text = sl.name; sel.appendChild(o); });
+            sel.value = oldVal;
+
+            const dl = document.getElementById('categoryList'); dl.innerHTML = '';
+            appData.categories.sort().forEach(c => { const o = document.createElement('option'); o.value = c; dl.appendChild(o); });
+
+            let allInc = 0, allExp = 0; 
+            let bankRealInc = 0, bankRealExp = 0;
+            let bankTransIn = 0, bankTransOut = 0;
+            let cashRealInc = 0, cashRealExp = 0;
+            let cashTransIn = 0, cashTransOut = 0;
+
+            appData.transactions.forEach(t => { 
+                const acct = t.account || 'bank'; 
+                const isExchange = (t.category || '').toLowerCase() === 'exchange';
+                
+                if (t.type==='revenue') {
+                    if (acct === 'bank') {
+                        if (isExchange) bankTransIn += t.amount; else bankRealInc += t.amount;
+                    } else { 
+                        if (isExchange) cashTransIn += t.amount; else cashRealInc += t.amount;
+                    }
+                    if(!isExchange) allInc += t.amount;
+                } else { 
+                    if (acct === 'bank') {
+                        if (isExchange) bankTransOut += t.amount; else bankRealExp += t.amount;
+                    } else { 
+                        if (isExchange) cashTransOut += t.amount; else cashRealExp += t.amount;
+                    }
+                    if(!isExchange) allExp += t.amount;
+                }
+            });
+            
+            let subCostAllTime = 0; 
+            const now = new Date();
+            appData.subscriptions.forEach(s => {
+               let m = 0;
+               while(m <= now.getMonth()) {
+                   const isCurrentMonth = m === now.getMonth();
+                   let dueDay = 1;
+                   if (s.dueDate) dueDay = new Date(s.dueDate).getDate();
+                   let shouldCharge = false;
+                   if (s.frequency === 'monthly') {
+                       if (!isCurrentMonth) shouldCharge = true; 
+                       else if (now.getDate() >= dueDay) shouldCharge = true;
+                   } else if (s.frequency === 'yearly') {
+                       const dueM = s.dueDate ? new Date(s.dueDate).getMonth() : s.dueMonth;
+                       if (dueM === m) {
+                           if (!isCurrentMonth) shouldCharge = true;
+                           else if (now.getDate() >= dueDay) shouldCharge = true;
+                       }
+                   }
+                   if (shouldCharge) subCostAllTime += s.amount;
+                   m++;
+               }
+            });
+            
+            bankRealExp += subCostAllTime;
+            allExp += subCostAllTime;
+
+            const bankBalance = (bankRealInc + bankTransIn) - (bankRealExp + bankTransOut);
+            const cashBalance = (cashRealInc + cashTransIn) - (cashRealExp + cashTransOut);
+            const totalWallet = bankBalance + cashBalance;
+
+            let displayInc = 0, displayExp = 0;
+
+            if (isMonthly) {
+                const mTrans = appData.transactions.filter(t => new Date(t.date).getMonth() === viewDate.getMonth() && new Date(t.date).getFullYear() === viewDate.getFullYear());
+                mTrans.forEach(t => { 
+                    const isExchange = (t.category || '').toLowerCase() === 'exchange';
+                    if(!isExchange) {
+                        if(t.type==='revenue') displayInc+=t.amount; else displayExp+=t.amount; 
+                    }
+                });
+                appData.subscriptions.forEach(s => {
+                    const dueM = s.dueDate ? new Date(s.dueDate).getMonth() : s.dueMonth;
+                    if(s.frequency === 'monthly' || (s.frequency === 'yearly' && dueM === viewDate.getMonth())) {
+                         displayExp += s.amount;
+                    }
+                });
+            } else {
+                displayInc = allInc;
+                displayExp = allExp;
+            }
+
+            document.getElementById('incomeDisplay').innerText = formatMoney(displayInc);
+            document.getElementById('spentDisplay').innerText = formatMoney(displayExp); 
+            document.getElementById('walletDisplay').innerText = formatMoney(totalWallet);
+            
+            const mTransCurrent = appData.transactions.filter(t => new Date(t.date).getMonth() === viewDate.getMonth() && new Date(t.date).getFullYear() === viewDate.getFullYear());
+            let genSpent = 0, subSpent = {};
+            mTransCurrent.forEach(t => { 
+                const isExchange = (t.category || '').toLowerCase() === 'exchange';
+                if(t.type==='expense' && !isExchange) { 
+                    if(t.subLimitId) subSpent[t.subLimitId] = (subSpent[t.subLimitId]||0)+t.amount; else genSpent += t.amount; 
+                }
+            });
+            
+            const mSubs = appData.subscriptions.reduce((s, sub) => {
+                const dueM = sub.dueDate ? new Date(sub.dueDate).getMonth() : sub.dueMonth;
+                const isDueMonth = (sub.frequency==='monthly' || (sub.frequency==='yearly' && dueM === viewDate.getMonth()));
+                return isDueMonth ? s+sub.amount : s;
+            }, 0);
+
+            const limit = appData.limits[getMonthKey(viewDate)] || 0;
+            const mainRem = Math.max(0, limit - (genSpent + mSubs));
+            document.getElementById('monthlyLeftDisplay').innerText = formatMoney(mainRem);
+            
+            const isDark = document.documentElement.classList.contains('dark');
+            const bg = isDark ? '#2C2C2E' : '#E5E7EB';
+            
+            const p = limit > 0 ? mainRem / limit : 0;
+            const col = p < 0.2 ? '#FF3B30' : (p < 0.5 ? '#FF9500' : '#007AFF');
+            document.getElementById('centerBudgetRemaining').innerText = formatMoney(mainRem);
+            document.getElementById('centerLimitLabel').innerText = "Limit: " + formatMoney(limit);
+            if(budgetChart) {
+                budgetChart.data.datasets[0].data = limit === 0 ? [0, 100] : [mainRem, limit - mainRem];
+                budgetChart.data.datasets[0].backgroundColor = limit === 0 ? [bg, bg] : [col, bg];
+                budgetChart.update();
+            }
+
+            const bankNetTransfer = bankTransIn - bankTransOut;
+            let bankChartData = bankNetTransfer >= 0 ? [bankBalance, bankRealExp] : [bankBalance, bankRealExp + Math.abs(bankNetTransfer)];
+            const cashNetTransfer = cashTransIn - cashTransOut;
+            let cashChartData = cashNetTransfer >= 0 ? [cashBalance, cashRealExp] : [cashBalance, cashRealExp + Math.abs(cashNetTransfer)];
+
+            if (bankChartData[0] <= 0) bankChartData = [0, 100]; 
+            if (cashChartData[0] <= 0) cashChartData = [0, 100];
+
+            document.getElementById('centerBankBalance').innerText = formatMoney(bankBalance);
+            document.getElementById('centerCashBalance').innerText = formatMoney(cashBalance);
+            document.getElementById('footerTotalIncome').innerText = formatMoney(allInc);
+            document.getElementById('footerTotalSpent').innerText = formatMoney(allExp);
+
+            if(bankChart) {
+                bankChart.data.datasets[0].data = bankChartData; 
+                bankChart.data.datasets[0].backgroundColor = bankBalance <= 0 ? [bg, bg] : ['#007AFF', '#FF3B30'];
+                bankChart.update();
+            }
+            if(cashChart) {
+                cashChart.data.datasets[0].data = cashChartData;
+                cashChart.data.datasets[0].backgroundColor = cashBalance <= 0 ? [bg, bg] : ['#34C759', '#FF3B30'];
+                cashChart.update();
+            }
+
+            const isCurrent = isCurrentViewMonth();
+            const lockMsg = document.getElementById('lockedMessage');
+            const inputs = ['limitControl', 'transControl'];
+            const addSubBtn = document.getElementById('addSubBtn');
+            
+            if (isCurrent) {
+                lockMsg.classList.add('hidden');
+                inputs.forEach(id => document.getElementById(id).classList.remove('disabled-overlay'));
+                addSubBtn.classList.remove('pointer-events-none', 'opacity-50');
+            } else {
+                lockMsg.classList.remove('hidden');
+                inputs.forEach(id => document.getElementById(id).classList.add('disabled-overlay'));
+                addSubBtn.classList.add('pointer-events-none', 'opacity-50');
+            }
+
+            renderSubs();
+            renderSubLimits(subSpent);
+            renderHistory(mTransCurrent);
+            renderComparison();
+        }
+
         async function handleAuth(autoUser = null) {
             const usernameInput = document.getElementById('usernameInput');
             let username = autoUser;
@@ -725,6 +1110,60 @@
                 usernameInput.disabled = false; 
             }
         }
+
+        // --- IMPORT / EXPORT LOGIC ---
+        
+        function exportData() {
+            // Clean up internal keys or sensitive data if needed before export
+            // For restore purposes, we export everything relevant to the state
+            const exportObj = { ...appData };
+            // Remove activity log if user wants privacy? keeping for full backup
+            
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObj));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", `finance_backup_${currentUserDocId}_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(downloadAnchorNode); 
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+            showToast("Data Exported");
+        }
+
+        function handleImportFile(input) {
+            const file = input.files[0];
+            if(!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const json = JSON.parse(e.target.result);
+                    // Basic validation
+                    if (!json.categories || !Array.isArray(json.transactions)) {
+                        throw new Error("Invalid Format");
+                    }
+                    
+                    // Confirmation
+                    if (confirm("This will overwrite your current data. Proceed?")) {
+                        // Merge or Overwrite? Overwrite safest for full restore
+                        appData = { ...appData, ...json };
+                        // Ensure pin is preserved from import or keep current?
+                        // Usually restore means restore everything including PIN settings
+                        
+                        await saveData();
+                        updateUI();
+                        updateAvatarUI();
+                        showToast("Data Imported Successfully");
+                    }
+                } catch(err) {
+                    console.error(err);
+                    showToast("Import Failed: Invalid JSON");
+                }
+            };
+            reader.readAsText(file);
+            input.value = ''; // Reset
+        }
+
+        // --- PIN LOGIC ---
 
         function showPinScreen(mode, username, forced = false) {
             pinMode = mode;
@@ -835,6 +1274,7 @@
                                 <p class="text-xs font-bold dark:text-white truncate">${log.device}</p>
                                 <p class="text-[10px] text-gray-400">${dateStr}</p>
                             </div>
+                            <div class="text-[8px] text-gray-300 font-mono bg-gray-200 dark:bg-gray-700 px-1 rounded">${log.sessionId || '---'}</div>
                         </div>
                     `;
                 });
@@ -853,9 +1293,13 @@
             else if (ua.includes("Mac")) device = "Mac";
             else if (ua.includes("Linux")) device = "Linux PC";
             
+            // Generate Session ID
+            const sessionId = Math.random().toString(36).substr(2, 6).toUpperCase();
+
             const entry = {
                 date: new Date().toISOString(),
-                device: device
+                device: device,
+                sessionId: sessionId
             };
             
             if (!appData.activityLog) appData.activityLog = [];
@@ -934,7 +1378,8 @@
                         if (typeof __app_id !== 'undefined') userRef = window.fb.doc(db, 'artifacts', __app_id, 'public', 'data', 'finance_users', username);
                         else userRef = window.fb.doc(db, 'finance_users', username);
                         
-                        await window.fb.setDoc(userRef, { pin: pinInput }, { merge: true });
+                        const updates = { pin: pinInput };
+                        await window.fb.setDoc(userRef, updates, { merge: true });
                         
                         if (currentUserDocId) {
                             // Was Changing PIN
@@ -955,8 +1400,9 @@
                         else userRef = window.fb.doc(db, 'finance_users', tempUsername);
                         
                         const newUserData = { ...appData, pin: pinInput };
+                        
                         await window.fb.setDoc(userRef, newUserData, { merge: true });
-                        showToast(`Account Created for ${tempUsername}`);
+                        showToast(`Account Created!`);
                         currentUserDocId = tempUsername;
                         finishLoadSequence(tempUsername);
                     }
@@ -987,12 +1433,10 @@
         function finishLoadSequence(username) {
             localStorage.setItem('finTrack_username', username);
             
-            // FIX: Element 'menuUsername' was removed in the UI refactor. 
-            // Updating 'settingsUsername' instead.
             const settingsNameEl = document.getElementById('settingsUsername');
             if (settingsNameEl) settingsNameEl.innerText = username;
             
-            // Record Activity
+            // Record Activity (will auto-save)
             logActivity();
             
             subscribeToData();
@@ -1172,13 +1616,14 @@
             unsubscribeSnapshot = window.fb.onSnapshot(userRef, (doc) => {
                 if(doc.exists()) {
                     appData = { ...appData, ...doc.data() };
+                    // Ensure defaults
                     if (!appData.categories) appData.categories = ['Food', 'Transport', 'Shopping', 'Bill', 'Exchange'];
                     if (!Array.isArray(appData.subLimits)) appData.subLimits = [];
                     if (!Array.isArray(appData.transactions)) appData.transactions = [];
                     if (!Array.isArray(appData.subscriptions)) appData.subscriptions = [];
                     if (!Array.isArray(appData.notifications)) appData.notifications = [];
                     if (!Array.isArray(appData.activityLog)) appData.activityLog = [];
-                    
+
                     cleanupNotifications(); // Retention Policy
                     checkSubscriptionNotifications(); // Check for charges
 
@@ -1192,12 +1637,14 @@
             });
         }
 
-        async function saveData() { 
+        async function saveData(isManualSync = false) { 
             if(currentUserDocId) {
                 let userRef;
                 if (typeof __app_id !== 'undefined') userRef = window.fb.doc(db, 'artifacts', __app_id, 'public', 'data', 'finance_users', currentUserDocId);
                 else userRef = window.fb.doc(db, 'finance_users', currentUserDocId);
                 await window.fb.setDoc(userRef, appData, { merge: true }); 
+                
+                if(isManualSync) showToast("Cloud Sync Complete");
             }
         }
 
@@ -1459,723 +1906,6 @@
                 openCategoryModal(); // Re-render list
                 updateUI(); // Update main UI
             });
-        }
-
-        // Actions
-        function setTransactionAccount(acct) {
-            selectedTransAccount = acct;
-            const btnBank = document.getElementById('btnAcctBank');
-            const btnCash = document.getElementById('btnAcctCash');
-            const activeClass = ['bg-white', 'dark:bg-gray-700', 'text-black', 'dark:text-white', 'shadow-sm'];
-            const inactiveClass = ['text-gray-500', 'dark:text-gray-400'];
-
-            if(acct === 'bank') {
-                btnBank.classList.add(...activeClass);
-                btnBank.classList.remove(...inactiveClass);
-                btnCash.classList.remove(...activeClass);
-                btnCash.classList.add(...inactiveClass);
-            } else {
-                btnCash.classList.add(...activeClass);
-                btnCash.classList.remove(...inactiveClass);
-                btnBank.classList.remove(...activeClass);
-                btnBank.classList.add(...inactiveClass);
-            }
-        }
-
-        function addTransaction(type) {
-            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
-            const descInput = document.getElementById('descInput');
-            const amtInput = document.getElementById('amountInput');
-            const catInput = document.getElementById('categoryInput');
-
-            // Determine if this is a transfer/exchange
-            const isTransfer = type === 'transfer';
-
-            const val = parseFormattedNumber(amtInput.value);
-            // If transfer, category is strictly 'Exchange'. Else try input or default.
-            let cat = isTransfer ? 'Exchange' : (catInput.value.trim() || 'Uncategorized');
-            const desc = descInput.value.trim() || (isTransfer ? 'Transfer' : (type === 'expense' ? 'Expense' : 'Income'));
-            const source = document.getElementById('budgetSelect').value;
-            
-            if (val > 0) {
-                const amount = appData.currency === 'USD' ? val * exchangeRate : val;
-                const date = new Date().toISOString();
-                const ts = Date.now();
-
-                // If it's a transfer, we handle it specifically
-                if (isTransfer) {
-                    const otherAccount = selectedTransAccount === 'bank' ? 'cash' : 'bank';
-                    const transferDesc = desc === 'Transfer' ? `Transfer to ${otherAccount}` : desc;
-
-                    // 1. Expense from Source
-                    const t1 = {
-                        id: ts,
-                        date: date,
-                        desc: transferDesc,
-                        amount: amount,
-                        type: 'expense', // Outgoing
-                        category: 'Exchange',
-                        account: selectedTransAccount
-                    };
-
-                    // 2. Revenue to Target
-                    const t2 = {
-                        id: ts + 1, // Ensure unique ID
-                        date: date,
-                        desc: `Received from ${selectedTransAccount}`,
-                        amount: amount,
-                        type: 'revenue', // Incoming
-                        category: 'Exchange',
-                        account: otherAccount
-                    };
-
-                    appData.transactions.unshift(t1);
-                    appData.transactions.unshift(t2);
-                    showToast(`Transferred: ${selectedTransAccount} ➝ ${otherAccount}`);
-
-                } else {
-                    // Normal Transaction
-                    const t = { 
-                        id: ts, 
-                        date: date, 
-                        desc, 
-                        amount: amount, 
-                        type, 
-                        category: cat,
-                        account: selectedTransAccount 
-                    };
-
-                    if(type === 'expense' && source !== 'general') t.subLimitId = parseInt(source);
-                    if (cat && !appData.categories.includes(cat)) appData.categories.push(cat);
-                    
-                    appData.transactions.unshift(t);
-                    showToast("Transaction added");
-                }
-
-                descInput.value = ''; 
-                amtInput.value = ''; 
-                catInput.value = '';
-                saveData();
-            }
-        }
-        function deleteTransaction(id) { 
-            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
-            showConfirm("Delete?", () => { appData.transactions = appData.transactions.filter(t => t.id !== id); saveData(); showToast("Deleted"); }); 
-        }
-        function setMonthLimit() { 
-            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
-            const v = parseFormattedNumber(document.getElementById('limitInput').value); if(v>=0) { appData.limits[getMonthKey(viewDate)] = appData.currency === 'USD' ? v * exchangeRate : v; document.getElementById('limitInput').value = ''; saveData(); showToast("Limit set"); } 
-        }
-        function saveSubLimit() {
-            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
-            const name = document.getElementById('subLimitNameInput').value.trim();
-            const limitVal = parseFormattedNumber(document.getElementById('subLimitAmountInput').value);
-
-            if (name && limitVal > 0) {
-                const storeLimit = appData.currency === 'USD' ? limitVal * exchangeRate : limitVal;
-                if (editingSubLimitId) {
-                    const index = appData.subLimits.findIndex(s => s.id === editingSubLimitId);
-                    if (index !== -1) { appData.subLimits[index].name = name; appData.subLimits[index].limit = storeLimit; showToast("Sub-limit updated"); }
-                } else {
-                    appData.subLimits.push({ id: Date.now(), name: name, limit: storeLimit });
-                    showToast("Sub-limit created");
-                }
-                closeSubLimitModal(); saveData(); updateUI();
-            }
-        }
-        function deleteSubLimit(id) { 
-            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
-            showConfirm("Delete budget?", () => { appData.subLimits = appData.subLimits.filter(s => s.id !== id); saveData(); }); 
-        }
-        function deleteSubLimitFromModal() { if (editingSubLimitId) { deleteSubLimit(editingSubLimitId); closeSubLimitModal(); } }
-
-        // Subscription Functions
-        function openSubscriptionModal(id = null) {
-            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
-            
-            const modal = document.getElementById('subscriptionModal');
-            const title = document.getElementById('subModalTitle');
-            const saveBtn = document.getElementById('subSaveBtn');
-            const deleteBtn = document.getElementById('subDeleteBtn');
-            
-            const nameIn = document.getElementById('modalSubName');
-            const amtIn = document.getElementById('modalSubAmount');
-            const freqIn = document.getElementById('modalSubFreq');
-            const dateIn = document.getElementById('modalSubDate');
-            
-            document.getElementById('modalSubCurrency').innerText = appData.currency === 'VND' ? '₫' : '$';
-
-            if (id) {
-                const s = appData.subscriptions.find(sub => sub.id === id);
-                if (!s) return;
-                editingSubId = id;
-                title.innerText = "Edit Subscription";
-                saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Update Subscription</span>';
-                deleteBtn.classList.remove('hidden');
-                
-                nameIn.value = s.name;
-                let val = s.amount;
-                if (appData.currency === 'USD') val = val / exchangeRate;
-                amtIn.value = Number(Math.round(val)).toLocaleString('de-DE');
-                freqIn.value = s.frequency || 'monthly';
-                
-                // Handle date
-                if (s.dueDate) {
-                    dateIn.value = s.dueDate.split('T')[0];
-                } else {
-                    // Fallback for old data without date
-                    const now = new Date();
-                    const m = s.dueMonth !== undefined ? s.dueMonth : now.getMonth();
-                    dateIn.value = new Date(now.getFullYear(), m, 1).toISOString().split('T')[0];
-                }
-
-            } else {
-                editingSubId = null;
-                title.innerText = "New Subscription";
-                saveBtn.innerHTML = '<i class="fa-solid fa-plus"></i> <span>Add Subscription</span>';
-                deleteBtn.classList.add('hidden');
-                nameIn.value = '';
-                amtIn.value = '';
-                freqIn.value = 'monthly';
-                dateIn.value = new Date().toISOString().split('T')[0];
-            }
-            modal.classList.remove('hidden');
-            nameIn.focus();
-        }
-        function closeSubscriptionModal() { document.getElementById('subscriptionModal').classList.add('hidden'); }
-        function deleteSubscriptionFromModal() { if(editingSubId) { deleteSubscription(editingSubId); closeSubscriptionModal(); } }
-        function toggleModalDate() { /* Can adjust date input label based on frequency if needed */ }
-
-        function saveSubscription() {
-            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
-            const name = document.getElementById('modalSubName').value.trim();
-            const val = parseFormattedNumber(document.getElementById('modalSubAmount').value);
-            const freq = document.getElementById('modalSubFreq').value;
-            const dateStr = document.getElementById('modalSubDate').value;
-            
-            if (name && val > 0 && dateStr) {
-                const amount = appData.currency === 'USD' ? val * exchangeRate : val;
-                const d = new Date(dateStr);
-                
-                const subData = {
-                    name, 
-                    amount, 
-                    frequency: freq,
-                    dueDate: d.toISOString(),
-                    dueMonth: d.getMonth() // Keep for legacy logic compatibility
-                };
-
-                if (editingSubId) {
-                    const idx = appData.subscriptions.findIndex(s => s.id === editingSubId);
-                    if (idx !== -1) {
-                        appData.subscriptions[idx] = { ...appData.subscriptions[idx], ...subData };
-                        showToast("Subscription updated");
-                    }
-                } else {
-                    appData.subscriptions.push({ id: Date.now(), ...subData });
-                    showToast("Subscription added");
-                }
-                closeSubscriptionModal();
-                saveData();
-                updateUI();
-            } else {
-                showToast("Please fill all fields");
-            }
-        }
-        
-        function deleteSubscription(id) { 
-            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
-            showConfirm("Delete sub?", () => { appData.subscriptions = appData.subscriptions.filter(s => s.id !== id); saveData(); }); 
-        }
-        
-        function showConfirm(m, cb) { document.getElementById('confirmMessage').innerText = m; confirmCallback = cb; document.getElementById('confirmModal').classList.remove('hidden'); }
-        function closeConfirm(y) { document.getElementById('confirmModal').classList.add('hidden'); if(y && confirmCallback) confirmCallback(); }
-        
-        document.getElementById('confirmYesBtn').onclick = () => closeConfirm(true);
-
-        function openSubLimitModal(id = null) { 
-            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
-            
-            const modal = document.getElementById('subLimitModal');
-            const title = document.getElementById('subLimitModalTitle');
-            const saveBtn = document.getElementById('subLimitSaveBtn');
-            const deleteBtn = document.getElementById('subLimitDeleteBtn');
-            const nameInput = document.getElementById('subLimitNameInput');
-            const amountInput = document.getElementById('subLimitAmountInput');
-            const currencySym = document.getElementById('subLimitCurrencySymbol');
-
-            currencySym.innerText = appData.currency === 'VND' ? '₫' : '$';
-
-            if (id) {
-                const sl = appData.subLimits.find(s => s.id === id);
-                if (!sl) return;
-                editingSubLimitId = id;
-                title.innerText = "Edit Sub-Limit";
-                saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Update Budget</span>';
-                deleteBtn.classList.remove('hidden');
-                nameInput.value = sl.name;
-                
-                let displayVal = sl.limit;
-                if (appData.currency === 'USD') displayVal = sl.limit / exchangeRate;
-                amountInput.value = Number(Math.round(displayVal)).toLocaleString('de-DE');
-            } else {
-                editingSubLimitId = null;
-                title.innerText = "New Sub-Limit";
-                saveBtn.innerHTML = '<i class="fa-solid fa-plus"></i> <span>Create Budget</span>';
-                deleteBtn.classList.add('hidden');
-                nameInput.value = '';
-                amountInput.value = '';
-            }
-            modal.classList.remove('hidden');
-            nameInput.focus();
-        }
-        function closeSubLimitModal() { document.getElementById('subLimitModal').classList.add('hidden'); }
-        function updateSort(v) { currentSort = v; updateUI(); }
-        function handleLogout() { localStorage.removeItem('finTrack_username'); location.reload(); }
-        function handleDeleteAccount() { 
-            showConfirm("PERMANENTLY DELETE?", async () => { 
-                if(currentUserDocId) {
-                    let userRef;
-                    if (typeof __app_id !== 'undefined') userRef = window.fb.doc(db, 'artifacts', __app_id, 'public', 'data', 'finance_users', currentUserDocId);
-                    else userRef = window.fb.doc(db, 'finance_users', currentUserDocId);
-                    await window.fb.deleteDoc(userRef); 
-                }
-                handleLogout(); 
-            }); 
-        }
-        
-        async function fetchLiveRate() { 
-            if(!navigator.onLine) {
-                const rateEl = document.getElementById('rateDisplay');
-                if(rateEl) {
-                    rateEl.classList.add('text-amber-500');
-                    rateEl.classList.remove('text-ios-blue');
-                }
-                // Handle mobile display too
-                const mob = document.getElementById('rateDisplayMobile');
-                if(mob) {
-                    mob.classList.add('text-amber-500');
-                    mob.classList.remove('text-ios-blue');
-                }
-                return;
-            }
-            try { 
-                const r=await fetch('https://open.er-api.com/v6/latest/USD'); 
-                const d=await r.json(); 
-                exchangeRate = d.rates.VND; 
-                isManualRate = false; 
-                appData.customRate = null; 
-                updateRateDisplay(); 
-                updateUI(); 
-            } catch(e) { console.warn("Rate fetch failed"); } 
-        }
-
-        function editExchangeRate() { 
-            const r=prompt("Custom Rate (USD->VND):", parseInt(exchangeRate)); 
-            if(r){ 
-                exchangeRate=parseFloat(r); 
-                isManualRate=true; 
-                appData.customRate=exchangeRate; 
-                saveData(); 
-                showToast("Manual Rate Set");
-                updateRateDisplay();
-                updateUI();
-            } 
-        }
-
-        function updateRateDisplay() { 
-            const text = `1$ ≈ ${new Intl.NumberFormat().format(parseInt(exchangeRate))}₫`;
-            const el = document.getElementById('rateDisplay');
-            if(el) el.innerText = text; 
-            
-            const mob = document.getElementById('rateDisplayMobile');
-            if(mob) mob.innerText = text;
-
-            if(isManualRate || !navigator.onLine) {
-                if(el) { el.classList.add('text-amber-500'); el.classList.remove('text-ios-blue'); }
-                if(mob) { mob.classList.add('text-amber-500'); mob.classList.remove('text-ios-blue'); }
-            } else {
-                if(el) { el.classList.remove('text-amber-500'); el.classList.add('text-ios-blue'); }
-                if(mob) { mob.classList.remove('text-amber-500'); mob.classList.add('text-ios-blue'); }
-            }
-        }
-        
-        function toggleCurrency() { appData.currency = appData.currency === 'USD' ? 'VND' : 'USD'; updateUI(); saveData(); }
-
-        // Render
-        function updateUI() {
-            const isMonthly = statsViewMode === 'monthly';
-            const badge = document.getElementById('viewModeBadge');
-            badge.innerText = isMonthly ? 'Mo' : 'All';
-            
-            // Check notifications badge
-            const notifBadge = document.getElementById('notifBadge');
-            if(appData.notifications && appData.notifications.some(n => !n.read)) {
-                notifBadge.classList.remove('hidden');
-            } else {
-                notifBadge.classList.add('hidden');
-            }
-
-            document.getElementById('currencyLabel').innerText = appData.currency;
-            document.getElementById('inputCurrencySymbol').innerText = appData.currency === 'VND' ? '₫' : '$';
-            document.getElementById('currentMonthDisplay').innerText = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-            
-            const sel = document.getElementById('budgetSelect'); const oldVal = sel.value;
-            sel.innerHTML = `<option value="general">General (Monthly Limit)</option>`;
-            appData.subLimits.forEach(sl => { const o = document.createElement('option'); o.value = sl.id; o.text = sl.name; sel.appendChild(o); });
-            sel.value = oldVal;
-
-            const dl = document.getElementById('categoryList'); dl.innerHTML = '';
-            appData.categories.sort().forEach(c => { const o = document.createElement('option'); o.value = c; dl.appendChild(o); });
-
-            // 1. Calculate All-Time Stats for Wallet/Assets (Always All-Time)
-            // Separate Real Income/Expense from Transfers for accurate Wheel Visualization
-            let allInc = 0, allExp = 0; 
-            
-            let bankRealInc = 0, bankRealExp = 0;
-            let bankTransIn = 0, bankTransOut = 0;
-            
-            let cashRealInc = 0, cashRealExp = 0;
-            let cashTransIn = 0, cashTransOut = 0;
-
-            appData.transactions.forEach(t => { 
-                const acct = t.account || 'bank'; 
-                const isExchange = (t.category || '').toLowerCase() === 'exchange';
-                
-                if (t.type==='revenue') {
-                    if (acct === 'bank') {
-                        if (isExchange) bankTransIn += t.amount;
-                        else bankRealInc += t.amount;
-                    } else { // cash
-                        if (isExchange) cashTransIn += t.amount;
-                        else cashRealInc += t.amount;
-                    }
-                    // Global Income only tracks real income
-                    if(!isExchange) allInc += t.amount;
-                } else { // expense
-                    if (acct === 'bank') {
-                        if (isExchange) bankTransOut += t.amount;
-                        else bankRealExp += t.amount;
-                    } else { // cash
-                        if (isExchange) cashTransOut += t.amount;
-                        else cashRealExp += t.amount;
-                    }
-                    // Global Spent only tracks real expense
-                    if(!isExchange) allExp += t.amount;
-                }
-            });
-            
-            // Subscription Costs
-            let subCostAllTime = 0; 
-            const now = new Date();
-            appData.subscriptions.forEach(s => {
-               let m = 0;
-               while(m <= now.getMonth()) {
-                   const isCurrentMonth = m === now.getMonth();
-                   let dueDay = 1;
-                   if (s.dueDate) dueDay = new Date(s.dueDate).getDate();
-                   
-                   let shouldCharge = false;
-                   if (s.frequency === 'monthly') {
-                       if (!isCurrentMonth) shouldCharge = true; 
-                       else if (now.getDate() >= dueDay) shouldCharge = true;
-                   } else if (s.frequency === 'yearly') {
-                       const dueM = s.dueDate ? new Date(s.dueDate).getMonth() : s.dueMonth;
-                       if (dueM === m) {
-                           if (!isCurrentMonth) shouldCharge = true;
-                           else if (now.getDate() >= dueDay) shouldCharge = true;
-                       }
-                   }
-                   if (shouldCharge) subCostAllTime += s.amount;
-                   m++;
-               }
-            });
-            
-            // Assume Subs come from Bank for simplicity (Real Expense)
-            bankRealExp += subCostAllTime;
-            allExp += subCostAllTime;
-
-            const bankBalance = (bankRealInc + bankTransIn) - (bankRealExp + bankTransOut);
-            const cashBalance = (cashRealInc + cashTransIn) - (cashRealExp + cashTransOut);
-            const totalWallet = bankBalance + cashBalance;
-
-            // 2. Calculate Stats for "Income/Spent" Cards based on View Mode
-            let displayInc = 0, displayExp = 0;
-
-            if (isMonthly) {
-                // Filter transactions for view month
-                const mTrans = appData.transactions.filter(t => new Date(t.date).getMonth() === viewDate.getMonth() && new Date(t.date).getFullYear() === viewDate.getFullYear());
-                mTrans.forEach(t => { 
-                    const isExchange = (t.category || '').toLowerCase() === 'exchange';
-                    if(!isExchange) {
-                        if(t.type==='revenue') displayInc+=t.amount; else displayExp+=t.amount; 
-                    }
-                });
-                
-                // Add Subs for this month if viewing this month
-                appData.subscriptions.forEach(s => {
-                    const dueM = s.dueDate ? new Date(s.dueDate).getMonth() : s.dueMonth;
-                    if(s.frequency === 'monthly' || (s.frequency === 'yearly' && dueM === viewDate.getMonth())) {
-                         displayExp += s.amount;
-                    }
-                });
-
-            } else {
-                // All Time
-                displayInc = allInc;
-                displayExp = allExp;
-            }
-
-            // 3. Update DOM
-            document.getElementById('incomeDisplay').innerText = formatMoney(displayInc);
-            document.getElementById('spentDisplay').innerText = formatMoney(displayExp); 
-            document.getElementById('walletDisplay').innerText = formatMoney(totalWallet);
-            
-            // Budget Left (Always Monthly)
-            const mTransCurrent = appData.transactions.filter(t => new Date(t.date).getMonth() === viewDate.getMonth() && new Date(t.date).getFullYear() === viewDate.getFullYear());
-            let genSpent = 0, subSpent = {};
-            mTransCurrent.forEach(t => { 
-                const isExchange = (t.category || '').toLowerCase() === 'exchange';
-                // Only count expense towards budget if NOT exchange
-                if(t.type==='expense' && !isExchange) { 
-                    if(t.subLimitId) subSpent[t.subLimitId] = (subSpent[t.subLimitId]||0)+t.amount; else genSpent += t.amount; 
-                }
-            });
-            
-            const mSubs = appData.subscriptions.reduce((s, sub) => {
-                const dueM = sub.dueDate ? new Date(sub.dueDate).getMonth() : sub.dueMonth;
-                const isDueMonth = (sub.frequency==='monthly' || (sub.frequency==='yearly' && dueM === viewDate.getMonth()));
-                return isDueMonth ? s+sub.amount : s;
-            }, 0);
-
-            const limit = appData.limits[getMonthKey(viewDate)] || 0;
-            const mainRem = Math.max(0, limit - (genSpent + mSubs));
-            document.getElementById('monthlyLeftDisplay').innerText = formatMoney(mainRem);
-            
-            const isDark = document.documentElement.classList.contains('dark');
-            const bg = isDark ? '#2C2C2E' : '#E5E7EB';
-            
-            // Budget Wheel Update
-            const p = limit > 0 ? mainRem / limit : 0;
-            const col = p < 0.2 ? '#FF3B30' : (p < 0.5 ? '#FF9500' : '#007AFF');
-            document.getElementById('centerBudgetRemaining').innerText = formatMoney(mainRem);
-            document.getElementById('centerLimitLabel').innerText = "Limit: " + formatMoney(limit);
-            if(budgetChart) {
-                budgetChart.data.datasets[0].data = limit === 0 ? [0, 100] : [mainRem, limit - mainRem];
-                budgetChart.data.datasets[0].backgroundColor = limit === 0 ? [bg, bg] : [col, bg];
-                budgetChart.update();
-            }
-
-            // Assets Wheels Update
-            // New Logic: Net Transfers.
-            // If Net Transfer > 0 (More In), we increase the "Capacity" (Total slice).
-            // If Net Transfer < 0 (More Out), we treat it as an expense in the Red slice.
-            
-            // Bank Chart
-            const bankNetTransfer = bankTransIn - bankTransOut;
-            let bankChartData = [];
-            
-            if (bankNetTransfer >= 0) {
-                 // Income + Net Transfer = Total Available to Spend. 
-                 // Spent = Real Exp.
-                 // Balance = Total - Spent.
-                 bankChartData = [bankBalance, bankRealExp];
-            } else {
-                 // Money left the account. Treat Net Transfer Out as Expense.
-                 // Chart Expense = Real Exp + (-NetTransfer).
-                 bankChartData = [bankBalance, bankRealExp + Math.abs(bankNetTransfer)];
-            }
-            
-            // Cash Chart
-            const cashNetTransfer = cashTransIn - cashTransOut;
-            let cashChartData = [];
-            
-            if (cashNetTransfer >= 0) {
-                 cashChartData = [cashBalance, cashRealExp];
-            } else {
-                 cashChartData = [cashBalance, cashRealExp + Math.abs(cashNetTransfer)];
-            }
-
-            // Visual fallback for empty
-            if (bankChartData[0] <= 0) bankChartData = [0, 100]; 
-            if (cashChartData[0] <= 0) cashChartData = [0, 100];
-
-            document.getElementById('centerBankBalance').innerText = formatMoney(bankBalance);
-            document.getElementById('centerCashBalance').innerText = formatMoney(cashBalance);
-            document.getElementById('footerTotalIncome').innerText = formatMoney(allInc);
-            document.getElementById('footerTotalSpent').innerText = formatMoney(allExp);
-
-            if(bankChart) {
-                bankChart.data.datasets[0].data = bankChartData; 
-                bankChart.data.datasets[0].backgroundColor = bankBalance <= 0 ? [bg, bg] : ['#007AFF', '#FF3B30'];
-                bankChart.update();
-            }
-            if(cashChart) {
-                cashChart.data.datasets[0].data = cashChartData;
-                cashChart.data.datasets[0].backgroundColor = cashBalance <= 0 ? [bg, bg] : ['#34C759', '#FF3B30'];
-                cashChart.update();
-            }
-
-            // Handle Locking UI
-            const isCurrent = isCurrentViewMonth();
-            const lockMsg = document.getElementById('lockedMessage');
-            const inputs = ['limitControl', 'transControl'];
-            const addSubBtn = document.getElementById('addSubBtn');
-            
-            if (isCurrent) {
-                lockMsg.classList.add('hidden');
-                inputs.forEach(id => document.getElementById(id).classList.remove('disabled-overlay'));
-                addSubBtn.classList.remove('pointer-events-none', 'opacity-50');
-            } else {
-                lockMsg.classList.remove('hidden');
-                inputs.forEach(id => document.getElementById(id).classList.add('disabled-overlay'));
-                addSubBtn.classList.add('pointer-events-none', 'opacity-50');
-            }
-
-            renderSubs();
-            renderSubLimits(subSpent);
-            renderHistory(mTransCurrent);
-            renderComparison();
-        }
-
-        function renderSubLimits(spentMap) {
-            const c = document.getElementById('subLimitsContainer'); c.innerHTML = '';
-            if(appData.subLimits.length===0) document.getElementById('emptySubLimits').classList.remove('hidden');
-            else document.getElementById('emptySubLimits').classList.add('hidden');
-            
-            appData.subLimits.forEach(sl => {
-                const s = spentMap[sl.id] || 0;
-                const rem = Math.max(0, sl.limit - s);
-                const pct = Math.min(100, (rem/sl.limit)*100);
-                const col = rem > 0 ? 'bg-ios-purple' : 'bg-ios-red';
-                const txt = rem > 0 ? 'text-ios-purple' : 'text-ios-red';
-                
-                const delBtn = isCurrentViewMonth() 
-                    ? `<button onclick="deleteSubLimit(${sl.id})" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><i class="fa-solid fa-xmark"></i></button>`
-                    : '';
-                const editBtn = isCurrentViewMonth()
-                    ? `<button onclick="openSubLimitModal(${sl.id})" class="absolute top-2 right-8 text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition"><i class="fa-solid fa-pen"></i></button>`
-                    : '';
-
-                c.innerHTML += `
-                <div class="bg-white/50 dark:bg-white/5 p-4 rounded-2xl flex flex-col justify-between relative group border border-gray-100 dark:border-gray-800 hover-lift">
-                    ${editBtn}
-                    ${delBtn}
-                    <div class="mb-2"><h3 class="text-sm font-bold truncate dark:text-white">${sl.name}</h3><p class="text-[10px] text-gray-400">Limit: ${formatMoney(sl.limit)}</p></div>
-                    <div class="w-full"><div class="flex justify-between items-end mb-1"><span class="text-[10px] font-semibold text-gray-500">Left</span><span class="text-xs font-bold ${txt}">${formatMoney(rem)}</span></div><div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden"><div class="h-full rounded-full transition-all duration-500 ${col}" style="width: ${pct}%"></div></div></div>
-                </div>`;
-            });
-        }
-
-        function renderSubs() {
-            const l = document.getElementById('subscriptionList'); l.innerHTML = '';
-            if(appData.subscriptions.length===0) document.getElementById('emptySubs').classList.remove('hidden'); else document.getElementById('emptySubs').classList.add('hidden');
-            appData.subscriptions.forEach(s => {
-                // Determine day/date display
-                let dateDisplay = '';
-                if (s.dueDate) {
-                    const d = new Date(s.dueDate);
-                    const day = d.getDate();
-                    if(s.frequency === 'yearly') {
-                        dateDisplay = `${monthNames[d.getMonth()]} ${day}`;
-                    } else {
-                        dateDisplay = `Day ${day}`;
-                    }
-                } else {
-                    // Legacy fallback
-                    dateDisplay = s.frequency === 'yearly' ? monthNames[s.dueMonth] : 'Monthly';
-                }
-
-                const tag = s.frequency === 'yearly' 
-                    ? `<span class="text-[9px] bg-orange-100 text-orange-600 px-1.5 rounded font-bold">YR</span>` 
-                    : `<span class="text-[9px] bg-purple-100 text-purple-600 px-1.5 rounded font-bold">MO</span>`;
-                
-                const editBtn = isCurrentViewMonth()
-                    ? `<button onclick="openSubscriptionModal(${s.id})" class="text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100"><i class="fa-solid fa-pen"></i></button>`
-                    : '';
-
-                l.innerHTML += `
-                <div class="flex justify-between items-center bg-white/50 dark:bg-white/5 p-3 rounded-xl mb-2 group">
-                    <div class="flex items-center gap-2 overflow-hidden">
-                        ${tag}
-                        <div class="flex flex-col">
-                            <span class="text-sm font-medium dark:text-gray-200 truncate">${s.name}</span>
-                            <span class="text-[10px] text-gray-400 font-medium">Due: ${dateDisplay}</span>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-3 shrink-0">
-                        <span class="text-sm font-bold text-gray-700 dark:text-gray-300">-${formatMoney(s.amount)}</span>
-                        ${editBtn}
-                    </div>
-                </div>`;
-            });
-        }
-
-        function renderHistory(t) {
-            const l = document.getElementById('historyList'); l.innerHTML = '';
-            if(t.length===0) { l.innerHTML = `<li class="text-center text-gray-400 text-sm py-4">No activity.</li>`; return; }
-            
-            let sorted = [...t];
-            
-            // Search Filtering
-            if (searchQuery) {
-                sorted = sorted.filter(item => {
-                    const descMatch = (item.desc || '').toLowerCase().includes(searchQuery);
-                    const catMatch = (item.category || '').toLowerCase().includes(searchQuery);
-                    let subLimitMatch = false;
-                    if(item.subLimitId) {
-                        const sl = appData.subLimits.find(s => s.id === item.subLimitId);
-                        if(sl && sl.name.toLowerCase().includes(searchQuery)) subLimitMatch = true;
-                    }
-                    return descMatch || catMatch || subLimitMatch;
-                });
-                if(sorted.length === 0) { l.innerHTML = `<li class="text-center text-gray-400 text-sm py-4">No matches found.</li>`; return; }
-            }
-
-            if(currentSort === 'newest') sorted.sort((a,b)=>new Date(b.date)-new Date(a.date));
-            else if(currentSort === 'oldest') sorted.sort((a,b)=>new Date(a.date)-new Date(b.date));
-            else if(currentSort === 'high') sorted.sort((a,b)=>b.amount-a.amount);
-
-            sorted.forEach(x => {
-                const isExp = x.type==='expense';
-                let cat = '';
-                if(x.subLimitId) { const s = appData.subLimits.find(z=>z.id===x.subLimitId); if(s) cat = `<span class="text-[9px] bg-indigo-100 text-indigo-600 px-1.5 rounded ml-2 font-bold">${s.name}</span>`; }
-                else if(x.category && x.category !== 'Uncategorized') cat = `<span class="text-[9px] bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-300 px-1.5 rounded ml-2 font-bold">${x.category}</span>`;
-                
-                const acct = x.account || 'bank';
-                const acctIcon = acct === 'cash' 
-                    ? `<i class="fa-solid fa-money-bill-wave text-[10px] ml-1 text-gray-400" title="Cash"></i>`
-                    : `<i class="fa-solid fa-building-columns text-[10px] ml-1 text-gray-400" title="Bank"></i>`;
-
-                const delBtn = isCurrentViewMonth()
-                    ? `<button onclick="deleteTransaction(${x.id})" class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100"><i class="fa-solid fa-trash"></i></button>`
-                    : '';
-
-                l.innerHTML += `
-                <li class="flex justify-between items-center bg-white/50 dark:bg-white/5 p-4 rounded-2xl group transition hover:bg-white/80 dark:hover:bg-white/10 hover-lift">
-                    <div class="flex items-center gap-3 min-w-0">
-                        <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isExp?'bg-red-100 text-red-500 dark:bg-red-500/20':'bg-green-100 text-green-500 dark:bg-green-500/20'}"><i class="fa-solid ${isExp?'fa-bag-shopping':'fa-coins'} text-sm"></i></div>
-                        <div class="min-w-0"><div class="flex items-center"><p class="font-bold text-sm dark:text-gray-100 truncate">${x.desc}</p>${cat}${acctIcon}</div><p class="text-[10px] text-gray-400">${new Date(x.date).toLocaleDateString()}</p></div>
-                    </div>
-                    <div class="flex items-center gap-3 shrink-0"><span class="font-bold ${isExp?'text-ios-red':'text-ios-green'}">${isExp?'-':'+'}${formatMoney(x.amount)}</span>${delBtn}</div>
-                </li>`;
-            });
-        }
-
-        function renderComparison() {
-            const b = document.getElementById('comparisonTableBody'); b.innerHTML = '';
-            for(let i=0; i<6; i++) {
-                let d = new Date(viewDate.getFullYear(), viewDate.getMonth()-i, 1);
-                let inc=0, exp=0;
-                appData.transactions.forEach(t=>{ 
-                    const isExchange = (t.category || '').toLowerCase() === 'exchange';
-                    if(!isExchange) {
-                        const td=new Date(t.date); if(td.getMonth()===d.getMonth() && td.getFullYear()===d.getFullYear()) { if(t.type==='revenue') inc+=t.amount; else exp+=t.amount; } 
-                    }
-                });
-                const sav = inc - exp;
-                b.innerHTML += `<tr class="border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-white/50 dark:hover:bg-white/5"><td class="py-3 pl-2 text-gray-500 dark:text-gray-400 font-medium">${d.toLocaleDateString('en-US',{month:'short'})}</td><td class="py-3 text-right text-ios-green">${formatMoney(inc)}</td><td class="py-3 text-right text-ios-red">${formatMoney(exp)}</td><td class="py-3 text-right font-bold ${sav>=0?'text-ios-blue':'text-ios-orange'}">${formatMoney(sav)}</td></tr>`;
-            }
         }
 
         function initCharts() {
