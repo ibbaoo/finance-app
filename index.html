@@ -297,25 +297,44 @@
                             
                             <!-- Dropdown / Bottom Sheet -->
                             <!-- Backdrop for Mobile -->
-                            <div id="notifBackdrop" class="fixed inset-0 backdrop-mobile z-[100] hidden md:hidden" onclick="toggleNotifications(event)"></div>
+                            <div id="notifBackdrop" class="fixed inset-0 bg-black/20 backdrop-blur-sm z-[100] transition-opacity opacity-0 pointer-events-none md:hidden" onclick="toggleNotifications(event)"></div>
                             
                             <!-- Modal Content -->
                             <!-- Added 'hidden' by default to prevent ghosting -->
                             <!-- Added 'pb-safe' and 'max-h' tweaks for mobile scrolling -->
-                            <div id="notifDropdown" class="hidden fixed inset-x-0 bottom-0 top-auto m-0 rounded-t-3xl rounded-b-none p-0 bg-white dark:bg-[#1c1c1e] shadow-2xl border-t border-gray-100 dark:border-gray-700 translate-y-full transition-transform duration-300 ease-out z-[110] md:absolute md:left-auto md:right-0 md:top-full md:bottom-auto md:mt-2 md:w-80 md:rounded-xl md:border md:translate-y-0 md:opacity-0 md:pointer-events-none md:scale-95 md:transform md:origin-top-right overflow-hidden flex flex-col max-h-[75vh] md:max-h-96 pb-safe">
-                                <!-- Mobile Handle -->
+                            <div id="notifDropdown" class="hidden fixed inset-x-0 bottom-0 top-auto m-0 z-[110] 
+                                        bg-white dark:bg-[#1c1c1e] shadow-[0_-4px_20px_rgba(0,0,0,0.1)] dark:shadow-[0_-4px_20px_rgba(0,0,0,0.4)]
+                                        rounded-t-3xl border-t border-gray-100 dark:border-gray-800
+                                        transform transition-all duration-300 ease-out translate-y-full
+                                        flex flex-col max-h-[75vh] pb-safe
+                                        md:absolute md:inset-auto md:top-full md:right-0 md:mt-3 md:w-96 md:max-h-[32rem]
+                                        md:rounded-2xl md:shadow-2xl md:border md:origin-top-right
+                                        md:translate-y-0 md:scale-95 md:opacity-0 md:pointer-events-none">
+                                
+                                <!-- Mobile Drag Handle -->
                                 <div class="w-full flex justify-center pt-3 pb-1 md:hidden" onclick="toggleNotifications(event)">
-                                    <div class="w-12 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
+                                    <div class="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
                                 </div>
                                 
-                                <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-white/5 shrink-0">
-                                    <h3 class="text-sm font-bold dark:text-white">Notifications</h3>
-                                    <button onclick="clearAllNotifications()" class="text-[10px] text-ios-blue font-bold hover:underline">Clear All</button>
+                                <!-- Header -->
+                                <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-white dark:bg-[#1c1c1e] md:rounded-t-2xl shrink-0 sticky top-0 z-10">
+                                    <h3 class="text-base font-bold dark:text-white flex items-center gap-2">
+                                        Notifications 
+                                        <span id="notifCount" class="text-[10px] bg-ios-blue/10 text-ios-blue px-2 py-0.5 rounded-full hidden">0</span>
+                                    </h3>
+                                    <button onclick="clearAllNotifications()" class="text-xs text-ios-blue font-semibold hover:text-blue-600 transition">Clear All</button>
                                 </div>
-                                <div id="notifList" class="overflow-y-auto custom-scrollbar flex-grow min-h-[150px]"></div>
-                                <div id="notifEmpty" class="py-8 text-center hidden shrink-0">
-                                    <i class="fa-regular fa-bell-slash text-gray-300 text-2xl mb-2"></i>
-                                    <p class="text-xs text-gray-400">No new notifications</p>
+
+                                <!-- List -->
+                                <div id="notifList" class="overflow-y-auto custom-scrollbar flex-grow p-2 space-y-1 min-h-[150px]"></div>
+                                
+                                <!-- Empty State -->
+                                <div id="notifEmpty" class="py-12 text-center hidden shrink-0">
+                                    <div class="w-12 h-12 bg-gray-50 dark:bg-white/5 rounded-full flex items-center justify-center mx-auto mb-3">
+                                        <i class="fa-regular fa-bell-slash text-gray-300 dark:text-gray-600 text-xl"></i>
+                                    </div>
+                                    <p class="text-sm font-medium text-gray-900 dark:text-white">No notifications</p>
+                                    <p class="text-xs text-gray-400 mt-1">We'll let you know when subscriptions are due.</p>
                                 </div>
                             </div>
                         </div>
@@ -1244,34 +1263,42 @@
             e.stopPropagation();
             const dropdown = document.getElementById('notifDropdown');
             const backdrop = document.getElementById('notifBackdrop');
+            const badge = document.getElementById('notifBadge');
             
-            // Check visibility state based on class presence
-            // On mobile, 'hidden' class is the primary hider
-            // On desktop, opacity/pointer-events handle it
-            const isMobile = window.innerWidth < 768;
-            
-            // If it HAS 'hidden' (mobile) OR 'md:opacity-0' (desktop), it is currently closed
-            const isClosed = dropdown.classList.contains('hidden') || dropdown.classList.contains('md:opacity-0');
+            // Check visibility based on the presence of closed-state classes
+            // For mobile, 'translate-y-full' means closed
+            // For desktop, 'md:opacity-0' means closed
+            const isClosed = dropdown.classList.contains('translate-y-full') || dropdown.classList.contains('md:opacity-0');
             
             if (isClosed) {
-                // Open it
-                dropdown.classList.remove('hidden'); // Mobile first: unhide
+                // Open: Remove "closed" utility classes
+                dropdown.classList.remove('hidden'); // Ensure it's rendered first (just in case)
                 backdrop.classList.remove('hidden');
                 
-                // Allow a frame paint for transition to work
+                // Use a small timeout or raf to allow the 'hidden' removal to paint before transitioning
                 requestAnimationFrame(() => {
-                    dropdown.classList.remove('md:opacity-0', 'md:pointer-events-none', 'md:scale-95', 'translate-y-full');
+                    dropdown.classList.remove('translate-y-full', 'md:opacity-0', 'md:scale-95', 'md:pointer-events-none');
+                    backdrop.classList.remove('opacity-0', 'pointer-events-none');
                 });
                 
                 renderNotificationsDropdown();
-            } else {
-                // Close it
-                dropdown.classList.add('md:opacity-0', 'md:pointer-events-none', 'md:scale-95', 'translate-y-full');
-                backdrop.classList.add('hidden');
                 
-                // Wait for transition to finish before hiding on mobile to allow slide down animation
+                // Clear badge immediately upon opening
+                badge.classList.add('hidden');
+                // Mark all as read locally
+                if(appData.notifications) {
+                    let changed = false;
+                    appData.notifications.forEach(n => { if(!n.read) { n.read = true; changed = true; } });
+                    if(changed) saveData();
+                }
+            } else {
+                // Close: Add "closed" utility classes
+                dropdown.classList.add('translate-y-full', 'md:opacity-0', 'md:scale-95', 'md:pointer-events-none');
+                backdrop.classList.add('opacity-0', 'pointer-events-none');
+                
+                // Wait for transition before fully hiding backdrop (optional, mainly for backdrop logic)
                 setTimeout(() => {
-                    dropdown.classList.add('hidden');
+                    backdrop.classList.add('hidden');
                 }, 300);
             }
         }
@@ -1279,19 +1306,48 @@
         function renderNotificationsDropdown() {
             const list = document.getElementById('notifList');
             const empty = document.getElementById('notifEmpty');
-            const badge = document.getElementById('notifBadge');
+            const countBadge = document.getElementById('notifCount');
             list.innerHTML = '';
-            if (!appData.notifications || appData.notifications.length === 0) { empty.classList.remove('hidden'); badge.classList.add('hidden'); return; }
+            
+            if (!appData.notifications || appData.notifications.length === 0) { 
+                empty.classList.remove('hidden'); 
+                if(countBadge) countBadge.classList.add('hidden');
+                return; 
+            }
             empty.classList.add('hidden');
+            
             const sorted = [...appData.notifications].sort((a,b) => new Date(b.date) - new Date(a.date));
-            const hasUnread = sorted.some(n => !n.read);
-            if(hasUnread) badge.classList.remove('hidden'); else badge.classList.add('hidden');
+            const unreadCount = sorted.filter(n => !n.read).length;
+            
+            if(countBadge) {
+                if(unreadCount > 0) {
+                    countBadge.innerText = unreadCount > 9 ? '9+' : unreadCount;
+                    countBadge.classList.remove('hidden');
+                } else {
+                    countBadge.classList.add('hidden');
+                }
+            }
+
             sorted.forEach(n => {
                 const date = new Date(n.date);
                 const isUnread = !n.read;
-                list.innerHTML += `<div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-white/5 transition flex gap-3 ${isUnread ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}"><div class="mt-1 w-2 h-2 rounded-full ${isUnread ? 'bg-ios-blue' : 'bg-transparent shrink-0'}"></div><div><p class="text-xs font-bold text-gray-800 dark:text-gray-200">${n.title}</p><p class="text-[10px] text-gray-500 dark:text-gray-400 leading-tight my-1">${n.message}</p><p class="text-[9px] text-gray-400">${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p></div></div>`;
+                const timeStr = date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                const dateStr = date.toLocaleDateString();
+                
+                list.innerHTML += `
+                    <div class="flex gap-3 p-3 rounded-xl transition-colors ${isUnread ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-white/5'}">
+                        <div class="mt-1.5 w-2 h-2 rounded-full ${isUnread ? 'bg-ios-blue' : 'bg-transparent'} shrink-0"></div>
+                        <div class="flex-grow">
+                            <div class="flex justify-between items-start">
+                                <p class="text-xs font-bold text-gray-900 dark:text-white">${n.title}</p>
+                                <span class="text-[10px] text-gray-400 whitespace-nowrap ml-2">${timeStr}</span>
+                            </div>
+                            <p class="text-[11px] text-gray-600 dark:text-gray-300 leading-snug mt-0.5">${n.message}</p>
+                            <p class="text-[9px] text-gray-400 mt-1">${dateStr}</p>
+                        </div>
+                    </div>
+                `;
             });
-            if (hasUnread) { setTimeout(() => { appData.notifications.forEach(n => n.read = true); saveData(); badge.classList.add('hidden'); }, 2000); }
         }
 
         function clearAllNotifications() { appData.notifications = []; saveData(); renderNotificationsDropdown(); }
@@ -1340,10 +1396,13 @@
                 // Check if hidden class is absent (meaning open on mobile) OR opacity class absent (desktop)
                 const isOpen = !dropdown.classList.contains('hidden') && !dropdown.classList.contains('md:opacity-0');
                 
-                if (isOpen) {
-                    dropdown.classList.add('md:opacity-0', 'md:pointer-events-none', 'md:scale-95', 'translate-y-full');
-                    backdrop.classList.add('hidden');
-                    setTimeout(() => { dropdown.classList.add('hidden'); }, 300);
+                // Also check our new state classes
+                const isVisiblyOpen = !dropdown.classList.contains('translate-y-full') && !dropdown.classList.contains('md:opacity-0');
+
+                if (isVisiblyOpen) {
+                    dropdown.classList.add('translate-y-full', 'md:opacity-0', 'md:scale-95', 'md:pointer-events-none');
+                    backdrop.classList.add('opacity-0', 'pointer-events-none');
+                    setTimeout(() => { backdrop.classList.add('hidden'); }, 300);
                 }
             }
 
