@@ -547,6 +547,23 @@
                     </button>
                 </div>
 
+                <!-- Data Management Section -->
+                <div class="bg-gray-50 dark:bg-white/5 rounded-2xl p-2">
+                    <button onclick="exportData()" class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-gray-200 dark:hover:bg-white/10 transition">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-ios-teal/20 text-ios-teal flex items-center justify-center"><i class="fa-solid fa-download"></i></div>
+                            <span class="text-sm font-bold dark:text-white">Export Data (JSON)</span>
+                        </div>
+                    </button>
+                    <button onclick="document.getElementById('importInput').click()" class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-gray-200 dark:hover:bg-white/10 transition mt-1">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-ios-orange/20 text-ios-orange flex items-center justify-center"><i class="fa-solid fa-upload"></i></div>
+                            <span class="text-sm font-bold dark:text-white">Import Data</span>
+                        </div>
+                    </button>
+                    <input type="file" id="importInput" class="hidden" accept=".json" onchange="importData(this)">
+                </div>
+
                 <div class="bg-gray-50 dark:bg-white/5 rounded-2xl p-4">
                     <h4 class="text-xs font-bold text-gray-400 uppercase mb-3">Activity Security</h4>
                     <div id="securityLogsList" class="space-y-3 max-h-40 overflow-y-auto custom-scrollbar">
@@ -576,7 +593,7 @@
                     </button>
                 </div>
                 
-                <p class="text-center text-[10px] text-gray-400 mt-4">App Version 2.3.4</p>
+                <p class="text-center text-[10px] text-gray-400 mt-4">App Version 2.4.0</p>
             </div>
         </div>
     </div>
@@ -685,7 +702,9 @@
             securityLogs: [] // { timestamp, device }
         };
         const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        // Ensure subLimits is initialized
         if(!Array.isArray(appData.subLimits)) appData.subLimits = [];
+        
         let editingSubLimitId = null;
         let editingSubId = null;
         let pendingUsername = '';
@@ -739,21 +758,45 @@
             if(uIn) uIn.value = '';
             if(pIn) pIn.value = '';
 
-            // --- IMMEDIATE UI CHECK (OPTIMISTIC LOAD) ---
+            // --- IMMEDIATE UI CHECK (INSTANT LOAD) ---
             if (storedUser) {
-                // Assume valid user and show UI immediately to make it "super quick"
-                document.getElementById('authScreen').classList.add('hidden');
-                document.getElementById('appUI').classList.remove('hidden');
-                document.getElementById('appUI').classList.add('flex');
-                document.getElementById('settingsUsername').innerText = storedUser;
-                currentUserDocId = storedUser; // Temporarily set for UI helpers
-                
-                // Show a small, non-intrusive syncing indicator via toast
-                showToast("Syncing data...");
-                
-                // We'll validate this in the background shortly
+                // Try to load cached data for instant render
+                const cachedData = localStorage.getItem('finTrack_data');
+                if (cachedData) {
+                    try {
+                        const parsed = JSON.parse(cachedData);
+                        if (parsed && typeof parsed === 'object') {
+                            appData = { ...appData, ...parsed }; // Merge cache
+                            
+                            // Safety Check for Arrays
+                            if(!Array.isArray(appData.subLimits)) appData.subLimits = [];
+                            if(!Array.isArray(appData.transactions)) appData.transactions = [];
+                            if(!Array.isArray(appData.subscriptions)) appData.subscriptions = [];
+                            
+                            // Show UI Immediately
+                            document.getElementById('authScreen').classList.add('hidden');
+                            document.getElementById('appUI').classList.remove('hidden');
+                            document.getElementById('appUI').classList.add('flex');
+                            document.getElementById('settingsUsername').innerText = storedUser;
+                            currentUserDocId = storedUser; 
+                            
+                            if(appData.avatar) {
+                                document.getElementById('navbarAvatar').src = appData.avatar;
+                                document.getElementById('navbarAvatar').classList.remove('hidden');
+                                document.getElementById('navbarIcon').classList.add('hidden');
+                            }
+                            
+                            updateUI(); // Render cached state
+                            showToast("Syncing..."); // Notify user
+                        }
+                    } catch(e) { console.error("Cache load failed", e); }
+                } else {
+                    // No cache, show splash
+                    document.getElementById('splashLoader').classList.remove('hidden');
+                    document.getElementById('authStep1').classList.add('hidden');
+                }
             } else {
-                // No user, show login as before
+                // No user, show login
                 document.getElementById('splashLoader').classList.add('hidden');
                 document.getElementById('authStep1').classList.remove('hidden');
             }
@@ -777,22 +820,17 @@
                     const docSnap = await window.fb.getDoc(userRef);
                     
                     if (docSnap.exists()) {
-                        // User exists, proceed with "completeLogin" logic but skip UI transition since we did it optimistically
                         await completeLogin(storedUser, false, true); 
                         isAutoLoggedIn = true;
                     } else {
-                        // User exists in local storage but not in cloud (deleted account?)
-                        // Revert the optimistic load
                         localStorage.removeItem('finTrack_username');
-                        handleLogout(); // This will reload/reset UI
+                        localStorage.removeItem('finTrack_data'); // Clear cache
+                        handleLogout();
                     }
                 }
 
             } catch (e) {
                 console.error("Init Error:", e);
-                // If detailed error handling needed, do it here. 
-                // For now, if init fails and we optimistically showed UI, it might be stale.
-                // But usually safe to leave until user tries an action that fails.
                 if (!isAutoLoggedIn && !storedUser) {
                      document.getElementById('splashLoader').classList.add('hidden');
                      document.getElementById('authStep1').classList.remove('hidden');
@@ -809,13 +847,56 @@
             document.addEventListener("visibilitychange", () => {
                 if (!document.hidden && currentUserDocId) {
                     fetchLiveRate();
-                    // Firestore socket auto-reconnects, but we can force UI update check
                     console.log("App foregrounded, syncing...");
                 }
             });
 
             initCharts();
             setStatsView('monthly');
+        }
+
+        // --- EXPORT / IMPORT DATA ---
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "protracker_backup_" + new Date().toISOString().split('T')[0] + ".json");
+            document.body.appendChild(downloadAnchorNode); // required for firefox
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function importData(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (importedData && typeof importedData === 'object') {
+                        // Basic validation
+                        if (!importedData.currency) throw new Error("Invalid Format");
+                        
+                        // Merge or Replace? Let's Merge safely but prefer imported for arrays
+                        appData = { ...appData, ...importedData };
+                        
+                        // Ensure arrays exist
+                        if(!Array.isArray(appData.subLimits)) appData.subLimits = [];
+                        if(!Array.isArray(appData.transactions)) appData.transactions = [];
+                        if(!Array.isArray(appData.subscriptions)) appData.subscriptions = [];
+                        
+                        await saveData();
+                        updateUI();
+                        showToast("Data Imported Successfully");
+                        closeSettingsModal();
+                    }
+                } catch(err) {
+                    showToast("Import Failed: Invalid JSON");
+                    console.error(err);
+                }
+            };
+            reader.readAsText(file);
+            input.value = ''; // Reset input
         }
 
         // --- SERVICE WORKER FOR PWA ---
@@ -1204,6 +1285,9 @@
                           document.getElementById('navbarIcon').classList.remove('hidden');
                     }
 
+                    // Save snapshot to cache for next load
+                    localStorage.setItem('finTrack_data', JSON.stringify(appData));
+
                     cleanupNotifications();
                     checkSubscriptionNotifications();
 
@@ -1221,6 +1305,10 @@
                 const userRef = getUserRef(currentUserDocId);
                 // Deep clean data to remove undefined fields which cause setDoc to fail
                 const cleanData = JSON.parse(JSON.stringify(appData));
+                
+                // Save to Cache immediately
+                localStorage.setItem('finTrack_data', JSON.stringify(appData));
+                
                 await window.fb.setDoc(userRef, cleanData, { merge: true }); 
             }
         }
@@ -1503,12 +1591,51 @@
         }
         function deleteTransaction(id) { if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; } showConfirm("Delete?", () => { appData.transactions = appData.transactions.filter(t => t.id !== id); saveData(); showToast("Deleted"); }); }
         function setMonthLimit() { if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; } const v = parseFormattedNumber(document.getElementById('limitInput').value); if(v>=0) { appData.limits[getMonthKey(viewDate)] = appData.currency === 'USD' ? v * exchangeRate : v; document.getElementById('limitInput').value = ''; saveData(); showToast("Limit set"); } }
+        
+        function openSubLimitModal(id = null) {
+            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
+            const modal = document.getElementById('subLimitModal');
+            const title = document.getElementById('subLimitModalTitle');
+            const saveBtn = document.getElementById('subLimitSaveBtn');
+            const deleteBtn = document.getElementById('subLimitDeleteBtn');
+            const nameIn = document.getElementById('subLimitNameInput');
+            const amtIn = document.getElementById('subLimitAmountInput');
+            document.getElementById('subLimitCurrencySymbol').innerText = appData.currency === 'VND' ? '₫' : '$';
+
+            if (id) {
+                const sl = appData.subLimits.find(s => s.id === id);
+                if (!sl) return;
+                editingSubLimitId = id;
+                title.innerText = "Edit Sub-Limit";
+                saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Update Budget</span>';
+                deleteBtn.classList.remove('hidden');
+                nameIn.value = sl.name;
+                let val = sl.limit;
+                if (appData.currency === 'USD') val = val / exchangeRate;
+                amtIn.value = Number(Math.round(val)).toLocaleString('de-DE');
+            } else {
+                editingSubLimitId = null;
+                title.innerText = "New Sub-Limit";
+                saveBtn.innerHTML = '<i class="fa-solid fa-plus"></i> <span>Create Budget</span>';
+                deleteBtn.classList.add('hidden');
+                nameIn.value = '';
+                amtIn.value = '';
+            }
+            modal.classList.remove('hidden');
+            nameIn.focus();
+        }
+        function closeSubLimitModal() { document.getElementById('subLimitModal').classList.add('hidden'); }
+
         function saveSubLimit() {
             if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
             const name = document.getElementById('subLimitNameInput').value.trim();
             const limitVal = parseFormattedNumber(document.getElementById('subLimitAmountInput').value);
             if (name && limitVal > 0) {
                 const storeLimit = appData.currency === 'USD' ? limitVal * exchangeRate : limitVal;
+                
+                // Ensure array exists to fix "cannot add" issue
+                if(!Array.isArray(appData.subLimits)) appData.subLimits = [];
+
                 if (editingSubLimitId) { const index = appData.subLimits.findIndex(s => s.id === editingSubLimitId); if (index !== -1) { appData.subLimits[index].name = name; appData.subLimits[index].limit = storeLimit; showToast("Sub-limit updated"); } } 
                 else { appData.subLimits.push({ id: Date.now(), name: name, limit: storeLimit }); showToast("Sub-limit created"); }
                 closeSubLimitModal(); saveData(); updateUI();
@@ -1561,6 +1688,7 @@
              // Explicitly clear memory and reload
              appData = {};
              localStorage.removeItem('finTrack_username'); 
+             localStorage.removeItem('finTrack_data'); 
              if(auth) window.fb.signOut(auth);
              location.reload(); 
         }
