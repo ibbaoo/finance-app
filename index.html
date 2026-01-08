@@ -37,6 +37,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- PapaParse for CSV -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     
     <!-- Cropper.js for Image Editing -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
@@ -51,7 +53,7 @@
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.4);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             transform: translateZ(0);
         }
         .dark .glass {
@@ -89,19 +91,14 @@
         .animate-slide-up { animation: slideUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
         .animate-pulse-slow { animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
         
-        /* PIN Input Styling */
         .pin-input { letter-spacing: 0.5em; text-align: center; font-family: monospace; }
-
-        /* Cropper Customization */
         .cropper-view-box, .cropper-face { border-radius: 50%; } 
         .cropper-modal { opacity: 0.8; }
         
-        /* Zoom Slider Customization */
         input[type=range] { -webkit-appearance: none; background: transparent; }
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%; background: #ffffff; cursor: pointer; margin-top: -8px; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
         input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: rgba(255,255,255,0.2); border-radius: 2px; }
 
-        /* Backdrop for mobile modals */
         .backdrop-mobile { background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
 
         @media (hover: hover) {
@@ -158,29 +155,20 @@
             <div class="absolute top-4 right-4 z-50">
                 <button onclick="closeCropModal()" class="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white hover:bg-black/60 transition backdrop-blur-md"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            
-            <!-- Editor Area -->
             <div class="flex-grow relative bg-black flex items-center justify-center overflow-hidden">
                 <img id="cropImage" src="" class="max-w-full max-h-full block opacity-0">
             </div>
-
-            <!-- Controls -->
             <div class="bg-[#1c1c1e] p-6 pb-8 flex flex-col gap-6 border-t border-white/10">
-                <!-- Zoom Slider -->
                 <div class="flex items-center gap-4 px-2">
                     <i class="fa-solid fa-minus text-gray-400 text-xs"></i>
                     <input type="range" id="zoomRange" min="0.1" max="3.0" step="0.1" value="1" class="flex-grow h-1.5 bg-gray-700 rounded-full appearance-none cursor-pointer">
                     <i class="fa-solid fa-plus text-white text-xs"></i>
                 </div>
-
-                <!-- Rotation Tools -->
                 <div class="flex justify-center gap-8 text-white text-xl">
-                    <button onclick="rotateCropper(-90)" class="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition" title="Rotate Left"><i class="fa-solid fa-rotate-left"></i></button>
-                    <button onclick="resetCropper()" class="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition text-sm font-bold text-ios-blue" title="Reset">RESET</button>
-                    <button onclick="rotateCropper(90)" class="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition" title="Rotate Right"><i class="fa-solid fa-rotate-right"></i></button>
+                    <button onclick="rotateCropper(-90)" class="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition"><i class="fa-solid fa-rotate-left"></i></button>
+                    <button onclick="resetCropper()" class="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition text-sm font-bold text-ios-blue">RESET</button>
+                    <button onclick="rotateCropper(90)" class="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition"><i class="fa-solid fa-rotate-right"></i></button>
                 </div>
-                
-                <!-- Actions -->
                 <div class="flex gap-3 mt-2">
                     <button onclick="closeCropModal()" class="flex-1 bg-gray-800 text-white py-3.5 rounded-xl font-bold hover:bg-gray-700 transition">Cancel</button>
                     <button onclick="saveCroppedAvatar()" class="flex-1 bg-ios-blue text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-500/20 hover:bg-blue-600 transition flex items-center justify-center gap-2"><i class="fa-solid fa-crop-simple"></i> Save Photo</button>
@@ -200,13 +188,11 @@
                 <p class="text-gray-500 dark:text-gray-400 text-sm">Your Personal Cloud Wallet</p>
             </div>
             
-            <!-- Splash Loader (Hidden by default, used only if needed) -->
             <div id="splashLoader" class="hidden flex flex-col items-center justify-center py-8 animate-fade-in">
                 <div class="w-12 h-12 border-4 border-gray-200 dark:border-gray-800 border-t-ios-blue rounded-full animate-spin mb-4"></div>
                 <p class="text-xs font-bold text-gray-400 uppercase tracking-widest animate-pulse-slow">Securely Syncing...</p>
             </div>
 
-            <!-- Step 1: Login (Combined) -->
             <div id="authStep1" class="glass rounded-3xl p-8 shadow-lg border border-white/50 dark:border-white/10 hover-lift gpu-accel">
                 <div class="space-y-4">
                     <div>
@@ -218,42 +204,28 @@
                         <input type="tel" maxlength="4" id="loginPinInput" placeholder="••••" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-2xl px-5 py-4 text-2xl text-center font-bold tracking-[0.5em] focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition placeholder:tracking-widest">
                     </div>
                 </div>
-                
                 <div id="authLoader" class="hidden flex justify-center mt-4"><div class="loader !border-gray-400 !border-l-ios-blue"></div></div>
-
-                <button onclick="loginUser()" class="w-full bg-ios-blue text-white py-4 rounded-2xl font-bold text-base mt-6 hover:bg-blue-600 transition shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2">
-                    Login
-                </button>
-                
+                <button onclick="loginUser()" id="loginBtn" class="w-full bg-ios-blue text-white py-4 rounded-2xl font-bold text-base mt-6 hover:bg-blue-600 transition shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2">Login</button>
                 <div class="mt-6 text-center">
                     <button onclick="showRegisterStep()" class="text-xs font-bold text-gray-500 hover:text-ios-blue dark:text-gray-400 dark:hover:text-white transition">New here? Create Account</button>
                 </div>
             </div>
 
-            <!-- Step 2: Register -->
             <div id="authStepRegister" class="hidden glass rounded-3xl p-8 shadow-lg border border-white/50 dark:border-white/10 hover-lift gpu-accel">
                 <div class="flex items-center mb-4 cursor-pointer text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition" onclick="resetAuth()">
                     <i class="fa-solid fa-arrow-left mr-2"></i> <span class="text-xs font-bold uppercase">Back to Login</span>
                 </div>
                 <h2 class="text-xl font-bold mb-1">Create Account</h2>
-                <p class="text-sm text-gray-500 mb-6">Choose a unique username</p>
-                
-                <!-- Registration Flow -->
                 <div id="regStepUsername">
                     <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Username</label>
                     <input type="text" id="regUsernameInput" placeholder="Choose username" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-2xl px-5 py-4 text-base font-bold focus:ring-2 focus:ring-ios-purple outline-none dark:text-white transition placeholder:font-normal placeholder:text-gray-400 mb-4">
-                    <button onclick="checkRegistrationUsername()" class="w-full bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white py-4 rounded-2xl font-bold text-base hover:bg-gray-300 dark:hover:bg-white/20 transition">
-                        Check Availability
-                    </button>
+                    <button onclick="checkRegistrationUsername()" id="checkUserBtn" class="w-full bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white py-4 rounded-2xl font-bold text-base hover:bg-gray-300 dark:hover:bg-white/20 transition">Check Availability</button>
                 </div>
-
                 <div id="regStepPin" class="hidden">
                     <p class="text-sm text-ios-green font-bold mb-4 flex items-center"><i class="fa-solid fa-check-circle mr-2"></i> Username available</p>
                     <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Create 4-Digit PIN</label>
                     <input type="tel" maxlength="4" id="regPinInput" placeholder="••••" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-2xl px-5 py-4 text-2xl text-center font-bold tracking-[0.5em] focus:ring-2 focus:ring-ios-purple outline-none dark:text-white transition placeholder:tracking-widest">
-                    <button onclick="completeRegistration()" class="w-full bg-ios-purple text-white py-4 rounded-2xl font-bold text-base mt-6 hover:bg-purple-600 transition shadow-lg shadow-purple-500/30">
-                        Create Account
-                    </button>
+                    <button onclick="completeRegistration()" id="createAccBtn" class="w-full bg-ios-purple text-white py-4 rounded-2xl font-bold text-base mt-6 hover:bg-purple-600 transition shadow-lg shadow-purple-500/30">Create Account</button>
                 </div>
             </div>
         </div>
@@ -261,88 +233,43 @@
 
     <!-- MAIN APP UI -->
     <div id="appUI" class="hidden flex-col h-[100dvh]">
-        <!-- Navbar -->
         <nav class="fixed top-0 w-full z-[90] glass border-b border-gray-200 dark:border-gray-800 transition-colors duration-300 pt-safe pt-6 gpu-accel">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
                 <div class="flex items-center justify-between h-20">
-                    
-                    <!-- Left: Logo & Mobile Rate -->
                     <div class="flex items-center gap-2 animate-float-in">
                         <div class="w-8 h-8 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center shadow-lg"><i class="fa-solid fa-wallet text-xs"></i></div>
                         <span class="font-bold text-lg tracking-tight hidden md:block">ProTracker</span>
-                        
-                        <!-- Mobile-only Rate Display -->
                         <div onclick="editExchangeRate()" class="md:hidden bg-gray-100 dark:bg-white/10 px-3 py-1.5 rounded-full flex items-center gap-1.5 cursor-pointer border border-gray-200 dark:border-gray-700 ml-1">
                             <i class="fa-solid fa-money-bill-transfer text-ios-blue text-[9px]"></i>
                             <span id="rateDisplayMobile" class="font-bold text-[10px] text-ios-blue">...</span>
                         </div>
                     </div>
-
-                    <!-- Center Pill (Desktop Only) -->
                     <div class="absolute left-1/2 transform -translate-x-1/2 hidden md:flex items-center justify-center animate-float-in w-max">
                         <div onclick="editExchangeRate()" class="bg-gray-100 dark:bg-white/10 px-4 py-2 rounded-full flex items-center gap-2 cursor-pointer hover:bg-gray-200 dark:hover:bg-white/20 transition shadow-sm border border-gray-200 dark:border-gray-700 group">
                             <i class="fa-solid fa-money-bill-transfer text-ios-blue text-[10px] group-hover:rotate-180 transition-transform duration-500"></i>
                             <span id="rateDisplay" class="font-bold text-xs text-ios-blue">Loading...</span>
                         </div>
                     </div>
-                    
-                    <!-- Right: Actions -->
                     <div class="flex items-center gap-2 animate-float-in z-50" style="animation-delay: 0.1s;">
-                        <!-- Notification Bell -->
                         <div class="relative" id="notifContainer">
-                            <button onclick="toggleNotifications(event)" class="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition relative">
+                            <button onclick="toggleNotifications(event)" class="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition relative" aria-label="Notifications">
                                 <i class="fa-regular fa-bell"></i>
                                 <span id="notifBadge" class="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 border-2 border-white dark:border-black rounded-full hidden"></span>
                             </button>
-                            
-                            <!-- Dropdown / Bottom Sheet -->
-                            <!-- Backdrop for Mobile -->
                             <div id="notifBackdrop" class="fixed inset-0 bg-black/20 backdrop-blur-sm z-[100] transition-opacity opacity-0 pointer-events-none md:hidden" onclick="toggleNotifications(event)"></div>
-                            
-                            <!-- Modal Content -->
-                            <!-- Added 'hidden' by default to prevent ghosting -->
-                            <!-- Added 'pb-safe' and 'max-h' tweaks for mobile scrolling -->
-                            <div id="notifDropdown" class="hidden fixed inset-x-0 bottom-0 top-auto m-0 z-[110] 
-                                        bg-white dark:bg-[#1c1c1e] shadow-[0_-4px_20px_rgba(0,0,0,0.1)] dark:shadow-[0_-4px_20px_rgba(0,0,0,0.4)]
-                                        rounded-t-3xl border-t border-gray-100 dark:border-gray-800
-                                        transform transition-all duration-300 ease-out translate-y-full
-                                        flex flex-col max-h-[75vh] pb-safe
-                                        md:absolute md:inset-auto md:top-full md:right-0 md:mt-3 md:w-96 md:max-h-[32rem]
-                                        md:rounded-2xl md:shadow-2xl md:border md:origin-top-right
-                                        md:translate-y-0 md:scale-95 md:opacity-0 md:pointer-events-none">
-                                
-                                <!-- Mobile Drag Handle -->
-                                <div class="w-full flex justify-center pt-3 pb-1 md:hidden" onclick="toggleNotifications(event)">
-                                    <div class="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
-                                </div>
-                                
-                                <!-- Header -->
+                            <div id="notifDropdown" class="hidden fixed inset-x-0 bottom-0 top-auto m-0 z-[110] bg-white dark:bg-[#1c1c1e] shadow-[0_-4px_20px_rgba(0,0,0,0.1)] dark:shadow-[0_-4px_20px_rgba(0,0,0,0.4)] rounded-t-3xl border-t border-gray-100 dark:border-gray-800 transform transition-all duration-300 ease-out translate-y-full flex flex-col max-h-[75vh] pb-safe md:absolute md:inset-auto md:top-full md:right-0 md:mt-3 md:w-96 md:max-h-[32rem] md:rounded-2xl md:shadow-2xl md:border md:origin-top-right md:translate-y-0 md:scale-95 md:opacity-0 md:pointer-events-none">
+                                <div class="w-full flex justify-center pt-3 pb-1 md:hidden" onclick="toggleNotifications(event)"><div class="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></div></div>
                                 <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-white dark:bg-[#1c1c1e] md:rounded-t-2xl shrink-0 sticky top-0 z-10">
-                                    <h3 class="text-base font-bold dark:text-white flex items-center gap-2">
-                                        Notifications 
-                                        <span id="notifCount" class="text-[10px] bg-ios-blue/10 text-ios-blue px-2 py-0.5 rounded-full hidden">0</span>
-                                    </h3>
+                                    <h3 class="text-base font-bold dark:text-white flex items-center gap-2">Notifications <span id="notifCount" class="text-[10px] bg-ios-blue/10 text-ios-blue px-2 py-0.5 rounded-full hidden">0</span></h3>
                                     <button onclick="clearAllNotifications()" class="text-xs text-ios-blue font-semibold hover:text-blue-600 transition">Clear All</button>
                                 </div>
-
-                                <!-- List -->
                                 <div id="notifList" class="overflow-y-auto custom-scrollbar flex-grow p-2 space-y-1 min-h-[150px]"></div>
-                                
-                                <!-- Empty State -->
-                                <div id="notifEmpty" class="py-12 text-center hidden shrink-0">
-                                    <div class="w-12 h-12 bg-gray-50 dark:bg-white/5 rounded-full flex items-center justify-center mx-auto mb-3">
-                                        <i class="fa-regular fa-bell-slash text-gray-300 dark:text-gray-600 text-xl"></i>
-                                    </div>
-                                    <p class="text-sm font-medium text-gray-900 dark:text-white">No notifications</p>
-                                    <p class="text-xs text-gray-400 mt-1">We'll let you know when subscriptions are due.</p>
-                                </div>
+                                <div id="notifEmpty" class="py-12 text-center hidden shrink-0"><div class="w-12 h-12 bg-gray-50 dark:bg-white/5 rounded-full flex items-center justify-center mx-auto mb-3"><i class="fa-regular fa-bell-slash text-gray-300 dark:text-gray-600 text-xl"></i></div><p class="text-sm font-medium text-gray-900 dark:text-white">No notifications</p></div>
                             </div>
                         </div>
-
-                        <button onclick="toggleCurrency()" class="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-[10px] font-bold hover:bg-gray-300 dark:hover:bg-gray-700 transition active:scale-95 text-ios-blue"><span id="currencyLabel">VND</span></button>
-                        
+                        <button onclick="toggleCurrency()" class="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-[10px] font-bold hover:bg-gray-300 dark:hover:bg-gray-700 transition active:scale-95 text-ios-blue" aria-label="Toggle Currency"><span id="currencyLabel">VND</span></button>
                         <div class="relative">
-                            <button onclick="openSettingsModal()" class="w-9 h-9 rounded-full bg-gradient-to-br from-ios-blue to-ios-purple text-white flex items-center justify-center hover:opacity-90 transition shadow-md overflow-hidden ring-2 ring-white dark:ring-black">
+                            <button onclick="openSettingsModal()" class="w-9 h-9 rounded-full bg-gradient-to-br from-ios-blue to-ios-purple text-white flex items-center justify-center hover:opacity-90 transition shadow-md overflow-hidden ring-2 ring-white dark:ring-black" aria-label="Settings">
                                 <img id="navbarAvatar" src="https://img.icons8.com/fluency/96/user-male-circle.png" class="w-full h-full object-cover hidden">
                                 <i id="navbarIcon" class="fa-solid fa-user text-xs"></i>
                             </button>
@@ -352,149 +279,87 @@
             </div>
         </nav>
 
-        <!-- Main Content -->
         <main class="flex-grow pt-safe-offset pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full space-y-6 overflow-y-auto custom-scrollbar pb-safe">
             <div class="flex items-center justify-center gap-2 py-2 animate-float-in">
-                <button onclick="changeMonth(-1)" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 transition active:scale-90"><i class="fa-solid fa-chevron-left text-ios-blue text-xs"></i></button>
+                <button onclick="changeMonth(-1)" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 transition active:scale-90" aria-label="Previous Month"><i class="fa-solid fa-chevron-left text-ios-blue text-xs"></i></button>
                 <h2 id="currentMonthDisplay" class="text-lg font-bold w-36 text-center">October 2023</h2>
-                <button onclick="changeMonth(1)" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 transition active:scale-90"><i class="fa-solid fa-chevron-right text-ios-blue text-xs"></i></button>
+                <button onclick="changeMonth(1)" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 transition active:scale-90" aria-label="Next Month"><i class="fa-solid fa-chevron-right text-ios-blue text-xs"></i></button>
                 <button onclick="jumpToToday()" class="text-xs text-ios-blue font-semibold absolute right-4 sm:relative sm:right-auto hover:underline">Today</button>
             </div>
-
-            <div id="lockedMessage" class="hidden text-center animate-float-in">
-                <span class="inline-block bg-gray-100 dark:bg-gray-800 text-gray-500 text-[10px] uppercase font-bold px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm"><i class="fa-solid fa-lock mr-1"></i> Read Only Mode</span>
-            </div>
-
-            <!-- Stats Row -->
+            <div id="lockedMessage" class="hidden text-center animate-float-in"><span class="inline-block bg-gray-100 dark:bg-gray-800 text-gray-500 text-[10px] uppercase font-bold px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm"><i class="fa-solid fa-lock mr-1"></i> Read Only Mode</span></div>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-green hover-lift relative group gpu-accel">
-                    <div class="absolute top-2 right-2 opacity-50 hover:opacity-100 transition-opacity cursor-pointer z-10" onclick="toggleStatsView()">
-                        <div class="bg-gray-100 dark:bg-white/10 p-1 rounded-lg text-[10px] font-bold flex gap-1">
-                            <span id="viewModeBadge" class="px-1.5 py-0.5 rounded bg-white dark:bg-gray-700 shadow-sm text-black dark:text-white">Mo</span>
-                        </div>
-                    </div>
-                    <p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1" id="lblIncome">Income</p>
-                    <h3 class="text-base font-bold text-ios-green truncate" id="incomeDisplay">0</h3>
+                    <div class="absolute top-2 right-2 opacity-50 hover:opacity-100 transition-opacity cursor-pointer z-10" onclick="toggleStatsView()"><div class="bg-gray-100 dark:bg-white/10 p-1 rounded-lg text-[10px] font-bold flex gap-1"><span id="viewModeBadge" class="px-1.5 py-0.5 rounded bg-white dark:bg-gray-700 shadow-sm text-black dark:text-white">Mo</span></div></div>
+                    <p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1" id="lblIncome">Income</p><h3 class="text-base font-bold text-ios-green truncate" id="incomeDisplay">0</h3>
                 </div>
                 <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-red hover-lift gpu-accel"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1" id="lblSpent">Spent</p><h3 class="text-base font-bold text-ios-red truncate" id="spentDisplay">0</h3></div>
                 <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-teal hover-lift gpu-accel"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1">Net Worth</p><h3 class="text-base font-bold text-ios-teal truncate" id="walletDisplay">0</h3></div>
                 <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-blue hover-lift gpu-accel"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1">Budget Left</p><h3 class="text-base font-bold text-gray-800 dark:text-gray-200 truncate" id="monthlyLeftDisplay">0</h3></div>
             </div>
-
-            <!-- Main Dashboard Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
-                
-                <!-- Column 1: Status & Assets -->
                 <div class="flex flex-col gap-6">
                     <div class="glass rounded-3xl shadow-sm p-6 flex flex-col animate-float-in hover-lift gpu-accel">
-                        <div class="flex justify-between items-start mb-4">
-                            <div><h2 class="text-lg font-bold">Assets</h2><p class="text-[10px] text-gray-400">Balances</p></div>
-                            <span class="text-[10px] bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 px-2 py-1 rounded-full font-medium">Continuous</span>
-                        </div>
-                        
+                        <div class="flex justify-between items-start mb-4"><div><h2 class="text-lg font-bold">Assets</h2><p class="text-[10px] text-gray-400">Balances</p></div><span class="text-[10px] bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 px-2 py-1 rounded-full font-medium">Continuous</span></div>
                         <div class="flex flex-col items-center gap-6">
-                            <div class="relative w-48 h-48 flex flex-col items-center justify-center">
-                                <canvas id="bankWheel"></canvas>
-                                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                    <span class="text-xs text-gray-400 font-bold uppercase tracking-wider">Bank</span>
-                                    <span class="font-bold text-ios-blue text-lg" id="centerBankBalance">0</span>
-                                </div>
-                            </div>
-                            
-                            <div class="flex items-center justify-center gap-4 w-full bg-gray-5 dark:bg-white/5 p-3 rounded-2xl border border-gray-100 dark:border-gray-800">
-                                <div class="relative w-16 h-16 flex-shrink-0">
-                                    <canvas id="cashWheel"></canvas>
-                                </div>
-                                <div class="flex flex-col">
-                                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Cash Wallet</span>
-                                    <span class="font-bold text-ios-green text-base" id="centerCashBalance">0</span>
-                                </div>
-                            </div>
+                            <div class="relative w-48 h-48 flex flex-col items-center justify-center"><canvas id="bankWheel"></canvas><div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"><span class="text-xs text-gray-400 font-bold uppercase tracking-wider">Bank</span><span class="font-bold text-ios-blue text-lg" id="centerBankBalance">0</span></div></div>
+                            <div class="flex items-center justify-center gap-4 w-full bg-gray-5 dark:bg-white/5 p-3 rounded-2xl border border-gray-100 dark:border-gray-800"><div class="relative w-16 h-16 flex-shrink-0"><canvas id="cashWheel"></canvas></div><div class="flex flex-col"><span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Cash Wallet</span><span class="font-bold text-ios-green text-base" id="centerCashBalance">0</span></div></div>
                         </div>
-
                         <div class="w-full h-px bg-gray-100 dark:bg-gray-800 my-4"></div>
-
                         <div class="flex justify-center gap-4 text-xs text-center"><div><span class="block text-gray-400">All Income</span><span class="font-bold text-ios-green" id="footerTotalIncome">0</span></div><div class="w-px bg-gray-200 dark:bg-gray-700"></div><div><span class="block text-gray-400">All Out</span><span class="font-bold text-ios-red" id="footerTotalSpent">0</span></div></div>
                     </div>
-
                     <div class="glass rounded-3xl shadow-sm p-6 flex flex-col animate-float-in hover-lift gpu-accel">
-                        <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold flex items-center"><i class="fa-solid fa-repeat mr-2 text-ios-purple"></i>Subscriptions</h2><button onclick="openSubscriptionModal()" id="addSubBtn" class="text-xs bg-ios-purple/10 text-ios-purple px-3 py-1.5 rounded-full font-bold hover:bg-ios-purple/20 transition">+ Add</button></div>
+                        <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold flex items-center"><i class="fa-solid fa-repeat mr-2 text-ios-purple"></i>Subscriptions</h2><button onclick="window.openSubscriptionModal()" id="addSubBtn" class="text-xs bg-ios-purple/10 text-ios-purple px-3 py-1.5 rounded-full font-bold hover:bg-ios-purple/20 transition">+ Add</button></div>
                         <div class="flex-grow overflow-y-auto max-h-[350px] pr-1 space-y-2 custom-scrollbar" id="subscriptionList"></div>
                         <div id="emptySubs" class="hidden text-center text-gray-400 text-xs py-4">No subscriptions.</div>
                     </div>
                 </div>
-
-                <!-- Column 2: Budgeting -->
                 <div class="flex flex-col gap-6">
                     <div class="glass rounded-3xl shadow-sm p-6 flex flex-col animate-float-in hover-lift gpu-accel">
                         <div class="flex justify-between items-start mb-4"><div><h2 class="text-lg font-bold">Monthly Limit</h2><p class="text-[10px] text-gray-400">General Spending</p></div></div>
                         <div id="limitControl" class="mb-4 flex gap-2"><input type="text" inputmode="numeric" id="limitInput" onkeyup="formatCurrencyInput(this)" placeholder="Set General Limit" class="flex-grow bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-base focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition"><button onclick="setMonthLimit()" class="bg-ios-blue text-white px-4 rounded-xl text-sm font-semibold hover:bg-blue-600 transition shadow-lg shadow-blue-500/30">Set</button></div>
                         <div class="flex-grow flex items-center justify-center relative min-h-[200px]"><div class="relative w-52 h-52"><canvas id="budgetWheel"></canvas><div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-4 text-center"><span class="text-xs text-gray-400 font-medium">Available</span><span class="text-xl font-bold text-ios-blue break-all" id="centerBudgetRemaining">0</span><span class="text-[10px] text-gray-400 mt-1" id="centerLimitLabel">Limit: 0</span></div></div></div>
                     </div>
-                    
                     <div class="glass rounded-3xl shadow-sm p-6 animate-float-in hover-lift gpu-accel">
-                        <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold flex items-center"><i class="fa-solid fa-list-check text-ios-purple mr-2"></i>Sub-Limits</h2><button onclick="openSubLimitModal()" class="text-xs bg-ios-purple/10 text-ios-purple px-3 py-1.5 rounded-full font-bold hover:bg-ios-purple/20 transition">+ Add</button></div>
+                        <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold flex items-center"><i class="fa-solid fa-list-check text-ios-purple mr-2"></i>Sub-Limits</h2><button onclick="window.openSubLimitModal()" class="text-xs bg-ios-purple/10 text-ios-purple px-3 py-1.5 rounded-full font-bold hover:bg-ios-purple/20 transition">+ Add</button></div>
                         <div id="subLimitsContainer" class="grid grid-cols-1 gap-3"></div>
                         <div id="emptySubLimits" class="hidden text-center text-gray-400 text-xs py-4">No sub-limits created.</div>
                     </div>
                 </div>
-
-                <!-- Column 3: Actions & History -->
                 <div class="flex flex-col gap-6">
                     <div class="glass rounded-3xl shadow-sm p-6 animate-float-in hover-lift gpu-accel">
                         <h2 class="text-lg font-bold mb-4">Add Transaction</h2>
                         <div id="transControl" class="flex flex-col gap-4">
-                            <!-- Payment Account Toggle -->
                             <div class="bg-gray-100 dark:bg-gray-800 p-1 rounded-xl flex">
-                                <button onclick="setTransactionAccount('bank')" id="btnAcctBank" class="flex-1 py-2 rounded-lg text-xs font-bold transition bg-white dark:bg-gray-700 text-black dark:text-white shadow-sm">Bank</button>
-                                <button onclick="setTransactionAccount('cash')" id="btnAcctCash" class="flex-1 py-2 rounded-lg text-xs font-bold transition text-gray-500 dark:text-gray-400">Cash</button>
+                                <button onclick="window.setTransactionAccount('bank')" id="btnAcctBank" class="flex-1 py-2 rounded-lg text-xs font-bold transition bg-white dark:bg-gray-700 text-black dark:text-white shadow-sm">Bank</button>
+                                <button onclick="window.setTransactionAccount('cash')" id="btnAcctCash" class="flex-1 py-2 rounded-lg text-xs font-bold transition text-gray-500 dark:text-gray-400">Cash</button>
                             </div>
-
                             <input type="text" id="descInput" placeholder="Description" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-4 py-4 text-base focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white">
                             <div class="relative"><span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold" id="inputCurrencySymbol">₫</span><input type="text" inputmode="numeric" id="amountInput" onkeyup="formatCurrencyInput(this)" placeholder="0" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl pl-8 pr-4 py-4 text-xl font-bold focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white"></div>
                             <div class="relative flex gap-2">
                                 <input list="categoryList" id="categoryInput" placeholder="Category" class="flex-grow bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white">
                                 <datalist id="categoryList"></datalist>
-                                <button onclick="openCategoryModal()" class="bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-300 w-12 rounded-xl flex items-center justify-center hover:bg-gray-200 dark:hover:bg-white/20 transition group"><i class="fa-solid fa-list text-sm"></i></button>
+                                <button onclick="window.openCategoryModal()" class="bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-300 w-12 rounded-xl flex items-center justify-center hover:bg-gray-200 dark:hover:bg-white/20 transition group"><i class="fa-solid fa-list text-sm"></i></button>
                             </div>
                             <div><label class="block text-[10px] text-gray-500 mb-1 ml-1 font-semibold uppercase">Budget Source</label><select id="budgetSelect" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-ios-blue outline-none transition dark:text-white appearance-none cursor-pointer"><option value="general">General (Monthly Limit)</option></select></div>
-                            
                             <div class="grid grid-cols-3 gap-2 mt-2">
-                                <button onclick="addTransaction('expense')" class="bg-ios-red text-white py-4 rounded-2xl font-semibold hover:bg-red-600 transition active:scale-95 shadow-lg shadow-red-500/30 flex flex-col items-center justify-center gap-1">
-                                    <i class="fa-solid fa-arrow-down"></i> <span class="text-xs">Spent</span>
-                                </button>
-                                <button onclick="addTransaction('transfer')" class="bg-ios-blue text-white py-4 rounded-2xl font-semibold hover:bg-blue-600 transition active:scale-95 shadow-lg shadow-blue-500/30 flex flex-col items-center justify-center gap-1">
-                                    <i class="fa-solid fa-right-left"></i> <span class="text-xs">Transfer</span>
-                                </button>
-                                <button onclick="addTransaction('revenue')" class="bg-ios-green text-white py-4 rounded-2xl font-semibold hover:bg-green-600 transition active:scale-95 shadow-lg shadow-green-500/30 flex flex-col items-center justify-center gap-1">
-                                    <i class="fa-solid fa-arrow-up"></i> <span class="text-xs">Income</span>
-                                </button>
+                                <button onclick="window.addTransaction('expense')" id="btnExpense" class="bg-ios-red text-white py-4 rounded-2xl font-semibold hover:bg-red-600 transition active:scale-95 shadow-lg shadow-red-500/30 flex flex-col items-center justify-center gap-1"><i class="fa-solid fa-arrow-down"></i> <span class="text-xs">Spent</span></button>
+                                <button onclick="window.addTransaction('transfer')" id="btnTransfer" class="bg-ios-blue text-white py-4 rounded-2xl font-semibold hover:bg-blue-600 transition active:scale-95 shadow-lg shadow-blue-500/30 flex flex-col items-center justify-center gap-1"><i class="fa-solid fa-right-left"></i> <span class="text-xs">Transfer</span></button>
+                                <button onclick="window.addTransaction('revenue')" id="btnRevenue" class="bg-ios-green text-white py-4 rounded-2xl font-semibold hover:bg-green-600 transition active:scale-95 shadow-lg shadow-green-500/30 flex flex-col items-center justify-center gap-1"><i class="fa-solid fa-arrow-up"></i> <span class="text-xs">Income</span></button>
                             </div>
                         </div>
                     </div>
-
                     <div class="glass rounded-3xl shadow-sm p-6 animate-float-in hover-lift flex-grow gpu-accel">
                          <div class="mb-4 space-y-2">
                             <div class="flex justify-between items-center"><h2 class="text-lg font-bold">History <span class="text-xs font-normal text-gray-500 ml-2" id="historyMonthLabel"></span></h2></div>
                             <div class="flex gap-2">
-                                <div class="relative flex-grow">
-                                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                                    <input type="text" placeholder="Search..." onkeyup="handleSearch(this.value)" class="w-full bg-gray-100 dark:bg-white/10 border-none rounded-xl pl-8 pr-3 py-2 text-xs font-bold focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition">
-                                </div>
-                                <select onchange="updateSort(this.value)" class="bg-gray-100 dark:bg-white/10 border-none rounded-xl text-xs font-bold px-3 py-2 focus:ring-0 cursor-pointer dark:text-white w-24">
-                                    <option value="newest">Newest</option>
-                                    <option value="oldest">Oldest</option>
-                                    <option value="high">High</option>
-                                </select>
+                                <div class="relative flex-grow"><i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i><input type="text" placeholder="Search..." onkeyup="handleSearch(this.value)" class="w-full bg-gray-100 dark:bg-white/10 border-none rounded-xl pl-8 pr-3 py-2 text-xs font-bold focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition"></div>
+                                <select onchange="updateSort(this.value)" class="bg-gray-100 dark:bg-white/10 border-none rounded-xl text-xs font-bold px-3 py-2 focus:ring-0 cursor-pointer dark:text-white w-24"><option value="newest">Newest</option><option value="oldest">Oldest</option><option value="high">High</option></select>
                             </div>
                         </div>
                         <ul id="historyList" class="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar pr-1"></ul>
                     </div>
                 </div>
-
             </div>
-
-            <!-- Overview -->
             <div class="glass rounded-3xl shadow-sm p-6 animate-float-in mb-8 hover-lift gpu-accel">
                 <h2 class="text-lg font-bold mb-4">6-Month Overview</h2>
                 <div class="overflow-x-auto custom-scrollbar"><table class="w-full text-left border-collapse"><thead><tr class="text-xs text-gray-400 uppercase tracking-wide border-b border-gray-200 dark:border-gray-700"><th class="pb-3 pl-2">Month</th><th class="pb-3 text-right">Income</th><th class="pb-3 text-right">Spent</th><th class="pb-3 text-right">Savings</th></tr></thead><tbody id="comparisonTableBody" class="text-sm font-medium"></tbody></table></div>
@@ -509,16 +374,12 @@
                 <h2 class="text-xl font-bold dark:text-white">Settings</h2>
                 <button onclick="closeSettingsModal()" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/20 transition"><i class="fa-solid fa-xmark"></i></button>
             </div>
-
-            <!-- Profile Section -->
             <div class="flex flex-col items-center mb-8">
                 <div class="relative group">
                     <div class="w-24 h-24 rounded-full bg-gradient-to-br from-ios-blue to-ios-purple p-1 shadow-lg overflow-hidden">
                         <div class="w-full h-full rounded-full bg-white dark:bg-black overflow-hidden flex items-center justify-center relative">
                             <img id="settingsAvatar" src="https://img.icons8.com/fluency/96/user-male-circle.png" class="w-full h-full object-cover">
-                            <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer" onclick="document.getElementById('avatarInput').click()">
-                                <i class="fa-solid fa-camera text-white"></i>
-                            </div>
+                            <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer" onclick="document.getElementById('avatarInput').click()"><i class="fa-solid fa-camera text-white"></i></div>
                         </div>
                     </div>
                     <button onclick="removeAvatar()" class="absolute bottom-0 right-0 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md hover:bg-red-600 transition" title="Remove Photo"><i class="fa-solid fa-trash text-xs"></i></button>
@@ -527,73 +388,50 @@
                 <h3 class="mt-3 text-lg font-bold dark:text-white" id="settingsUsername">User</h3>
                 <p class="text-xs text-gray-500">Finance Tracker User</p>
             </div>
-
-            <!-- Menu Items -->
             <div class="space-y-3">
                 <div class="bg-gray-50 dark:bg-white/5 rounded-2xl p-2">
                     <button onclick="toggleTheme()" class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-gray-200 dark:hover:bg-white/10 transition">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full bg-ios-purple/20 text-ios-purple flex items-center justify-center"><i class="fa-solid fa-moon"></i></div>
-                            <span class="text-sm font-bold dark:text-white">Dark Mode</span>
-                        </div>
+                        <div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-ios-purple/20 text-ios-purple flex items-center justify-center"><i class="fa-solid fa-moon"></i></div><span class="text-sm font-bold dark:text-white">Dark Mode</span></div>
                         <i class="fa-solid fa-toggle-on text-2xl text-ios-green dark:text-gray-600" id="themeToggleIcon"></i>
                     </button>
                     <button onclick="openChangePinModal()" class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-gray-200 dark:hover:bg-white/10 transition mt-1">
-                         <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full bg-ios-blue/20 text-ios-blue flex items-center justify-center"><i class="fa-solid fa-shield-halved"></i></div>
-                            <span class="text-sm font-bold dark:text-white">Change PIN</span>
-                        </div>
+                         <div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-ios-blue/20 text-ios-blue flex items-center justify-center"><i class="fa-solid fa-shield-halved"></i></div><span class="text-sm font-bold dark:text-white">Change PIN</span></div>
                         <i class="fa-solid fa-chevron-right text-gray-400 text-xs"></i>
                     </button>
                 </div>
-
-                <!-- Data Management Section -->
+                
+                <!-- Data Import/Export Section -->
                 <div class="bg-gray-50 dark:bg-white/5 rounded-2xl p-2">
-                    <button onclick="exportData()" class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-gray-200 dark:hover:bg-white/10 transition">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full bg-ios-teal/20 text-ios-teal flex items-center justify-center"><i class="fa-solid fa-download"></i></div>
-                            <span class="text-sm font-bold dark:text-white">Export Data (JSON)</span>
-                        </div>
+                     <button onclick="exportData()" class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-gray-200 dark:hover:bg-white/10 transition">
+                        <div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-ios-teal/20 text-ios-teal flex items-center justify-center"><i class="fa-solid fa-download"></i></div><span class="text-sm font-bold dark:text-white">Export Data</span></div>
                     </button>
                     <button onclick="document.getElementById('importInput').click()" class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-gray-200 dark:hover:bg-white/10 transition mt-1">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full bg-ios-orange/20 text-ios-orange flex items-center justify-center"><i class="fa-solid fa-upload"></i></div>
-                            <span class="text-sm font-bold dark:text-white">Import Data</span>
-                        </div>
+                        <div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-ios-orange/20 text-ios-orange flex items-center justify-center"><i class="fa-solid fa-file-import"></i></div><span class="text-sm font-bold dark:text-white">Import Data</span></div>
+                    </button>
+                    <!-- Bank CSV Import -->
+                    <button onclick="document.getElementById('bankCsvInput').click()" class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-gray-200 dark:hover:bg-white/10 transition mt-1">
+                        <div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center"><i class="fa-solid fa-building-columns"></i></div><span class="text-sm font-bold dark:text-white">Import Bank Statement (CSV)</span></div>
                     </button>
                     <input type="file" id="importInput" class="hidden" accept=".json" onchange="importData(this)">
+                    <input type="file" id="bankCsvInput" class="hidden" accept=".csv" onchange="handleBankImport(this)">
                 </div>
 
                 <div class="bg-gray-50 dark:bg-white/5 rounded-2xl p-4">
                     <h4 class="text-xs font-bold text-gray-400 uppercase mb-3">Activity Security</h4>
-                    <div id="securityLogsList" class="space-y-3 max-h-40 overflow-y-auto custom-scrollbar">
-                        <!-- Logs injected here -->
-                        <p class="text-xs text-gray-400 text-center">No recent activity.</p>
-                    </div>
+                    <div id="securityLogsList" class="space-y-3 max-h-40 overflow-y-auto custom-scrollbar"><p class="text-xs text-gray-400 text-center">No recent activity.</p></div>
                 </div>
-
                 <div class="bg-gray-50 dark:bg-white/5 rounded-2xl p-2">
                      <button onclick="requestNotificationPermission()" class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-gray-200 dark:hover:bg-white/10 transition">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full bg-ios-orange/20 text-ios-orange flex items-center justify-center"><i class="fa-solid fa-bell"></i></div>
-                            <span class="text-sm font-bold dark:text-white">Enable Notifications</span>
-                        </div>
+                        <div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-ios-orange/20 text-ios-orange flex items-center justify-center"><i class="fa-solid fa-bell"></i></div><span class="text-sm font-bold dark:text-white">Enable Notifications</span></div>
                     </button>
                     <button onclick="handleLogout()" class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-gray-200 dark:hover:bg-white/10 transition mt-1">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 flex items-center justify-center"><i class="fa-solid fa-arrow-right-from-bracket"></i></div>
-                            <span class="text-sm font-bold dark:text-white">Logout</span>
-                        </div>
+                        <div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 flex items-center justify-center"><i class="fa-solid fa-arrow-right-from-bracket"></i></div><span class="text-sm font-bold dark:text-white">Logout</span></div>
                     </button>
                      <button onclick="handleDeleteAccount()" class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition mt-1 group">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full bg-red-100 dark:bg-red-500/20 text-red-500 flex items-center justify-center"><i class="fa-solid fa-trash"></i></div>
-                            <span class="text-sm font-bold text-red-500">Delete Account</span>
-                        </div>
+                        <div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-red-100 dark:bg-red-500/20 text-red-500 flex items-center justify-center"><i class="fa-solid fa-trash"></i></div><span class="text-sm font-bold text-red-500">Delete Account</span></div>
                     </button>
                 </div>
-                
-                <p class="text-center text-[10px] text-gray-400 mt-4">App Version 2.4.0</p>
+                <p class="text-center text-[10px] text-gray-400 mt-4">App Version 2.5.1</p>
             </div>
         </div>
     </div>
@@ -614,9 +452,7 @@
     <!-- Legacy Account PIN Prompt Modal (Force) -->
     <div id="legacyPinModal" class="fixed inset-0 z-[200] hidden flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
         <div class="bg-white dark:bg-[#1c1c1e] rounded-3xl w-full max-w-xs p-8 shadow-2xl text-center gpu-accel">
-             <div class="w-16 h-16 rounded-full bg-ios-orange/20 text-ios-orange flex items-center justify-center mx-auto mb-4">
-                <i class="fa-solid fa-shield-halved text-2xl"></i>
-            </div>
+             <div class="w-16 h-16 rounded-full bg-ios-orange/20 text-ios-orange flex items-center justify-center mx-auto mb-4"><i class="fa-solid fa-shield-halved text-2xl"></i></div>
             <h3 class="text-xl font-bold mb-2 dark:text-white">Security Update</h3>
             <p class="text-sm text-gray-500 mb-6">We've added PIN protection. Please create a 4-digit code to secure your existing account.</p>
             <input type="tel" maxlength="4" id="legacyPinInput" placeholder="••••" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-2xl px-5 py-4 text-2xl text-center font-bold tracking-[0.5em] focus:ring-2 focus:ring-ios-orange outline-none dark:text-white mb-6 transition placeholder:tracking-widest">
@@ -624,54 +460,27 @@
         </div>
     </div>
 
-    <!-- Reused Modals (Sub-Limit, Subscription, Category) are preserved from previous code -->
-    <!-- Sub-Limit Modal -->
-    <div id="subLimitModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-all duration-300">
-        <div class="bg-white dark:bg-[#1c1c1e] rounded-3xl w-full max-w-xs p-6 shadow-2xl relative animate-fade-in gpu-accel">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-lg font-bold dark:text-white" id="subLimitModalTitle">New Sub-Limit</h2>
-                <button onclick="closeSubLimitModal()" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/20 transition"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="space-y-4">
-                <div><label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Name</label><input type="text" id="subLimitNameInput" placeholder="e.g. Groceries" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl px-4 py-3 text-base font-bold focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition"></div>
-                <div><label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Limit Amount</label><div class="relative"><span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold" id="subLimitCurrencySymbol">₫</span><input type="text" inputmode="numeric" id="subLimitAmountInput" onkeyup="formatCurrencyInput(this)" placeholder="0" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl pl-8 pr-4 py-3 text-base font-bold focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition text-right"></div></div>
-                <button onclick="saveSubLimit()" id="subLimitSaveBtn" class="w-full bg-ios-purple text-white py-3.5 rounded-xl font-bold hover:bg-purple-600 transition shadow-lg shadow-purple-500/20 flex items-center justify-center gap-2"><i class="fa-solid fa-check"></i> <span>Create Budget</span></button>
-                <button onclick="deleteSubLimitFromModal()" id="subLimitDeleteBtn" class="w-full bg-red-50 dark:bg-red-500/10 text-red-500 py-3.5 rounded-xl font-bold hover:bg-red-100 dark:hover:bg-red-500/20 transition hidden flex items-center justify-center gap-2"><i class="fa-solid fa-trash"></i> Delete Budget</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Subscription Modal -->
-    <div id="subscriptionModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-all duration-300">
-        <div class="bg-white dark:bg-[#1c1c1e] rounded-3xl w-full max-w-xs p-6 shadow-2xl relative animate-fade-in gpu-accel">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-lg font-bold dark:text-white" id="subModalTitle">New Subscription</h2>
-                <button onclick="closeSubscriptionModal()" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/20 transition"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="space-y-4">
-                <div><label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Name</label><input type="text" id="modalSubName" placeholder="e.g. Netflix" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl px-4 py-3 text-base font-bold focus:ring-2 focus:ring-ios-purple outline-none dark:text-white transition"></div>
-                <div><label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Amount</label><div class="relative"><span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold" id="modalSubCurrency">₫</span><input type="text" inputmode="numeric" id="modalSubAmount" onkeyup="formatCurrencyInput(this)" placeholder="0" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl pl-8 pr-4 py-3 text-base font-bold focus:ring-2 focus:ring-ios-purple outline-none dark:text-white transition text-right"></div></div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div><label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Frequency</label><select id="modalSubFreq" onchange="toggleModalDate()" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl px-3 py-3 text-sm font-bold focus:ring-2 focus:ring-ios-purple outline-none dark:text-white transition appearance-none cursor-pointer"><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select></div>
-                    <div><label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Start / Due Date</label><input type="date" id="modalSubDate" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl px-3 py-3 text-sm font-bold focus:ring-2 focus:ring-ios-purple outline-none dark:text-white transition"></div>
-                </div>
-                <button onclick="saveSubscription()" id="subSaveBtn" class="w-full bg-ios-purple text-white py-3.5 rounded-xl font-bold hover:bg-purple-600 transition shadow-lg shadow-purple-500/20 flex items-center justify-center gap-2"><i class="fa-solid fa-check"></i> <span>Add Subscription</span></button>
-                <button onclick="deleteSubscriptionFromModal()" id="subDeleteBtn" class="w-full bg-red-50 dark:bg-red-500/10 text-red-500 py-3.5 rounded-xl font-bold hover:bg-red-100 dark:hover:bg-red-500/20 transition hidden flex items-center justify-center gap-2"><i class="fa-solid fa-trash"></i> Delete</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Category Manager Modal -->
-    <div id="categoryModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-all duration-300">
-        <div class="bg-white dark:bg-[#1c1c1e] rounded-3xl w-full max-w-xs p-6 shadow-2xl relative animate-fade-in flex flex-col max-h-[80vh] gpu-accel">
-            <button onclick="closeCategoryModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><i class="fa-solid fa-xmark text-lg"></i></button>
-            <h2 class="text-lg font-bold mb-4 text-center dark:text-white">Categories</h2>
-            <div id="categoryListContainer" class="flex-grow overflow-y-auto custom-scrollbar space-y-2 pr-1"></div>
-        </div>
-    </div>
-
     <script>
-        // *** CONFIGURATION ZONE ***
+        // SHA-256 Hashing helper
+        async function sha256(message) {
+            const msgBuffer = new TextEncoder().encode(message);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        
+        // Simple HTML Escape helper
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+
         const FIREBASE_CONFIG = {
             apiKey: "AIzaSyBLLUnNGyFxJFEJXOTZ42tAgo41rylZEpA",
             authDomain: "baowalletapp.firebaseapp.com",
@@ -680,14 +489,13 @@
             messagingSenderId: "973567102982",
             appId: "1:973567102982:web:1b5abf693464c03e85f387"
         };
-        // *************************************************
 
         let db, auth, currentUserDocId = null, unsubscribeSnapshot = null;
         let exchangeRate = 26300, isManualRate = false, viewDate = new Date();
         let budgetChart, bankChart, cashChart, currentSort = 'newest', searchQuery = '', confirmCallback = null, pinCallback = null;
         let selectedTransAccount = 'bank';
         let statsViewMode = 'monthly';
-        let cropper = null; // Global cropper instance
+        let cropper = null; 
         let appData = { 
             currency: 'VND', 
             limits: {}, 
@@ -697,19 +505,20 @@
             categories: ['Food', 'Transport', 'Utilities', 'Entertainment', 'Shopping', 'Health', 'Education', 'Bill', 'Exchange'], 
             customRate: null, 
             notifications: [],
-            pin: null, // New PIN field
-            avatar: null, // Base64 string for avatar
-            securityLogs: [] // { timestamp, device }
+            pin: null, 
+            avatar: null, 
+            securityLogs: [] 
         };
+        // Offline queue
+        let offlineQueue = [];
+        
         const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-        // Ensure subLimits is initialized
-        if(!Array.isArray(appData.subLimits)) appData.subLimits = [];
         
         let editingSubLimitId = null;
         let editingSubId = null;
         let pendingUsername = '';
-        let isInitialLoad = true; // For preventing spam on startup
-        const notifiedIds = new Set(); // Track displayed notification IDs per session
+        let isInitialLoad = true;
+        const notifiedIds = new Set(); 
 
         const currentAppId = typeof __app_id !== 'undefined' ? __app_id : (FIREBASE_CONFIG.appId || 'default-app-id');
 
@@ -718,16 +527,12 @@
             return viewDate.getMonth() === now.getMonth() && viewDate.getFullYear() === now.getFullYear();
         }
 
-        // --- HELPER: Unified Data Path ---
         function getUserRef(username) {
             if (!db || !username) return null;
-            // Ensure we use the exact same appId logic as everywhere else
             const appIdToUse = typeof __app_id !== 'undefined' ? __app_id : (FIREBASE_CONFIG.appId || 'default-app-id');
-            // Public data path ensures sync across devices for the same app ID
             return window.fb.doc(db, 'artifacts', appIdToUse, 'public', 'data', 'finance_users', username);
         }
 
-        // --- DEVICE DETECTION (Simplified) ---
         function getDeviceModel() {
             const ua = navigator.userAgent;
             if (/iPhone/.test(ua)) return "iPhone";
@@ -740,40 +545,33 @@
 
         async function init() {
             loadTheme();
-            registerServiceWorker(); 
+            // registerServiceWorker();  // Commented out to avoid potential blob URL issues in some envs
             
-            // Request persistent storage for "background" like feel
-            if (navigator.storage && navigator.storage.persist) {
-                navigator.storage.persist().then(granted => {
-                    if (granted) console.log("Storage persisted");
-                });
-            }
+            // Load offline queue
+            try {
+                const q = localStorage.getItem('finTrack_offlineQueue');
+                if (q) offlineQueue = JSON.parse(q);
+            } catch(e) {}
 
             const storedUser = localStorage.getItem('finTrack_username');
             let isAutoLoggedIn = false;
 
-            // Clear inputs just in case
             const uIn = document.getElementById('usernameInput');
             const pIn = document.getElementById('loginPinInput');
             if(uIn) uIn.value = '';
             if(pIn) pIn.value = '';
 
-            // --- IMMEDIATE UI CHECK (INSTANT LOAD) ---
             if (storedUser) {
-                // Try to load cached data for instant render
                 const cachedData = localStorage.getItem('finTrack_data');
                 if (cachedData) {
                     try {
                         const parsed = JSON.parse(cachedData);
                         if (parsed && typeof parsed === 'object') {
-                            appData = { ...appData, ...parsed }; // Merge cache
-                            
-                            // Safety Check for Arrays
+                            appData = { ...appData, ...parsed }; 
                             if(!Array.isArray(appData.subLimits)) appData.subLimits = [];
                             if(!Array.isArray(appData.transactions)) appData.transactions = [];
                             if(!Array.isArray(appData.subscriptions)) appData.subscriptions = [];
                             
-                            // Show UI Immediately
                             document.getElementById('authScreen').classList.add('hidden');
                             document.getElementById('appUI').classList.remove('hidden');
                             document.getElementById('appUI').classList.add('flex');
@@ -786,17 +584,15 @@
                                 document.getElementById('navbarIcon').classList.add('hidden');
                             }
                             
-                            updateUI(); // Render cached state
-                            showToast("Syncing..."); // Notify user
+                            updateUI(); 
+                            showToast("Syncing...");
                         }
                     } catch(e) { console.error("Cache load failed", e); }
                 } else {
-                    // No cache, show splash
                     document.getElementById('splashLoader').classList.remove('hidden');
                     document.getElementById('authStep1').classList.add('hidden');
                 }
             } else {
-                // No user, show login
                 document.getElementById('splashLoader').classList.add('hidden');
                 document.getElementById('authStep1').classList.remove('hidden');
             }
@@ -814,21 +610,26 @@
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await window.fb.signInWithCustomToken(auth, __initial_auth_token);
                 else await window.fb.signInAnonymously(auth);
 
-                // --- AUTO LOGIN LOGIC (BACKGROUND VERIFICATION) ---
                 if (storedUser) {
+                    // Fix Race Condition: Wait for Auth state
+                    await new Promise(resolve => {
+                         const unsub = window.fb.onAuthStateChanged(auth, (user) => {
+                             if(user) resolve();
+                             unsub();
+                         });
+                    });
+
                     const userRef = getUserRef(storedUser);
                     const docSnap = await window.fb.getDoc(userRef);
-                    
                     if (docSnap.exists()) {
                         await completeLogin(storedUser, false, true); 
                         isAutoLoggedIn = true;
                     } else {
                         localStorage.removeItem('finTrack_username');
-                        localStorage.removeItem('finTrack_data'); // Clear cache
+                        localStorage.removeItem('finTrack_data'); 
                         handleLogout();
                     }
                 }
-
             } catch (e) {
                 console.error("Init Error:", e);
                 if (!isAutoLoggedIn && !storedUser) {
@@ -837,13 +638,14 @@
                 }
             }
             
-            // Start background tasks
             fetchLiveRate();
             setInterval(fetchLiveRate, 60000);
-            window.addEventListener('online', () => { showToast("Back Online"); fetchLiveRate(); });
+            window.addEventListener('online', () => { 
+                showToast("Back Online"); 
+                fetchLiveRate(); 
+                processOfflineQueue();
+            });
             window.addEventListener('offline', () => showToast("Offline Mode Enabled"));
-            
-            // "Sync" when app comes to foreground
             document.addEventListener("visibilitychange", () => {
                 if (!document.hidden && currentUserDocId) {
                     fetchLiveRate();
@@ -861,7 +663,7 @@
             const downloadAnchorNode = document.createElement('a');
             downloadAnchorNode.setAttribute("href", dataStr);
             downloadAnchorNode.setAttribute("download", "protracker_backup_" + new Date().toISOString().split('T')[0] + ".json");
-            document.body.appendChild(downloadAnchorNode); // required for firefox
+            document.body.appendChild(downloadAnchorNode);
             downloadAnchorNode.click();
             downloadAnchorNode.remove();
         }
@@ -874,17 +676,11 @@
                 try {
                     const importedData = JSON.parse(e.target.result);
                     if (importedData && typeof importedData === 'object') {
-                        // Basic validation
                         if (!importedData.currency) throw new Error("Invalid Format");
-                        
-                        // Merge or Replace? Let's Merge safely but prefer imported for arrays
                         appData = { ...appData, ...importedData };
-                        
-                        // Ensure arrays exist
                         if(!Array.isArray(appData.subLimits)) appData.subLimits = [];
                         if(!Array.isArray(appData.transactions)) appData.transactions = [];
                         if(!Array.isArray(appData.subscriptions)) appData.subscriptions = [];
-                        
                         await saveData();
                         updateUI();
                         showToast("Data Imported Successfully");
@@ -896,33 +692,65 @@
                 }
             };
             reader.readAsText(file);
-            input.value = ''; // Reset input
+            input.value = ''; 
         }
 
-        // --- SERVICE WORKER FOR PWA ---
-        function registerServiceWorker() {
-            if ('serviceWorker' in navigator) {
-                const swCode = `
-                    self.addEventListener('install', (e) => {
-                        self.skipWaiting();
-                    });
-                    self.addEventListener('activate', (e) => {
-                        e.waitUntil(self.clients.claim());
-                    });
-                    self.addEventListener('fetch', (e) => {
-                        // Basic pass-through caching or offline strategy could go here
-                        // For now, just ensuring it's installable
-                    });
-                `;
-                const blob = new Blob([swCode], {type: 'text/javascript'});
-                const swUrl = URL.createObjectURL(blob);
-                navigator.serviceWorker.register(swUrl)
-                    .then(reg => console.log('SW Registered'))
-                    .catch(err => console.log('SW Fail', err));
-            }
-        }
+        function handleBankImport(input) {
+            const file = input.files[0];
+            if(!file) return;
+            Papa.parse(file, {
+                header: false, // Auto-detect or simple row scanning
+                skipEmptyLines: true,
+                complete: async function(results) {
+                    let importedCount = 0;
+                    results.data.forEach(row => {
+                        let date = null;
+                        let amount = null;
+                        let desc = "Imported Transaction";
+                        
+                        row.forEach(cell => {
+                            if(!cell) return;
+                            const s = String(cell).trim();
+                            // Check Date DD/MM/YYYY
+                            if(!date && /^\d{1,2}\/\d{1,2}\/\d{4}/.test(s)) {
+                                const parts = s.split(/[\/\-\.]/);
+                                if(parts.length === 3) date = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+                            }
+                            // Check Amount
+                            if(amount === null && /^[+-]?[\d,.]+$/.test(s) && s.length > 2) {
+                                const clean = s.replace(/,/g,'').replace(/\./g,''); 
+                                if(!isNaN(parseFloat(clean))) amount = parseFloat(clean); 
+                            }
+                            if(s.length > 10 && !/^\d/.test(s)) desc = s;
+                        });
 
-        // --- AUTH FLOW ---
+                        if (date && amount) {
+                            const t = { 
+                                id: Date.now() + Math.random(), 
+                                date: date.toISOString(), 
+                                desc: escapeHtml(desc), 
+                                amount: Math.abs(amount), 
+                                type: amount < 0 ? 'expense' : 'revenue', 
+                                category: 'Uncategorized', 
+                                account: 'bank' 
+                            };
+                            appData.transactions.unshift(t);
+                            importedCount++;
+                        }
+                    });
+                    
+                    if(importedCount > 0) {
+                        await saveData();
+                        updateUI();
+                        showToast(`Imported ${importedCount} transactions`);
+                        closeSettingsModal();
+                    } else {
+                        showToast("No valid transactions found in CSV");
+                    }
+                }
+            });
+            input.value = '';
+        }
 
         function showRegisterStep() {
             document.getElementById('authStep1').classList.add('hidden');
@@ -941,7 +769,6 @@
             pendingUsername = '';
         }
 
-        // New Combined Login Function
         async function loginUser() {
             const usernameInput = document.getElementById('usernameInput');
             const pinInput = document.getElementById('loginPinInput');
@@ -952,6 +779,8 @@
             if (pin.length !== 4) { showToast("Enter 4-digit PIN"); return; }
             
             document.getElementById('authLoader').classList.remove('hidden');
+            document.getElementById('loginBtn').disabled = true;
+            document.getElementById('loginBtn').classList.add('opacity-50');
             usernameInput.disabled = true;
             pinInput.disabled = true;
 
@@ -962,7 +791,19 @@
                 if (docSnap.exists()) {
                     const data = docSnap.data();
                     if (data.pin) {
-                        if (data.pin === pin) {
+                        // Check if hash exists, else check plaintext (legacy migration)
+                        const inputHash = await sha256(pin);
+                        // If stored pin is 64 chars, assume hash. Else plaintext
+                        const isStoredHash = data.pin.length === 64;
+                        
+                        if ((isStoredHash && data.pin === inputHash) || (!isStoredHash && data.pin === pin)) {
+                            // If legacy plaintext, migrate to hash immediately
+                            if (!isStoredHash) {
+                                appData = { ...data }; // ensure we have data to update
+                                appData.pin = inputHash;
+                                currentUserDocId = username; // need this for saveData
+                                await saveData(); 
+                            }
                             await completeLogin(username, false);
                         } else {
                             showToast("Incorrect PIN");
@@ -972,7 +813,6 @@
                             pinInput.focus();
                         }
                     } else {
-                        // Legacy User (No PIN in DB) - Login and prompt creation
                         await completeLogin(username, true);
                     }
                 } else {
@@ -987,19 +827,18 @@
                 pinInput.disabled = false;
             } finally {
                 document.getElementById('authLoader').classList.add('hidden');
+                document.getElementById('loginBtn').disabled = false;
+                document.getElementById('loginBtn').classList.remove('opacity-50');
             }
         }
 
-        // Registration Flow
         async function checkRegistrationUsername() {
             const input = document.getElementById('regUsernameInput');
             const username = input.value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
             if (username.length < 3) { showToast("Username too short"); return; }
-
             try {
                 const userRef = getUserRef(username);
                 const docSnap = await window.fb.getDoc(userRef);
-                
                 if (docSnap.exists()) {
                     showToast("Username taken");
                 } else {
@@ -1014,112 +853,80 @@
         async function completeRegistration() {
             const pin = document.getElementById('regPinInput').value;
             if (pin.length !== 4) { showToast("Enter 4 digits"); return; }
-
             const userRef = getUserRef(pendingUsername);
+            
+            document.getElementById('createAccBtn').disabled = true;
+            document.getElementById('createAccBtn').classList.add('opacity-50');
 
             try {
-                appData.pin = pin;
+                const pinHash = await sha256(pin);
+                appData.pin = pinHash;
                 appData.securityLogs = [{ timestamp: Date.now(), device: getDeviceModel() }];
-                // Ensure no undefined values which Firestore hates
                 const cleanData = JSON.parse(JSON.stringify(appData));
-                
                 await window.fb.setDoc(userRef, cleanData);
                 await completeLogin(pendingUsername, false);
             } catch (e) { 
                 console.error(e); 
                 showToast("Registration failed"); 
+                document.getElementById('createAccBtn').disabled = false;
+                document.getElementById('createAccBtn').classList.remove('opacity-50');
             }
         }
 
         async function completeLogin(username, isLegacyNoPin, skipUI = false) {
             currentUserDocId = username;
-            
-            // Auto-login persistence
             localStorage.setItem('finTrack_username', username);
-            
-            // Security Log Logic (Deduped)
             try {
                 const userRef = getUserRef(username);
                 const deviceName = getDeviceModel();
-                
-                // Fetch current logs to check for duplicates
                 const snap = await window.fb.getDoc(userRef);
                 if (snap.exists()) {
                     let logs = snap.data().securityLogs || [];
-                    // Remove any existing entry for this specific device string to avoid duplicates/spam
                     logs = logs.filter(l => l.device !== deviceName);
-                    // Add fresh entry with current timestamp at front
                     logs.push({ timestamp: Date.now(), device: deviceName });
-                    
-                    // Update doc
+                    // Use updateDoc for targeted update to avoid overwriting whole doc
                     await window.fb.updateDoc(userRef, { securityLogs: logs });
                 }
             } catch(e) { console.error("Log update failed", e); }
-
             subscribeToData();
-            
             if (!skipUI) {
-                // UI Transition
                 document.getElementById('authScreen').classList.add('hidden');
                 document.getElementById('appUI').classList.remove('hidden');
                 document.getElementById('appUI').classList.add('flex');
             }
-            
             document.getElementById('settingsUsername').innerText = username;
-            
-            if (isLegacyNoPin) {
-                document.getElementById('legacyPinModal').classList.remove('hidden');
-            }
+            if (isLegacyNoPin) document.getElementById('legacyPinModal').classList.remove('hidden');
         }
 
-        // --- LEGACY PIN HANDLING ---
         async function saveLegacyPin() {
             const pin = document.getElementById('legacyPinInput').value;
             if (pin.length !== 4) { showToast("Enter 4 digits"); return; }
-            
-            appData.pin = pin;
+            const pinHash = await sha256(pin);
+            appData.pin = pinHash;
             await saveData();
             document.getElementById('legacyPinModal').classList.add('hidden');
             showToast("Account Secured!");
         }
 
-        // --- SETTINGS LOGIC ---
         function openSettingsModal() {
             document.getElementById('settingsModal').classList.remove('hidden');
-            
-            // Render Avatar
             const img = document.getElementById('settingsAvatar');
             const navImg = document.getElementById('navbarAvatar');
-            if (appData.avatar) {
-                img.src = appData.avatar;
-                navImg.src = appData.avatar;
-            } else {
-                img.src = "https://img.icons8.com/fluency/96/user-male-circle.png";
-            }
+            if (appData.avatar) { img.src = appData.avatar; navImg.src = appData.avatar; } 
+            else { img.src = "https://img.icons8.com/fluency/96/user-male-circle.png"; }
             
-            // Render Security Logs
             const logList = document.getElementById('securityLogsList');
             logList.innerHTML = '';
             if (appData.securityLogs && appData.securityLogs.length > 0) {
-                // Show last 10, newest first
                 const logs = [...appData.securityLogs].sort((a,b) => b.timestamp - a.timestamp).slice(0, 10);
                 logs.forEach(log => {
                     const d = new Date(log.timestamp);
                     let deviceIcon = "fa-mobile-screen";
                     if(log.device.includes("Windows") || log.device.includes("Mac")) deviceIcon = "fa-desktop";
-                    
-                    logList.innerHTML += `
-                        <div class="flex justify-between items-center text-xs p-2 border-b border-gray-100 dark:border-gray-700">
-                            <span class="text-gray-600 dark:text-gray-300 font-medium flex items-center gap-2"><i class="fa-solid ${deviceIcon} text-gray-400"></i> ${log.device}</span>
-                            <span class="text-gray-400">${d.toLocaleDateString()} ${d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>
-                        </div>
-                    `;
+                    logList.innerHTML += `<div class="flex justify-between items-center text-xs p-2 border-b border-gray-100 dark:border-gray-700"><span class="text-gray-600 dark:text-gray-300 font-medium flex items-center gap-2"><i class="fa-solid ${deviceIcon} text-gray-400"></i> ${log.device}</span><span class="text-gray-400">${d.toLocaleDateString()} ${d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span></div>`;
                 });
-            } else {
-                logList.innerHTML = `<p class="text-xs text-gray-400 text-center">No logs available.</p>`;
-            }
+            } else { logList.innerHTML = `<p class="text-xs text-gray-400 text-center">No logs available.</p>`; }
 
-            // Sync Theme Toggle
             const isDark = document.documentElement.classList.contains('dark');
             const toggle = document.getElementById('themeToggleIcon');
             toggle.className = isDark ? "fa-solid fa-toggle-on text-2xl text-ios-green" : "fa-solid fa-toggle-off text-2xl text-gray-300";
@@ -1127,75 +934,39 @@
 
         function closeSettingsModal() { document.getElementById('settingsModal').classList.add('hidden'); }
 
-        // Avatar Logic - UPDATED WITH CROPPER & SLIDER
         function handleAvatarUpload(input) {
             if (input.files && input.files[0]) {
                 const file = input.files[0];
                 if (file.size > 5000000) { showToast("Image too large (Max 5MB)"); return; }
-
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     const cropImage = document.getElementById('cropImage');
                     cropImage.src = e.target.result;
                     document.getElementById('cropModal').classList.remove('hidden');
-                    
-                    // Reset zoom slider
                     document.getElementById('zoomRange').value = 1;
-
-                    // Initialize Cropper
                     if (cropper) { cropper.destroy(); }
-                    cropper = new Cropper(cropImage, {
-                        aspectRatio: 1, 
-                        viewMode: 1, 
-                        dragMode: 'move', 
-                        autoCropArea: 0.8,
-                        guides: true,
-                        background: false, 
-                        highlight: false,
-                        cropBoxMovable: false,
-                        cropBoxResizable: false,
-                        toggleDragModeOnDblclick: false,
-                        ready: function () {
-                           // Set initial slider val if needed
-                        },
-                        zoom: function(e) {
-                            // Update slider when zooming via touch/scroll
-                        }
-                    });
+                    cropper = new Cropper(cropImage, { aspectRatio: 1, viewMode: 1, dragMode: 'move', autoCropArea: 0.8, guides: true, background: false, highlight: false, cropBoxMovable: false, cropBoxResizable: false, toggleDragModeOnDblclick: false });
                 }
                 reader.readAsDataURL(file);
             }
             input.value = '';
         }
 
-        // Slider listener
-        document.getElementById('zoomRange').addEventListener('input', function(e) {
-            if(cropper) {
-                cropper.zoomTo(parseFloat(e.target.value));
-            }
-        });
-        
+        document.getElementById('zoomRange').addEventListener('input', function(e) { if(cropper) cropper.zoomTo(parseFloat(e.target.value)); });
         function rotateCropper(deg) { if(cropper) cropper.rotate(deg); }
         function resetCropper() { if(cropper) { cropper.reset(); document.getElementById('zoomRange').value = 1; } }
 
         function saveCroppedAvatar() {
             if (!cropper) return;
-            const canvas = cropper.getCroppedCanvas({
-                width: 300, 
-                height: 300,
-                imageSmoothingEnabled: true,
-                imageSmoothingQuality: 'high',
-            });
-            const base64 = canvas.toDataURL('image/jpeg', 0.85); 
-            
+            // Reduce size to save bandwidth/storage
+            const canvas = cropper.getCroppedCanvas({ width: 150, height: 150, imageSmoothingEnabled: true, imageSmoothingQuality: 'high' });
+            const base64 = canvas.toDataURL('image/jpeg', 0.7); // 70% quality
             appData.avatar = base64;
             saveData();
-            
             document.getElementById('settingsAvatar').src = base64;
             document.getElementById('navbarAvatar').src = base64;
             document.getElementById('navbarAvatar').classList.remove('hidden');
             document.getElementById('navbarIcon').classList.add('hidden');
-            
             closeCropModal();
             showToast("Profile Picture Updated");
         }
@@ -1215,14 +986,14 @@
             showToast("Photo Removed");
         }
 
-        // Generic PIN Modal Logic
         function openChangePinModal() {
             document.getElementById('pinModalTitle').innerText = "Change PIN";
             document.getElementById('pinModalDesc').innerText = "Enter new 4-digit code";
             document.getElementById('genericPinInput').value = '';
             document.getElementById('pinModal').classList.remove('hidden');
             pinCallback = async (newPin) => {
-                appData.pin = newPin;
+                const pinHash = await sha256(newPin);
+                appData.pin = pinHash;
                 await saveData();
                 showToast("PIN Changed Successfully");
                 closePinModal();
@@ -1240,36 +1011,34 @@
             pinCallback = null;
         }
 
-        // --- CORE FUNCTIONS ---
-
         function subscribeToData() {
             if(!currentUserDocId) return;
             const userRef = getUserRef(currentUserDocId);
-
             unsubscribeSnapshot = window.fb.onSnapshot(userRef, (doc) => {
                 if(doc.exists()) {
                     const newData = doc.data();
                     
-                    // --- SYNCED NOTIFICATION DETECTION ---
+                    // Logic to prevent notification spam across sessions/reloads
+                    // We check if "lastNotified" timestamp is fresh
                     if (!isInitialLoad && newData.notifications && newData.notifications.length > 0) {
                         const existingIds = new Set(appData.notifications.map(n => n.id));
                         newData.notifications.forEach(n => {
-                            // Check if it's new AND we haven't already alerted for it in this session
                             if (!existingIds.has(n.id) && !notifiedIds.has(n.id)) {
-                                // Only trigger if created within the last 60 seconds
                                 const notifTime = new Date(n.date).getTime();
                                 if (Date.now() - notifTime < 60000) {
                                     if (Notification.permission === "granted") {
                                         new Notification("ProTracker Alert", { body: n.message, icon: "https://img.icons8.com/fluency/512/wallet.png" });
-                                        notifiedIds.add(n.id); // Mark as notified
+                                        notifiedIds.add(n.id);
                                     }
                                 }
                             }
                         });
                     }
-
+                    
+                    // Merge strategies could go here, but for now strict replace for simplicity + caching
                     appData = { ...appData, ...newData };
                     
+                    // Ensure structure integrity
                     if (!appData.categories) appData.categories = ['Food', 'Transport', 'Shopping', 'Bill', 'Exchange'];
                     if (!Array.isArray(appData.subLimits)) appData.subLimits = [];
                     if (!Array.isArray(appData.transactions)) appData.transactions = [];
@@ -1284,13 +1053,12 @@
                           document.getElementById('navbarAvatar').classList.add('hidden');
                           document.getElementById('navbarIcon').classList.remove('hidden');
                     }
-
-                    // Save snapshot to cache for next load
-                    localStorage.setItem('finTrack_data', JSON.stringify(appData));
+                    
+                    // Update cache
+                    try { localStorage.setItem('finTrack_data', JSON.stringify(appData)); } catch(e) { console.warn("Cache full"); }
 
                     cleanupNotifications();
                     checkSubscriptionNotifications();
-
                     if(navigator.onLine) fetchLiveRate();
                     else if (appData.customRate) { exchangeRate = appData.customRate; isManualRate = true; updateRateDisplay(); }
                     
@@ -1302,18 +1070,39 @@
 
         async function saveData() { 
             if(currentUserDocId) {
+                // If offline, push to queue
+                if (!navigator.onLine) {
+                    offlineQueue.push(JSON.parse(JSON.stringify(appData))); // Snapshot state
+                    localStorage.setItem('finTrack_offlineQueue', JSON.stringify(offlineQueue));
+                    // Optimistically update cache and UI
+                    localStorage.setItem('finTrack_data', JSON.stringify(appData));
+                    return;
+                }
+                
+                // If online, proceed
                 const userRef = getUserRef(currentUserDocId);
-                // Deep clean data to remove undefined fields which cause setDoc to fail
                 const cleanData = JSON.parse(JSON.stringify(appData));
+                try { localStorage.setItem('finTrack_data', JSON.stringify(appData)); } catch(e){}
                 
-                // Save to Cache immediately
-                localStorage.setItem('finTrack_data', JSON.stringify(appData));
-                
+                // Try to merge? No, for this app structure we overwrite `appData` blob, but `merge:true` helps if we only sent partial.
+                // However, appData is monolithic here. To fix concurrency ideally we'd fetch first, but that slows UI.
+                // We stick to Last-Write-Wins for simplicity in this artifact constraint, relying on the live listener to keep us fresh.
                 await window.fb.setDoc(userRef, cleanData, { merge: true }); 
             }
         }
-
-        // --- Existing Helper Functions ---
+        
+        async function processOfflineQueue() {
+            if(offlineQueue.length > 0 && currentUserDocId) {
+                const userRef = getUserRef(currentUserDocId);
+                // Take the last state? Or apply sequentially?
+                // Since `appData` is whole state, taking the last one is efficient for this app model.
+                const finalState = offlineQueue[offlineQueue.length-1];
+                await window.fb.setDoc(userRef, finalState, { merge: true });
+                offlineQueue = [];
+                localStorage.removeItem('finTrack_offlineQueue');
+                showToast("Offline changes synced");
+            }
+        }
 
         function requestNotificationPermission() {
             if (!("Notification" in window)) { showToast("Browser doesn't support notifications"); return; }
@@ -1334,23 +1123,21 @@
                 let triggerDate = null;
                 if (s.frequency === 'monthly') triggerDate = new Date(now.getFullYear(), now.getMonth(), d.getDate());
                 else if (s.frequency === 'yearly') triggerDate = new Date(now.getFullYear(), d.getMonth(), d.getDate());
-
                 if (triggerDate) {
                     const cycleId = s.frequency === 'monthly' ? `${s.id}_${now.getFullYear()}_${now.getMonth()}` : `${s.id}_${now.getFullYear()}`;
+                    
+                    // Check if already notified using persistent property in subscription object, not just local session set
                     if (s.lastNotifiedCycle !== cycleId && triggerDate.getTime() <= now.getTime()) {
                         const notifId = Date.now() + Math.random();
                         const msg = `Subscription charged: ${s.name} (-${formatMoney(s.amount)})`;
-                        
-                        // Add to cloud first
                         appData.notifications.unshift({ id: notifId, title: "Subscription Charge", message: msg, date: new Date().toISOString(), read: false, type: 'subscription' });
                         
-                        // Local alert if created just now - Prevent duplicates via Set
+                        // Prevent spam by checking if session just started or if it's genuinely new
                         if (Notification.permission === "granted" && !isInitialLoad && !notifiedIds.has(notifId)) {
                              new Notification("ProTracker: Subscription Paid", { body: msg, icon: "https://img.icons8.com/fluency/512/wallet.png" });
                              notifiedIds.add(notifId);
                         }
-                        
-                        s.lastNotifiedCycle = cycleId;
+                        s.lastNotifiedCycle = cycleId; // Update persistent flag
                         changed = true;
                     }
                 }
@@ -1370,42 +1157,25 @@
             const dropdown = document.getElementById('notifDropdown');
             const backdrop = document.getElementById('notifBackdrop');
             const badge = document.getElementById('notifBadge');
-            
-            // Check visibility based on the presence of closed-state classes
-            // For mobile, 'translate-y-full' means closed
-            // For desktop, 'md:opacity-0' means closed
             const isClosed = dropdown.classList.contains('translate-y-full') || dropdown.classList.contains('md:opacity-0');
-            
             if (isClosed) {
-                // Open: Remove "closed" utility classes
-                dropdown.classList.remove('hidden'); // Ensure it's rendered first (just in case)
+                dropdown.classList.remove('hidden'); 
                 backdrop.classList.remove('hidden');
-                
-                // Use a small timeout or raf to allow the 'hidden' removal to paint before transitioning
                 requestAnimationFrame(() => {
                     dropdown.classList.remove('translate-y-full', 'md:opacity-0', 'md:scale-95', 'md:pointer-events-none');
                     backdrop.classList.remove('opacity-0', 'pointer-events-none');
                 });
-                
                 renderNotificationsDropdown();
-                
-                // Clear badge immediately upon opening
                 badge.classList.add('hidden');
-                // Mark all as read locally
                 if(appData.notifications) {
                     let changed = false;
                     appData.notifications.forEach(n => { if(!n.read) { n.read = true; changed = true; } });
                     if(changed) saveData();
                 }
             } else {
-                // Close: Add "closed" utility classes
                 dropdown.classList.add('translate-y-full', 'md:opacity-0', 'md:scale-95', 'md:pointer-events-none');
                 backdrop.classList.add('opacity-0', 'pointer-events-none');
-                
-                // Wait for transition before fully hiding backdrop (optional, mainly for backdrop logic)
-                setTimeout(() => {
-                    backdrop.classList.add('hidden');
-                }, 300);
+                setTimeout(() => { backdrop.classList.add('hidden'); }, 300);
             }
         }
 
@@ -1414,17 +1184,14 @@
             const empty = document.getElementById('notifEmpty');
             const countBadge = document.getElementById('notifCount');
             list.innerHTML = '';
-            
             if (!appData.notifications || appData.notifications.length === 0) { 
                 empty.classList.remove('hidden'); 
                 if(countBadge) countBadge.classList.add('hidden');
                 return; 
             }
             empty.classList.add('hidden');
-            
             const sorted = [...appData.notifications].sort((a,b) => new Date(b.date) - new Date(a.date));
             const unreadCount = sorted.filter(n => !n.read).length;
-            
             if(countBadge) {
                 if(unreadCount > 0) {
                     countBadge.innerText = unreadCount > 9 ? '9+' : unreadCount;
@@ -1433,26 +1200,10 @@
                     countBadge.classList.add('hidden');
                 }
             }
-
             sorted.forEach(n => {
                 const date = new Date(n.date);
                 const isUnread = !n.read;
-                const timeStr = date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                const dateStr = date.toLocaleDateString();
-                
-                list.innerHTML += `
-                    <div class="flex gap-3 p-3 rounded-xl transition-colors ${isUnread ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-white/5'}">
-                        <div class="mt-1.5 w-2 h-2 rounded-full ${isUnread ? 'bg-ios-blue' : 'bg-transparent'} shrink-0"></div>
-                        <div class="flex-grow">
-                            <div class="flex justify-between items-start">
-                                <p class="text-xs font-bold text-gray-900 dark:text-white">${n.title}</p>
-                                <span class="text-[10px] text-gray-400 whitespace-nowrap ml-2">${timeStr}</span>
-                            </div>
-                            <p class="text-[11px] text-gray-600 dark:text-gray-300 leading-snug mt-0.5">${n.message}</p>
-                            <p class="text-[9px] text-gray-400 mt-1">${dateStr}</p>
-                        </div>
-                    </div>
-                `;
+                list.innerHTML += `<div class="flex gap-3 p-3 rounded-xl transition-colors ${isUnread ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-white/5'}"><div class="mt-1.5 w-2 h-2 rounded-full ${isUnread ? 'bg-ios-blue' : 'bg-transparent'} shrink-0"></div><div class="flex-grow"><div class="flex justify-between items-start"><p class="text-xs font-bold text-gray-900 dark:text-white">${n.title}</p><span class="text-[10px] text-gray-400 whitespace-nowrap ml-2">${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></div><p class="text-[11px] text-gray-600 dark:text-gray-300 leading-snug mt-0.5">${n.message}</p><p class="text-[9px] text-gray-400 mt-1">${date.toLocaleDateString()}</p></div></div>`;
             });
         }
 
@@ -1467,132 +1218,43 @@
             document.documentElement.classList.toggle('dark'); 
             const isDark = document.documentElement.classList.contains('dark');
             localStorage.setItem('theme', isDark ? 'dark' : 'light'); 
-            
-            // Update toggle in settings if open
             const toggle = document.getElementById('themeToggleIcon');
             if(toggle) toggle.className = isDark ? "fa-solid fa-toggle-on text-2xl text-ios-green" : "fa-solid fa-toggle-off text-2xl text-gray-300";
-            
+            if (budgetChart) { budgetChart.destroy(); budgetChart = null; }
+            if (bankChart) { bankChart.destroy(); bankChart = null; }
+            if (cashChart) { cashChart.destroy(); cashChart = null; }
             updateUI(); 
         }
         function loadTheme() { if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark'); }
         function changeMonth(d) { viewDate.setMonth(viewDate.getMonth() + d); updateUI(); }
         function jumpToToday() { viewDate = new Date(); updateUI(); showToast("Jumped to today"); }
-        function toggleUserMenu(e) { 
-            e.stopPropagation(); 
-            // Legacy functionality kept but hidden mostly
-            // const m = document.getElementById('userMenuDropdown'); 
-            // if(m) { m.classList.toggle('opacity-0'); m.classList.toggle('pointer-events-none'); m.classList.toggle('scale-95'); }
-            // document.getElementById('notifDropdown').classList.add('opacity-0', 'pointer-events-none', 'scale-95'); 
-        }
+        function toggleUserMenu(e) { e.stopPropagation(); }
         
+        // --- GLOBAL WINDOW HANDLERS ---
         window.onclick = (e) => { 
-            // Legacy User Menu check - strictly safe
             const umc = document.getElementById('userMenuContainer');
-            if(umc && !umc.contains(e.target)) {
-                 const umd = document.getElementById('userMenuDropdown');
-                 if(umd) umd.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
-            }
-
-            // Notification Dropdown - strictly safe
+            if(umc && !umc.contains(e.target)) { const umd = document.getElementById('userMenuDropdown'); if(umd) umd.classList.add('opacity-0', 'pointer-events-none', 'scale-95'); }
             const nc = document.getElementById('notifContainer');
             if(nc && !nc.contains(e.target)) {
-                // If clicking outside, perform hide logic (mimic toggle false)
                 const dropdown = document.getElementById('notifDropdown');
                 const backdrop = document.getElementById('notifBackdrop');
-                // Check if hidden class is absent (meaning open on mobile) OR opacity class absent (desktop)
-                const isOpen = !dropdown.classList.contains('hidden') && !dropdown.classList.contains('md:opacity-0');
-                
-                // Also check our new state classes
                 const isVisiblyOpen = !dropdown.classList.contains('translate-y-full') && !dropdown.classList.contains('md:opacity-0');
-
                 if (isVisiblyOpen) {
                     dropdown.classList.add('translate-y-full', 'md:opacity-0', 'md:scale-95', 'md:pointer-events-none');
                     backdrop.classList.add('opacity-0', 'pointer-events-none');
                     setTimeout(() => { backdrop.classList.add('hidden'); }, 300);
                 }
             }
-
-            // Modals - strictly safe
-            const sm = document.getElementById('settingsModal'); 
-            if(sm && !sm.classList.contains('hidden') && e.target===sm) closeSettingsModal();
-            
-            const pm = document.getElementById('pinModal'); 
-            if(pm && !pm.classList.contains('hidden') && e.target===pm) closePinModal();
-            
-            const slm = document.getElementById('subLimitModal'); 
-            if (slm && !slm.classList.contains('hidden') && e.target === slm) closeSubLimitModal();
-            
-            const subm = document.getElementById('subscriptionModal'); 
-            if (subm && !subm.classList.contains('hidden') && e.target === subm) closeSubscriptionModal();
-            
-            const catm = document.getElementById('categoryModal'); 
-            if (catm && !catm.classList.contains('hidden') && e.target === catm) closeCategoryModal();
-            
-            const cm = document.getElementById('confirmModal'); 
-            if (cm && !cm.classList.contains('hidden') && e.target === cm) closeConfirm(false);
-            
-            const cpm = document.getElementById('cropModal'); 
-            if (cpm && !cpm.classList.contains('hidden') && e.target === cpm) closeCropModal();
+            const sm = document.getElementById('settingsModal'); if(sm && !sm.classList.contains('hidden') && e.target===sm) closeSettingsModal();
+            const pm = document.getElementById('pinModal'); if(pm && !pm.classList.contains('hidden') && e.target===pm) closePinModal();
+            const slm = document.getElementById('subLimitModal'); if (slm && !slm.classList.contains('hidden') && e.target === slm) closeSubLimitModal();
+            const subm = document.getElementById('subscriptionModal'); if (subm && !subm.classList.contains('hidden') && e.target === subm) closeSubscriptionModal();
+            const catm = document.getElementById('categoryModal'); if (catm && !catm.classList.contains('hidden') && e.target === catm) closeCategoryModal();
+            const cm = document.getElementById('confirmModal'); if (cm && !cm.classList.contains('hidden') && e.target === cm) closeConfirm(false);
+            const cpm = document.getElementById('cropModal'); if (cpm && !cpm.classList.contains('hidden') && e.target === cpm) closeCropModal();
         };
 
-        function handleSearch(val) { searchQuery = val.toLowerCase(); updateUI(); }
-        function toggleStatsView() { setStatsView(statsViewMode === 'monthly' ? 'all' : 'monthly'); }
-        function setStatsView(mode) { statsViewMode = mode; updateUI(); }
-        function openCategoryModal() {
-            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
-            const list = document.getElementById('categoryListContainer');
-            list.innerHTML = '';
-            appData.categories.sort().forEach(cat => {
-                list.innerHTML += `<div class="flex justify-between items-center bg-gray-100 dark:bg-white/5 p-3 rounded-xl group"><span class="text-sm font-bold dark:text-gray-200">${cat}</span><button onclick="deleteCategory('${cat}')" class="text-gray-400 hover:text-red-500 transition"><i class="fa-solid fa-trash"></i></button></div>`;
-            });
-            document.getElementById('categoryModal').classList.remove('hidden');
-        }
-        function closeCategoryModal() { document.getElementById('categoryModal').classList.add('hidden'); }
-        function deleteCategory(cat) { showConfirm(`Delete category "${cat}"?`, () => { appData.categories = appData.categories.filter(c => c !== cat); saveData(); openCategoryModal(); updateUI(); }); }
-        function setTransactionAccount(acct) {
-            selectedTransAccount = acct;
-            const btnBank = document.getElementById('btnAcctBank');
-            const btnCash = document.getElementById('btnAcctCash');
-            const activeClass = ['bg-white', 'dark:bg-gray-700', 'text-black', 'dark:text-white', 'shadow-sm'];
-            const inactiveClass = ['text-gray-500', 'dark:text-gray-400'];
-            if(acct === 'bank') { btnBank.classList.add(...activeClass); btnBank.classList.remove(...inactiveClass); btnCash.classList.remove(...activeClass); btnCash.classList.add(...inactiveClass); } 
-            else { btnCash.classList.add(...activeClass); btnCash.classList.remove(...inactiveClass); btnBank.classList.remove(...activeClass); btnBank.classList.add(...inactiveClass); }
-        }
-        function addTransaction(type) {
-            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
-            const descInput = document.getElementById('descInput');
-            const amtInput = document.getElementById('amountInput');
-            const catInput = document.getElementById('categoryInput');
-            const isTransfer = type === 'transfer';
-            const val = parseFormattedNumber(amtInput.value);
-            let cat = isTransfer ? 'Exchange' : (catInput.value.trim() || 'Uncategorized');
-            const desc = descInput.value.trim() || (isTransfer ? 'Transfer' : (type === 'expense' ? 'Expense' : 'Income'));
-            const source = document.getElementById('budgetSelect').value;
-            if (val > 0) {
-                const amount = appData.currency === 'USD' ? val * exchangeRate : val;
-                const date = new Date().toISOString();
-                const ts = Date.now();
-                if (isTransfer) {
-                    const otherAccount = selectedTransAccount === 'bank' ? 'cash' : 'bank';
-                    const transferDesc = desc === 'Transfer' ? `Transfer to ${otherAccount}` : desc;
-                    const t1 = { id: ts, date: date, desc: transferDesc, amount: amount, type: 'expense', category: 'Exchange', account: selectedTransAccount };
-                    const t2 = { id: ts + 1, date: date, desc: `Received from ${selectedTransAccount}`, amount: amount, type: 'revenue', category: 'Exchange', account: otherAccount };
-                    appData.transactions.unshift(t1); appData.transactions.unshift(t2);
-                    showToast(`Transferred: ${selectedTransAccount} ➝ ${otherAccount}`);
-                } else {
-                    const t = { id: ts, date: date, desc, amount: amount, type, category: cat, account: selectedTransAccount };
-                    if(type === 'expense' && source !== 'general') t.subLimitId = parseInt(source);
-                    if (cat && !appData.categories.includes(cat)) appData.categories.push(cat);
-                    appData.transactions.unshift(t);
-                    showToast("Transaction added");
-                }
-                descInput.value = ''; amtInput.value = ''; catInput.value = ''; saveData();
-            }
-        }
-        function deleteTransaction(id) { if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; } showConfirm("Delete?", () => { appData.transactions = appData.transactions.filter(t => t.id !== id); saveData(); showToast("Deleted"); }); }
-        function setMonthLimit() { if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; } const v = parseFormattedNumber(document.getElementById('limitInput').value); if(v>=0) { appData.limits[getMonthKey(viewDate)] = appData.currency === 'USD' ? v * exchangeRate : v; document.getElementById('limitInput').value = ''; saveData(); showToast("Limit set"); } }
-        
-        function openSubLimitModal(id = null) {
+        window.openSubLimitModal = function(id = null) {
             if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
             const modal = document.getElementById('subLimitModal');
             const title = document.getElementById('subLimitModalTitle');
@@ -1623,28 +1285,29 @@
             }
             modal.classList.remove('hidden');
             nameIn.focus();
-        }
-        function closeSubLimitModal() { document.getElementById('subLimitModal').classList.add('hidden'); }
+        };
 
-        function saveSubLimit() {
+        window.closeSubLimitModal = function() { document.getElementById('subLimitModal').classList.add('hidden'); };
+
+        window.saveSubLimit = function() {
             if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
             const name = document.getElementById('subLimitNameInput').value.trim();
             const limitVal = parseFormattedNumber(document.getElementById('subLimitAmountInput').value);
             if (name && limitVal > 0) {
                 const storeLimit = appData.currency === 'USD' ? limitVal * exchangeRate : limitVal;
                 
-                // Ensure array exists to fix "cannot add" issue
                 if(!Array.isArray(appData.subLimits)) appData.subLimits = [];
 
                 if (editingSubLimitId) { const index = appData.subLimits.findIndex(s => s.id === editingSubLimitId); if (index !== -1) { appData.subLimits[index].name = name; appData.subLimits[index].limit = storeLimit; showToast("Sub-limit updated"); } } 
                 else { appData.subLimits.push({ id: Date.now(), name: name, limit: storeLimit }); showToast("Sub-limit created"); }
-                closeSubLimitModal(); saveData(); updateUI();
+                window.closeSubLimitModal(); saveData(); updateUI();
             }
-        }
-        function deleteSubLimit(id) { if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; } showConfirm("Delete budget?", () => { appData.subLimits = appData.subLimits.filter(s => s.id !== id); saveData(); }); }
-        function deleteSubLimitFromModal() { if (editingSubLimitId) { deleteSubLimit(editingSubLimitId); closeSubLimitModal(); } }
-        // ... (Subscription functions identical to previous, ensuring edit checks current month) ...
-        function openSubscriptionModal(id = null) {
+        };
+
+        window.deleteSubLimit = function(id) { if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; } showConfirm("Delete budget?", () => { appData.subLimits = appData.subLimits.filter(s => s.id !== id); saveData(); }); };
+        window.deleteSubLimitFromModal = function() { if (editingSubLimitId) { window.deleteSubLimit(editingSubLimitId); window.closeSubLimitModal(); } };
+        
+        window.openSubscriptionModal = function(id = null) {
             if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
             const modal = document.getElementById('subscriptionModal');
             const title = document.getElementById('subModalTitle');
@@ -1662,11 +1325,10 @@
                 if (s.dueDate) dateIn.value = s.dueDate.split('T')[0]; else { const now = new Date(); const m = s.dueMonth !== undefined ? s.dueMonth : now.getMonth(); dateIn.value = new Date(now.getFullYear(), m, 1).toISOString().split('T')[0]; }
             } else { editingSubId = null; title.innerText = "New Subscription"; saveBtn.innerHTML = '<i class="fa-solid fa-plus"></i> <span>Add Subscription</span>'; deleteBtn.classList.add('hidden'); nameIn.value = ''; amtIn.value = ''; freqIn.value = 'monthly'; dateIn.value = new Date().toISOString().split('T')[0]; }
             modal.classList.remove('hidden'); nameIn.focus();
-        }
-        function closeSubscriptionModal() { document.getElementById('subscriptionModal').classList.add('hidden'); }
-        function deleteSubscriptionFromModal() { if(editingSubId) { deleteSubscription(editingSubId); closeSubscriptionModal(); } }
-        function toggleModalDate() { }
-        function saveSubscription() {
+        };
+        window.closeSubscriptionModal = function() { document.getElementById('subscriptionModal').classList.add('hidden'); };
+        window.deleteSubscriptionFromModal = function() { if(editingSubId) { window.deleteSubscription(editingSubId); window.closeSubscriptionModal(); } };
+        window.saveSubscription = function() {
             if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
             const name = document.getElementById('modalSubName').value.trim(); const val = parseFormattedNumber(document.getElementById('modalSubAmount').value); const freq = document.getElementById('modalSubFreq').value; const dateStr = document.getElementById('modalSubDate').value;
             if (name && val > 0 && dateStr) {
@@ -1674,18 +1336,138 @@
                 const subData = { name, amount, frequency: freq, dueDate: d.toISOString(), dueMonth: d.getMonth() };
                 if (editingSubId) { const idx = appData.subscriptions.findIndex(s => s.id === editingSubId); if (idx !== -1) { appData.subscriptions[idx] = { ...appData.subscriptions[idx], ...subData }; showToast("Subscription updated"); } } 
                 else { appData.subscriptions.push({ id: Date.now(), ...subData }); showToast("Subscription added"); }
-                closeSubscriptionModal(); saveData(); updateUI();
+                window.closeSubscriptionModal(); saveData(); updateUI();
             } else { showToast("Please fill all fields"); }
-        }
-        function deleteSubscription(id) { if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; } showConfirm("Delete sub?", () => { appData.subscriptions = appData.subscriptions.filter(s => s.id !== id); saveData(); }); }
+        };
+        window.deleteSubscription = function(id) { if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; } showConfirm("Delete sub?", () => { appData.subscriptions = appData.subscriptions.filter(s => s.id !== id); saveData(); }); };
         
+        window.addTransaction = addTransaction;
+        window.deleteTransaction = deleteTransaction;
+        window.setTransactionAccount = setTransactionAccount;
+        window.openCategoryModal = openCategoryModal;
+        window.closeCategoryModal = closeCategoryModal;
+        window.deleteCategory = deleteCategory;
+        
+        // Export UI functions for button clicks
+        window.handleLogout = handleLogout;
+        window.handleDeleteAccount = handleDeleteAccount;
+        window.toggleTheme = toggleTheme;
+        window.openChangePinModal = openChangePinModal;
+        window.exportData = exportData;
+        window.importData = importData;
+        window.handleBankImport = handleBankImport;
+        window.requestNotificationPermission = requestNotificationPermission;
+        window.toggleNotifications = toggleNotifications;
+        window.clearAllNotifications = clearAllNotifications;
+        window.toggleCurrency = toggleCurrency;
+        window.openSettingsModal = openSettingsModal;
+        window.closeSettingsModal = closeSettingsModal;
+        window.changeMonth = changeMonth;
+        window.jumpToToday = jumpToToday;
+        window.toggleStatsView = toggleStatsView;
+        window.handleSearch = handleSearch;
+        window.updateSort = updateSort;
+        window.setMonthLimit = setMonthLimit;
+        window.editExchangeRate = editExchangeRate;
+        window.loginUser = loginUser;
+        window.showRegisterStep = showRegisterStep;
+        window.checkRegistrationUsername = checkRegistrationUsername;
+        window.resetAuth = resetAuth;
+        window.completeRegistration = completeRegistration;
+        window.closePinModal = closePinModal;
+        window.submitGenericPin = submitGenericPin;
+        window.saveLegacyPin = saveLegacyPin;
+        window.removeAvatar = removeAvatar;
+        window.handleAvatarUpload = handleAvatarUpload;
+        window.closeCropModal = closeCropModal;
+        window.saveCroppedAvatar = saveCroppedAvatar;
+        window.rotateCropper = rotateCropper;
+        window.resetCropper = resetCropper;
+        window.closeConfirm = closeConfirm;
+
+        function handleSearch(val) { searchQuery = val.toLowerCase(); updateUI(); }
+        function toggleStatsView() { setStatsView(statsViewMode === 'monthly' ? 'all' : 'monthly'); }
+        function setStatsView(mode) { statsViewMode = mode; updateUI(); }
+        function openCategoryModal() {
+            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
+            const list = document.getElementById('categoryListContainer');
+            list.innerHTML = '';
+            appData.categories.sort().forEach(cat => {
+                list.innerHTML += `<div class="flex justify-between items-center bg-gray-100 dark:bg-white/5 p-3 rounded-xl group"><span class="text-sm font-bold dark:text-gray-200">${escapeHtml(cat)}</span><button onclick="deleteCategory('${escapeHtml(cat)}')" class="text-gray-400 hover:text-red-500 transition"><i class="fa-solid fa-trash"></i></button></div>`;
+            });
+            document.getElementById('categoryModal').classList.remove('hidden');
+        }
+        function closeCategoryModal() { document.getElementById('categoryModal').classList.add('hidden'); }
+        function deleteCategory(cat) { 
+            showConfirm(`Delete category "${cat}"?`, () => { 
+                appData.categories = appData.categories.filter(c => c !== cat); 
+                // Clean up orphaned transactions
+                appData.transactions.forEach(t => { if(t.category === cat) t.category = 'Uncategorized'; });
+                saveData(); 
+                openCategoryModal(); 
+                updateUI(); 
+            }); 
+        }
+        function setTransactionAccount(acct) {
+            selectedTransAccount = acct;
+            const btnBank = document.getElementById('btnAcctBank');
+            const btnCash = document.getElementById('btnAcctCash');
+            const activeClass = ['bg-white', 'dark:bg-gray-700', 'text-black', 'dark:text-white', 'shadow-sm'];
+            const inactiveClass = ['text-gray-500', 'dark:text-gray-400'];
+            if(acct === 'bank') { btnBank.classList.add(...activeClass); btnBank.classList.remove(...inactiveClass); btnCash.classList.remove(...activeClass); btnCash.classList.add(...inactiveClass); } 
+            else { btnCash.classList.add(...activeClass); btnCash.classList.remove(...inactiveClass); btnBank.classList.remove(...activeClass); btnBank.classList.add(...inactiveClass); }
+        }
+        function addTransaction(type) {
+            if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; }
+            const descInput = document.getElementById('descInput');
+            const amtInput = document.getElementById('amountInput');
+            const catInput = document.getElementById('categoryInput');
+            const isTransfer = type === 'transfer';
+            const val = parseFormattedNumber(amtInput.value);
+            let cat = isTransfer ? 'Exchange' : (catInput.value.trim() || 'Uncategorized');
+            const desc = descInput.value.trim() || (isTransfer ? 'Transfer' : (type === 'expense' ? 'Expense' : 'Income'));
+            const source = document.getElementById('budgetSelect').value;
+            if (val > 0) {
+                // Ensure button shows loading
+                const btnId = type === 'expense' ? 'btnExpense' : (type === 'transfer' ? 'btnTransfer' : 'btnRevenue');
+                const btn = document.getElementById(btnId);
+                if(btn) btn.classList.add('opacity-50', 'pointer-events-none');
+
+                const amount = appData.currency === 'USD' ? val * exchangeRate : val;
+                const date = new Date().toISOString();
+                const ts = Date.now();
+                if (isTransfer) {
+                    const otherAccount = selectedTransAccount === 'bank' ? 'cash' : 'bank';
+                    const transferDesc = desc === 'Transfer' ? `Transfer to ${otherAccount}` : desc;
+                    const t1 = { id: ts, date: date, desc: escapeHtml(transferDesc), amount: amount, type: 'expense', category: 'Exchange', account: selectedTransAccount };
+                    const t2 = { id: ts + 1, date: date, desc: `Received from ${selectedTransAccount}`, amount: amount, type: 'revenue', category: 'Exchange', account: otherAccount };
+                    appData.transactions.unshift(t1); appData.transactions.unshift(t2);
+                    showToast(`Transferred: ${selectedTransAccount} ➝ ${otherAccount}`);
+                } else {
+                    const t = { id: ts, date: date, desc: escapeHtml(desc), amount: amount, type, category: escapeHtml(cat), account: selectedTransAccount };
+                    if(type === 'expense' && source !== 'general') t.subLimitId = parseInt(source);
+                    if (cat && !appData.categories.includes(cat) && cat !== 'Exchange') appData.categories.push(cat);
+                    appData.transactions.unshift(t);
+                    showToast("Transaction added");
+                }
+                descInput.value = ''; amtInput.value = ''; catInput.value = ''; 
+                saveData().finally(() => {
+                    if(btn) btn.classList.remove('opacity-50', 'pointer-events-none');
+                });
+            }
+        }
+        function deleteTransaction(id) { if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; } showConfirm("Delete?", () => { appData.transactions = appData.transactions.filter(t => t.id !== id); saveData(); showToast("Deleted"); }); }
+        function setMonthLimit() { if (!isCurrentViewMonth()) { showToast("Cannot edit past data"); return; } const v = parseFormattedNumber(document.getElementById('limitInput').value); if(v>=0) { appData.limits[getMonthKey(viewDate)] = appData.currency === 'USD' ? v * exchangeRate : v; document.getElementById('limitInput').value = ''; saveData(); showToast("Limit set"); } }
+
         function showConfirm(m, cb) { document.getElementById('confirmMessage').innerText = m; confirmCallback = cb; document.getElementById('confirmModal').classList.remove('hidden'); }
         function closeConfirm(y) { document.getElementById('confirmModal').classList.add('hidden'); if(y && confirmCallback) confirmCallback(); }
         document.getElementById('confirmYesBtn').onclick = () => closeConfirm(true);
         function updateSort(v) { currentSort = v; updateUI(); }
         
         function handleLogout() {
-             // Explicitly clear memory and reload
+             // Stop listener to prevent memory leaks or errors after logout
+             if(unsubscribeSnapshot) unsubscribeSnapshot();
+             
              appData = {};
              localStorage.removeItem('finTrack_username'); 
              localStorage.removeItem('finTrack_data'); 
@@ -1729,8 +1511,6 @@
         }
         function toggleCurrency() { appData.currency = appData.currency === 'USD' ? 'VND' : 'USD'; updateUI(); saveData(); }
 
-        // Render functions (updateUI, renderSubLimits, renderSubs, renderHistory, renderComparison, initCharts) are kept as they were, ensuring they reference appData correctly.
-        // I'm condensing them slightly here for brevity as they haven't changed logic, only context.
         function updateUI() {
             const isMonthly = statsViewMode === 'monthly';
             const badge = document.getElementById('viewModeBadge'); badge.innerText = isMonthly ? 'Mo' : 'All';
@@ -1739,7 +1519,6 @@
             const sel = document.getElementById('budgetSelect'); const oldVal = sel.value; sel.innerHTML = `<option value="general">General (Monthly Limit)</option>`; appData.subLimits.forEach(sl => { const o = document.createElement('option'); o.value = sl.id; o.text = sl.name; sel.appendChild(o); }); sel.value = oldVal;
             const dl = document.getElementById('categoryList'); dl.innerHTML = ''; appData.categories.sort().forEach(c => { const o = document.createElement('option'); o.value = c; dl.appendChild(o); });
             
-            // Calc Stats
             let allInc = 0, allExp = 0, bankRealInc = 0, bankRealExp = 0, bankTransIn = 0, bankTransOut = 0, cashRealInc = 0, cashRealExp = 0, cashTransIn = 0, cashTransOut = 0;
             appData.transactions.forEach(t => { 
                 const acct = t.account || 'bank'; const isExchange = (t.category || '').toLowerCase() === 'exchange';
@@ -1762,20 +1541,25 @@
             const mSubs = appData.subscriptions.reduce((s, sub) => { const dueM = sub.dueDate ? new Date(sub.dueDate).getMonth() : sub.dueMonth; const isDueMonth = (sub.frequency==='monthly' || (sub.frequency==='yearly' && dueM === viewDate.getMonth())); return isDueMonth ? s+sub.amount : s; }, 0);
             const limit = appData.limits[getMonthKey(viewDate)] || 0; const mainRem = Math.max(0, limit - (genSpent + mSubs)); document.getElementById('monthlyLeftDisplay').innerText = formatMoney(mainRem);
             
-            // Charts Update
             const isDark = document.documentElement.classList.contains('dark'); const bg = isDark ? '#2C2C2E' : '#E5E7EB';
             const p = limit > 0 ? mainRem / limit : 0; const col = p < 0.2 ? '#FF3B30' : (p < 0.5 ? '#FF9500' : '#007AFF');
             document.getElementById('centerBudgetRemaining').innerText = formatMoney(mainRem); document.getElementById('centerLimitLabel').innerText = "Limit: " + formatMoney(limit);
-            if(budgetChart) { budgetChart.data.datasets[0].data = limit === 0 ? [0, 100] : [mainRem, limit - mainRem]; budgetChart.data.datasets[0].backgroundColor = limit === 0 ? [bg, bg] : [col, bg]; budgetChart.update(); }
+            
+            // Fix Chart Destroy Logic
+            if(budgetChart) budgetChart.destroy();
+            budgetChart = new Chart(document.getElementById('budgetWheel'), { type: 'doughnut', options: { responsive: true, maintainAspectRatio: false, cutout: '80%', plugins: { legend: {display:false}, tooltip: {enabled:false} }, animation: { duration: 600 } }, data: { datasets: [{ data: limit === 0 ? [0, 100] : [mainRem, limit - mainRem], backgroundColor: limit === 0 ? [bg, bg] : [col, bg], borderWidth: 0 }] } });
             
             const bankNetTransfer = bankTransIn - bankTransOut; let bankChartData = []; if (bankNetTransfer >= 0) bankChartData = [bankBalance, bankRealExp]; else bankChartData = [bankBalance, bankRealExp + Math.abs(bankNetTransfer)];
             const cashNetTransfer = cashTransIn - cashTransOut; let cashChartData = []; if (cashNetTransfer >= 0) cashChartData = [cashBalance, cashRealExp]; else cashChartData = [cashBalance, cashRealExp + Math.abs(cashNetTransfer)];
             if (bankChartData[0] <= 0) bankChartData = [0, 100]; if (cashChartData[0] <= 0) cashChartData = [0, 100];
             document.getElementById('centerBankBalance').innerText = formatMoney(bankBalance); document.getElementById('centerCashBalance').innerText = formatMoney(cashBalance); document.getElementById('footerTotalIncome').innerText = formatMoney(allInc); document.getElementById('footerTotalSpent').innerText = formatMoney(allExp);
-            if(bankChart) { bankChart.data.datasets[0].data = bankChartData; bankChart.data.datasets[0].backgroundColor = bankBalance <= 0 ? [bg, bg] : ['#007AFF', '#FF3B30']; bankChart.update(); }
-            if(cashChart) { cashChart.data.datasets[0].data = cashChartData; cashChart.data.datasets[0].backgroundColor = cashBalance <= 0 ? [bg, bg] : ['#34C759', '#FF3B30']; cashChart.update(); }
+            
+            if(bankChart) bankChart.destroy();
+            bankChart = new Chart(document.getElementById('bankWheel'), { type: 'doughnut', options: { responsive: true, maintainAspectRatio: false, cutout: '80%', plugins: { legend: {display:false}, tooltip: {enabled:false} }, animation: { duration: 600 } }, data: { datasets: [{ data: bankChartData, backgroundColor: bankBalance <= 0 ? [bg, bg] : ['#007AFF', '#FF3B30'], borderWidth: 0 }] } });
+            
+            if(cashChart) cashChart.destroy();
+            cashChart = new Chart(document.getElementById('cashWheel'), { type: 'doughnut', options: { responsive: true, maintainAspectRatio: false, cutout: '80%', plugins: { legend: {display:false}, tooltip: {enabled:false} }, animation: { duration: 600 } }, data: { datasets: [{ data: cashChartData, backgroundColor: cashBalance <= 0 ? [bg, bg] : ['#34C759', '#FF3B30'], borderWidth: 0 }] } });
 
-            // Handle Locking
             const isCurrent = isCurrentViewMonth(); const lockMsg = document.getElementById('lockedMessage'); const inputs = ['limitControl', 'transControl']; const addSubBtn = document.getElementById('addSubBtn');
             if (isCurrent) { lockMsg.classList.add('hidden'); inputs.forEach(id => document.getElementById(id).classList.remove('disabled-overlay')); addSubBtn.classList.remove('pointer-events-none', 'opacity-50'); } 
             else { lockMsg.classList.remove('hidden'); inputs.forEach(id => document.getElementById(id).classList.add('disabled-overlay')); addSubBtn.classList.add('pointer-events-none', 'opacity-50'); }
@@ -1783,28 +1567,26 @@
             renderSubs(); renderSubLimits(subSpent); renderHistory(mTransCurrent); renderComparison();
         }
 
-        // Sub-function definitions (renderSubLimits, renderSubs, renderHistory, renderComparison) are identical to previous version, ensuring they correctly format and display data.
         function renderSubLimits(spentMap) {
             const c = document.getElementById('subLimitsContainer'); c.innerHTML = '';
             if(appData.subLimits.length===0) document.getElementById('emptySubLimits').classList.remove('hidden'); else document.getElementById('emptySubLimits').classList.add('hidden');
             appData.subLimits.forEach(sl => {
                 const s = spentMap[sl.id] || 0; const rem = Math.max(0, sl.limit - s); const pct = Math.min(100, (rem/sl.limit)*100);
                 const col = rem > 0 ? 'bg-ios-purple' : 'bg-ios-red'; const txt = rem > 0 ? 'text-ios-purple' : 'text-ios-red';
-                const delBtn = isCurrentViewMonth() ? `<button onclick="deleteSubLimit(${sl.id})" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><i class="fa-solid fa-xmark"></i></button>` : '';
-                const editBtn = isCurrentViewMonth() ? `<button onclick="openSubLimitModal(${sl.id})" class="absolute top-2 right-8 text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition"><i class="fa-solid fa-pen"></i></button>` : '';
-                c.innerHTML += `<div class="bg-white/50 dark:bg-white/5 p-4 rounded-2xl flex flex-col justify-between relative group border border-gray-100 dark:border-gray-800 hover-lift gpu-accel">${editBtn}${delBtn}<div class="mb-2"><h3 class="text-sm font-bold truncate dark:text-white">${sl.name}</h3><p class="text-[10px] text-gray-400">Limit: ${formatMoney(sl.limit)}</p></div><div class="w-full"><div class="flex justify-between items-end mb-1"><span class="text-[10px] font-semibold text-gray-500">Left</span><span class="text-xs font-bold ${txt}">${formatMoney(rem)}</span></div><div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden"><div class="h-full rounded-full transition-all duration-500 ${col}" style="width: ${pct}%"></div></div></div></div>`;
+                const delBtn = isCurrentViewMonth() ? `<button onclick="window.deleteSubLimit(${sl.id})" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><i class="fa-solid fa-xmark"></i></button>` : '';
+                const editBtn = isCurrentViewMonth() ? `<button onclick="window.openSubLimitModal(${sl.id})" class="absolute top-2 right-8 text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition"><i class="fa-solid fa-pen"></i></button>` : '';
+                c.innerHTML += `<div class="bg-white/50 dark:bg-white/5 p-4 rounded-2xl flex flex-col justify-between relative group border border-gray-100 dark:border-gray-800 hover-lift gpu-accel">${editBtn}${delBtn}<div class="mb-2"><h3 class="text-sm font-bold truncate dark:text-white">${escapeHtml(sl.name)}</h3><p class="text-[10px] text-gray-400">Limit: ${formatMoney(sl.limit)}</p></div><div class="w-full"><div class="flex justify-between items-end mb-1"><span class="text-[10px] font-semibold text-gray-500">Left</span><span class="text-xs font-bold ${txt}">${formatMoney(rem)}</span></div><div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden"><div class="h-full rounded-full transition-all duration-500 ${col}" style="width: ${pct}%"></div></div></div></div>`;
             });
         }
         
-        // ... (renderSubs, renderHistory, renderComparison follow same pattern as before) ...
         function renderSubs() {
              const l = document.getElementById('subscriptionList'); l.innerHTML = '';
              if(appData.subscriptions.length===0) document.getElementById('emptySubs').classList.remove('hidden'); else document.getElementById('emptySubs').classList.add('hidden');
              appData.subscriptions.forEach(s => {
                 let dateDisplay = ''; if (s.dueDate) { const d = new Date(s.dueDate); const day = d.getDate(); if(s.frequency === 'yearly') dateDisplay = `${monthNames[d.getMonth()]} ${day}`; else dateDisplay = `Day ${day}`; } else { dateDisplay = s.frequency === 'yearly' ? monthNames[s.dueMonth] : 'Monthly'; }
                 const tag = s.frequency === 'yearly' ? `<span class="text-[9px] bg-orange-100 text-orange-600 px-1.5 rounded font-bold">YR</span>` : `<span class="text-[9px] bg-purple-100 text-purple-600 px-1.5 rounded font-bold">MO</span>`;
-                const editBtn = isCurrentViewMonth() ? `<button onclick="openSubscriptionModal(${s.id})" class="text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100"><i class="fa-solid fa-pen"></i></button>` : '';
-                l.innerHTML += `<div class="flex justify-between items-center bg-white/50 dark:bg-white/5 p-3 rounded-xl mb-2 group"><div class="flex items-center gap-2 overflow-hidden">${tag}<div class="flex flex-col"><span class="text-sm font-medium dark:text-gray-200 truncate">${s.name}</span><span class="text-[10px] text-gray-400 font-medium">Due: ${dateDisplay}</span></div></div><div class="flex items-center gap-3 shrink-0"><span class="text-sm font-bold text-gray-700 dark:text-gray-300">-${formatMoney(s.amount)}</span>${editBtn}</div></div>`;
+                const editBtn = isCurrentViewMonth() ? `<button onclick="window.openSubscriptionModal(${s.id})" class="text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100"><i class="fa-solid fa-pen"></i></button>` : '';
+                l.innerHTML += `<div class="flex justify-between items-center bg-white/50 dark:bg-white/5 p-3 rounded-xl mb-2 group"><div class="flex items-center gap-2 overflow-hidden">${tag}<div class="flex flex-col"><span class="text-sm font-medium dark:text-gray-200 truncate">${escapeHtml(s.name)}</span><span class="text-[10px] text-gray-400 font-medium">Due: ${dateDisplay}</span></div></div><div class="flex items-center gap-3 shrink-0"><span class="text-sm font-bold text-gray-700 dark:text-gray-300">-${formatMoney(s.amount)}</span>${editBtn}</div></div>`;
              });
         }
         function renderHistory(t) {
@@ -1814,10 +1596,10 @@
             if (searchQuery) { sorted = sorted.filter(item => { const descMatch = (item.desc || '').toLowerCase().includes(searchQuery); const catMatch = (item.category || '').toLowerCase().includes(searchQuery); let subLimitMatch = false; if(item.subLimitId) { const sl = appData.subLimits.find(s => s.id === item.subLimitId); if(sl && sl.name.toLowerCase().includes(searchQuery)) subLimitMatch = true; } return descMatch || catMatch || subLimitMatch; }); if(sorted.length === 0) { l.innerHTML = `<li class="text-center text-gray-400 text-sm py-4">No matches found.</li>`; return; } }
             if(currentSort === 'newest') sorted.sort((a,b)=>new Date(b.date)-new Date(a.date)); else if(currentSort === 'oldest') sorted.sort((a,b)=>new Date(a.date)-new Date(b.date)); else if(currentSort === 'high') sorted.sort((a,b)=>b.amount-a.amount);
             sorted.forEach(x => {
-                const isExp = x.type==='expense'; let cat = ''; if(x.subLimitId) { const s = appData.subLimits.find(z=>z.id===x.subLimitId); if(s) cat = `<span class="text-[9px] bg-indigo-100 text-indigo-600 px-1.5 rounded ml-2 font-bold">${s.name}</span>`; } else if(x.category && x.category !== 'Uncategorized') cat = `<span class="text-[9px] bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-300 px-1.5 rounded ml-2 font-bold">${x.category}</span>`;
+                const isExp = x.type==='expense'; let cat = ''; if(x.subLimitId) { const s = appData.subLimits.find(z=>z.id===x.subLimitId); if(s) cat = `<span class="text-[9px] bg-indigo-100 text-indigo-600 px-1.5 rounded ml-2 font-bold">${escapeHtml(s.name)}</span>`; } else if(x.category && x.category !== 'Uncategorized') cat = `<span class="text-[9px] bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-300 px-1.5 rounded ml-2 font-bold">${escapeHtml(x.category)}</span>`;
                 const acct = x.account || 'bank'; const acctIcon = acct === 'cash' ? `<i class="fa-solid fa-money-bill-wave text-[10px] ml-1 text-gray-400" title="Cash"></i>` : `<i class="fa-solid fa-building-columns text-[10px] ml-1 text-gray-400" title="Bank"></i>`;
                 const delBtn = isCurrentViewMonth() ? `<button onclick="deleteTransaction(${x.id})" class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100"><i class="fa-solid fa-trash"></i></button>` : '';
-                l.innerHTML += `<li class="flex justify-between items-center bg-white/50 dark:bg-white/5 p-4 rounded-2xl group transition hover:bg-white/80 dark:hover:bg-white/10 hover-lift gpu-accel"><div class="flex items-center gap-3 min-w-0"><div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isExp?'bg-red-100 text-red-500 dark:bg-red-500/20':'bg-green-100 text-green-500 dark:bg-green-500/20'}"><i class="fa-solid ${isExp?'fa-bag-shopping':'fa-coins'} text-sm"></i></div><div class="min-w-0"><div class="flex items-center"><p class="font-bold text-sm dark:text-gray-100 truncate">${x.desc}</p>${cat}${acctIcon}</div><p class="text-[10px] text-gray-400">${new Date(x.date).toLocaleDateString()}</p></div></div><div class="flex items-center gap-3 shrink-0"><span class="font-bold ${isExp?'text-ios-red':'text-ios-green'}">${isExp?'-':'+'}${formatMoney(x.amount)}</span>${delBtn}</div></li>`;
+                l.innerHTML += `<li class="flex justify-between items-center bg-white/50 dark:bg-white/5 p-4 rounded-2xl group transition hover:bg-white/80 dark:hover:bg-white/10 hover-lift gpu-accel"><div class="flex items-center gap-3 min-w-0"><div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isExp?'bg-red-100 text-red-500 dark:bg-red-500/20':'bg-green-100 text-green-500 dark:bg-green-500/20'}"><i class="fa-solid ${isExp?'fa-bag-shopping':'fa-coins'} text-sm"></i></div><div class="min-w-0"><div class="flex items-center"><p class="font-bold text-sm dark:text-gray-100 truncate">${escapeHtml(x.desc)}</p>${cat}${acctIcon}</div><p class="text-[10px] text-gray-400">${new Date(x.date).toLocaleDateString()}</p></div></div><div class="flex items-center gap-3 shrink-0"><span class="font-bold ${isExp?'text-ios-red':'text-ios-green'}">${isExp?'-':'+'}${formatMoney(x.amount)}</span>${delBtn}</div></li>`;
             });
         }
         function renderComparison() {
