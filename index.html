@@ -952,7 +952,15 @@
             let completed = 0;
             const tasks = appData.tasks || [];
             
-            tasks.forEach(task => {
+            // Sort by priority (High > Medium > Low)
+            const priorityVal = { 'high': 3, 'medium': 2, 'low': 1 };
+            const sortedTasks = [...tasks].sort((a, b) => {
+                const pa = priorityVal[a.priority] || 0;
+                const pb = priorityVal[b.priority] || 0;
+                return pb - pa;
+            });
+            
+            sortedTasks.forEach(task => {
                 const div = document.createElement('div');
                 div.className = "bg-white dark:bg-[#2c2c2e] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow task-card touch-none relative group";
                 div.id = `task-${task.id}`;
