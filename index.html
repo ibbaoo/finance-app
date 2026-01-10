@@ -392,14 +392,75 @@
                     <button onclick="jumpToToday()" class="text-xs text-ios-blue font-semibold absolute right-4 sm:relative sm:right-auto hover:underline">Today</button>
                 </div>
                 <div id="lockedMessage" class="hidden text-center animate-float-in"><span class="inline-block bg-gray-100 dark:bg-gray-800 text-gray-500 text-[10px] uppercase font-bold px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm"><i class="fa-solid fa-lock mr-1"></i> Read Only Mode</span></div>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-green hover-lift relative group gpu-accel">
-                        <div class="absolute top-2 right-2 opacity-50 hover:opacity-100 transition-opacity cursor-pointer z-10" onclick="toggleStatsView()"><div class="bg-gray-100 dark:bg-white/10 p-1 rounded-lg text-[10px] font-bold flex gap-1"><span id="viewModeBadge" class="px-1.5 py-0.5 rounded bg-white dark:bg-gray-700 shadow-sm text-black dark:text-white">Mo</span></div></div>
-                        <p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1" id="lblIncome">Income</p><h3 class="text-base font-bold text-ios-green truncate" id="incomeDisplay">0</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <!-- Income -->
+                    <div class="glass rounded-3xl p-5 relative overflow-hidden group hover-lift transition-all duration-300 border-0 shadow-lg dark:shadow-none bg-gradient-to-br from-white to-green-50 dark:from-[#1c1c1e] dark:to-green-900/10">
+                        <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110 duration-500">
+                             <i class="fa-solid fa-arrow-trend-up text-6xl text-ios-green"></i>
+                        </div>
+                        <div class="relative z-10 flex flex-col h-full justify-between">
+                            <div class="flex justify-between items-start">
+                                 <div class="bg-green-100 dark:bg-green-500/20 w-10 h-10 rounded-full flex items-center justify-center text-ios-green mb-3">
+                                    <i class="fa-solid fa-arrow-down rotate-180"></i>
+                                </div>
+                                 <div class="cursor-pointer" onclick="toggleStatsView()">
+                                    <span id="viewModeBadge" class="text-[10px] font-bold px-2 py-1 rounded-full bg-white/80 dark:bg-black/50 backdrop-blur-sm border border-black/5 dark:border-white/10 shadow-sm">Mo</span>
+                                </div>
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1" id="lblIncome">Income</p>
+                                <h3 class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight" id="incomeDisplay">0</h3>
+                            </div>
+                        </div>
                     </div>
-                    <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-red hover-lift gpu-accel"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1" id="lblSpent">Spent</p><h3 class="text-base font-bold text-ios-red truncate" id="spentDisplay">0</h3></div>
-                    <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-teal hover-lift gpu-accel"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1">Net Worth</p><h3 class="text-base font-bold text-ios-teal truncate" id="walletDisplay">0</h3></div>
-                    <div class="glass rounded-2xl p-4 shadow-sm animate-float-in border-t-4 border-ios-blue hover-lift gpu-accel"><p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold mb-1">Budget Left</p><h3 class="text-base font-bold text-gray-800 dark:text-gray-200 truncate" id="monthlyLeftDisplay">0</h3></div>
+
+                    <!-- Spent -->
+                    <div class="glass rounded-3xl p-5 relative overflow-hidden group hover-lift transition-all duration-300 border-0 shadow-lg dark:shadow-none bg-gradient-to-br from-white to-red-50 dark:from-[#1c1c1e] dark:to-red-900/10">
+                         <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110 duration-500">
+                             <i class="fa-solid fa-arrow-trend-down text-6xl text-ios-red"></i>
+                        </div>
+                        <div class="relative z-10 flex flex-col h-full justify-between">
+                             <div class="bg-red-100 dark:bg-red-500/20 w-10 h-10 rounded-full flex items-center justify-center text-ios-red mb-3">
+                                <i class="fa-solid fa-arrow-down"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1" id="lblSpent">Spent</p>
+                                <h3 class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight" id="spentDisplay">0</h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Net Worth -->
+                    <div class="glass rounded-3xl p-5 relative overflow-hidden group hover-lift transition-all duration-300 border-0 shadow-lg dark:shadow-none bg-gradient-to-br from-white to-teal-50 dark:from-[#1c1c1e] dark:to-teal-900/10">
+                         <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110 duration-500">
+                             <i class="fa-solid fa-wallet text-6xl text-ios-teal"></i>
+                        </div>
+                        <div class="relative z-10 flex flex-col h-full justify-between">
+                             <div class="bg-teal-100 dark:bg-teal-500/20 w-10 h-10 rounded-full flex items-center justify-center text-ios-teal mb-3">
+                                <i class="fa-solid fa-sack-dollar"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Net Worth</p>
+                                <h3 class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight" id="walletDisplay">0</h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Budget Left -->
+                    <div class="glass rounded-3xl p-5 relative overflow-hidden group hover-lift transition-all duration-300 border-0 shadow-lg dark:shadow-none bg-gradient-to-br from-white to-blue-50 dark:from-[#1c1c1e] dark:to-blue-900/10">
+                         <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110 duration-500">
+                             <i class="fa-solid fa-chart-pie text-6xl text-ios-blue"></i>
+                        </div>
+                        <div class="relative z-10 flex flex-col h-full justify-between">
+                             <div class="bg-blue-100 dark:bg-blue-500/20 w-10 h-10 rounded-full flex items-center justify-center text-ios-blue mb-3">
+                                <i class="fa-solid fa-scale-balanced"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Budget Left</p>
+                                <h3 class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight" id="monthlyLeftDisplay">0</h3>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
                     <div class="flex flex-col gap-6">
@@ -496,37 +557,47 @@
                 <!-- Kanban Columns -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 h-full min-h-[500px]">
                     <!-- Column: Upcoming -->
-                    <div class="flex flex-col h-full bg-white/40 dark:bg-white/5 rounded-3xl p-4 md:bg-transparent md:p-0">
-                        <div class="flex items-center gap-2 mb-3 px-1">
-                            <div class="w-3 h-3 rounded-full bg-gray-400"></div>
-                            <h3 class="font-bold text-gray-500 uppercase text-xs tracking-wider">Upcoming</h3>
-                            <span id="countUpcoming" class="bg-gray-200 dark:bg-gray-800 text-gray-500 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+                    <div class="flex flex-col h-full bg-gray-50/50 dark:bg-[#1c1c1e] border border-gray-100 dark:border-gray-800 rounded-3xl overflow-hidden shadow-sm">
+                        <!-- Header -->
+                        <div class="p-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-white/50 dark:bg-white/5 backdrop-blur-sm relative overflow-hidden">
+                            <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-gray-300 dark:bg-gray-600"></div>
+                            <div class="flex items-center gap-2 pl-2">
+                                <h3 class="font-bold text-gray-700 dark:text-gray-200 text-sm tracking-wide uppercase">To Do</h3>
+                            </div>
+                            <span id="countUpcoming" class="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-bold px-2.5 py-1 rounded-lg">0</span>
                         </div>
-                        <div id="col-upcoming" class="flex-grow bg-gray-100/50 dark:bg-white/5 rounded-3xl p-3 space-y-3 transition-colors duration-200 border-2 border-transparent min-h-[150px]">
+                        <!-- Content -->
+                        <div id="col-upcoming" class="flex-grow p-3 space-y-3 overflow-y-auto custom-scrollbar bg-gray-50/30 dark:bg-transparent min-h-[150px] relative transition-colors duration-200">
                             <!-- Tasks injected here -->
                         </div>
                     </div>
 
                     <!-- Column: In Progress -->
-                    <div class="flex flex-col h-full bg-white/40 dark:bg-white/5 rounded-3xl p-4 md:bg-transparent md:p-0">
-                        <div class="flex items-center gap-2 mb-3 px-1">
-                            <div class="w-3 h-3 rounded-full bg-ios-blue"></div>
-                            <h3 class="font-bold text-ios-blue uppercase text-xs tracking-wider">In Progress</h3>
-                             <span id="countInProgress" class="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+                    <div class="flex flex-col h-full bg-blue-50/30 dark:bg-[#1a202e] border border-blue-100 dark:border-blue-900/30 rounded-3xl overflow-hidden shadow-sm">
+                         <!-- Header -->
+                         <div class="p-4 border-b border-blue-100 dark:border-blue-900/30 flex justify-between items-center bg-blue-50/50 dark:bg-blue-900/10 backdrop-blur-sm relative overflow-hidden">
+                            <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-ios-blue"></div>
+                            <div class="flex items-center gap-2 pl-2">
+                                <h3 class="font-bold text-blue-700 dark:text-blue-400 text-sm tracking-wide uppercase">In Progress</h3>
+                            </div>
+                             <span id="countInProgress" class="bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300 text-xs font-bold px-2.5 py-1 rounded-lg">0</span>
                         </div>
-                        <div id="col-inprogress" class="flex-grow bg-blue-50/50 dark:bg-[#1a2b4b] rounded-3xl p-3 space-y-3 transition-colors duration-200 border-2 border-transparent min-h-[150px]">
+                        <div id="col-inprogress" class="flex-grow p-3 space-y-3 overflow-y-auto custom-scrollbar bg-transparent min-h-[150px] relative transition-colors duration-200">
                             <!-- Tasks injected here -->
                         </div>
                     </div>
 
                     <!-- Column: Done -->
-                    <div class="flex flex-col h-full bg-white/40 dark:bg-white/5 rounded-3xl p-4 md:bg-transparent md:p-0">
-                        <div class="flex items-center gap-2 mb-3 px-1">
-                            <div class="w-3 h-3 rounded-full bg-ios-green"></div>
-                            <h3 class="font-bold text-ios-green uppercase text-xs tracking-wider">Done</h3>
-                             <span id="countDone" class="bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+                    <div class="flex flex-col h-full bg-green-50/30 dark:bg-[#1a2e20] border border-green-100 dark:border-green-900/30 rounded-3xl overflow-hidden shadow-sm">
+                         <!-- Header -->
+                         <div class="p-4 border-b border-green-100 dark:border-green-900/30 flex justify-between items-center bg-green-50/50 dark:bg-green-900/10 backdrop-blur-sm relative overflow-hidden">
+                            <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-ios-green"></div>
+                            <div class="flex items-center gap-2 pl-2">
+                                <h3 class="font-bold text-green-700 dark:text-green-400 text-sm tracking-wide uppercase">Done</h3>
+                            </div>
+                             <span id="countDone" class="bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-300 text-xs font-bold px-2.5 py-1 rounded-lg">0</span>
                         </div>
-                        <div id="col-done" class="flex-grow bg-green-100/80 dark:bg-green-900/40 rounded-3xl p-3 space-y-3 transition-colors duration-200 border-2 border-transparent min-h-[150px]">
+                        <div id="col-done" class="flex-grow p-3 space-y-3 overflow-y-auto custom-scrollbar bg-transparent min-h-[150px] relative transition-colors duration-200">
                             <!-- Tasks injected here -->
                         </div>
                     </div>
@@ -2182,10 +2253,29 @@
             if (searchQuery) { sorted = sorted.filter(item => { const descMatch = (item.desc || '').toLowerCase().includes(searchQuery); const catMatch = (item.category || '').toLowerCase().includes(searchQuery); let subLimitMatch = false; if(item.subLimitId) { const sl = appData.subLimits.find(s => s.id === item.subLimitId); if(sl && sl.name.toLowerCase().includes(searchQuery)) subLimitMatch = true; } return descMatch || catMatch || subLimitMatch; }); if(sorted.length === 0) { l.innerHTML = `<li class="text-center text-gray-400 text-sm py-4">No matches found.</li>`; return; } }
             if(currentSort === 'newest') sorted.sort((a,b)=>new Date(b.date)-new Date(a.date)); else if(currentSort === 'oldest') sorted.sort((a,b)=>new Date(a.date)-new Date(b.date)); else if(currentSort === 'high') sorted.sort((a,b)=>b.amount-a.amount);
             sorted.forEach(x => {
-                const isExp = x.type==='expense'; let cat = ''; if(x.subLimitId) { const s = appData.subLimits.find(z=>z.id===x.subLimitId); if(s) cat = `<span class="text-[9px] bg-indigo-100 text-indigo-600 px-1.5 rounded ml-2 font-bold">${escapeHtml(s.name)}</span>`; } else if(x.category && x.category !== 'Uncategorized') cat = `<span class="text-[9px] bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-300 px-1.5 rounded ml-2 font-bold">${escapeHtml(x.category)}</span>`;
-                const acct = x.account || 'bank'; const acctIcon = acct === 'cash' ? `<i class="fa-solid fa-money-bill-wave text-[10px] ml-1 text-gray-400" title="Cash"></i>` : `<i class="fa-solid fa-building-columns text-[10px] ml-1 text-gray-400" title="Bank"></i>`;
+                const isExchange = (x.category || '').toLowerCase() === 'exchange';
+                const isExp = x.type==='expense'; 
+                let cat = ''; 
+                if(x.subLimitId) { const s = appData.subLimits.find(z=>z.id===x.subLimitId); if(s) cat = `<span class="text-[9px] bg-indigo-100 text-indigo-600 px-1.5 rounded ml-2 font-bold">${escapeHtml(s.name)}</span>`; } 
+                else if(x.category && x.category !== 'Uncategorized') cat = `<span class="text-[9px] bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-300 px-1.5 rounded ml-2 font-bold">${escapeHtml(x.category)}</span>`;
+                
+                const acct = x.account || 'bank'; 
+                const acctIcon = acct === 'cash' ? `<i class="fa-solid fa-money-bill-wave text-[10px] ml-1 text-gray-400" title="Cash"></i>` : `<i class="fa-solid fa-building-columns text-[10px] ml-1 text-gray-400" title="Bank"></i>`;
                 const delBtn = isCurrentViewMonth() ? `<button onclick="deleteTransaction(${x.id})" class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100"><i class="fa-solid fa-trash"></i></button>` : '';
-                l.innerHTML += `<li class="flex justify-between items-center bg-white/50 dark:bg-white/5 p-4 rounded-2xl group transition hover:bg-white/80 dark:hover:bg-white/10 hover-lift gpu-accel"><div class="flex items-center gap-3 min-w-0"><div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isExp?'bg-red-100 text-red-500 dark:bg-red-500/20':'bg-green-100 text-green-500 dark:bg-green-500/20'}"><i class="fa-solid ${isExp?'fa-bag-shopping':'fa-coins'} text-sm"></i></div><div class="min-w-0"><div class="flex items-center"><p class="font-bold text-sm dark:text-gray-100 truncate">${escapeHtml(x.desc)}</p>${cat}${acctIcon}</div><p class="text-[10px] text-gray-400">${new Date(x.date).toLocaleDateString()}</p></div></div><div class="flex items-center gap-3 shrink-0"><span class="font-bold ${isExp?'text-ios-red':'text-ios-green'}">${isExp?'-':'+'}${formatMoney(x.amount)}</span>${delBtn}</div></li>`;
+                
+                let iconClass = isExp ? 'fa-bag-shopping' : 'fa-coins';
+                let iconBg = isExp ? 'bg-red-100 text-red-500 dark:bg-red-500/20' : 'bg-green-100 text-green-500 dark:bg-green-500/20';
+                let amountClass = isExp ? 'text-ios-red' : 'text-ios-green';
+                let sign = isExp ? '-' : '+';
+                
+                if (isExchange) {
+                    iconClass = 'fa-right-left';
+                    iconBg = 'bg-blue-100 text-blue-500 dark:bg-blue-500/20';
+                    amountClass = 'text-ios-blue';
+                    sign = ''; // No sign for exchange to indicate neutrality
+                }
+
+                l.innerHTML += `<li class="flex justify-between items-center bg-white/50 dark:bg-white/5 p-4 rounded-2xl group transition hover:bg-white/80 dark:hover:bg-white/10 hover-lift gpu-accel"><div class="flex items-center gap-3 min-w-0"><div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${iconBg}"><i class="fa-solid ${iconClass} text-sm"></i></div><div class="min-w-0"><div class="flex items-center"><p class="font-bold text-sm dark:text-gray-100 truncate">${escapeHtml(x.desc)}</p>${cat}${acctIcon}</div><p class="text-[10px] text-gray-400">${new Date(x.date).toLocaleDateString()}</p></div></div><div class="flex items-center gap-3 shrink-0"><span class="font-bold ${amountClass}">${sign}${formatMoney(x.amount)}</span>${delBtn}</div></li>`;
             });
         }
         function renderComparison() {
