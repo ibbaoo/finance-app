@@ -84,11 +84,13 @@
         @keyframes floatIn { 0% { opacity: 0; transform: translateY(15px); } 100% { opacity: 1; transform: translateY(0); } }
         @keyframes fadeIn { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }
         @keyframes slideUp { 0% { transform: translateY(100%); } 100% { transform: translateY(0); } }
+        @keyframes slideUpMobile { 0% { transform: translateY(100%); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
         @keyframes pulse-slow { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         
         .animate-float-in { animation: floatIn 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
         .animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
         .animate-slide-up { animation: slideUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+        .animate-slide-up-mobile { animation: slideUpMobile 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         .animate-pulse-slow { animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
         
         .pin-input { letter-spacing: 0.5em; text-align: center; font-family: monospace; }
@@ -203,14 +205,15 @@
         </div>
     </div>
     
-    <!-- Add/Edit Task Modal -->
-    <div id="addTaskModal" class="fixed inset-0 z-[200] hidden flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-all duration-300">
-        <div class="bg-white dark:bg-[#1c1c1e] rounded-3xl w-full max-w-md p-6 shadow-2xl relative animate-fade-in gpu-accel">
+    <!-- Add/Edit Task Modal (Mobile Optimized) -->
+    <div id="addTaskModal" class="fixed inset-0 z-[200] hidden flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm transition-all duration-300 pt-10">
+        <div class="bg-white dark:bg-[#1c1c1e] rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 shadow-2xl relative animate-slide-up-mobile md:animate-fade-in gpu-accel flex flex-col max-h-[90vh] pb-safe">
+            <div class="w-12 h-1 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-6 md:hidden"></div>
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-xl font-bold dark:text-white" id="taskModalTitle">New Task</h2>
                 <button onclick="closeTaskModal()" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/20 transition"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div class="space-y-4">
+            <div class="space-y-4 overflow-y-auto custom-scrollbar flex-grow px-1">
                 <div>
                     <label class="block text-xs font-bold text-gray-400 uppercase mb-1 ml-1">Task Name</label>
                     <input type="text" id="taskName" placeholder="e.g. Pay Internet Bill" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-2xl px-4 py-3 text-base focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition">
@@ -218,11 +221,11 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-400 uppercase mb-1 ml-1">Deadline</label>
-                        <input type="date" id="taskDate" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition">
+                        <input type="date" id="taskDate" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-2xl px-4 py-3 text-base focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition appearance-none min-h-[48px]">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-400 uppercase mb-1 ml-1">Priority</label>
-                        <select id="taskPriority" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition appearance-none">
+                        <select id="taskPriority" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-2xl px-4 py-3 text-base focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition appearance-none min-h-[48px]">
                             <option value="low">Low</option>
                             <option value="medium">Medium</option>
                             <option value="high">High</option>
@@ -236,32 +239,35 @@
                             <i class="fa-regular fa-circle-check"></i> Add Subtask
                         </button>
                     </div>
-                    <textarea id="taskDesc" rows="4" placeholder="Add details..." class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition resize-none"></textarea>
+                    <textarea id="taskDesc" rows="4" placeholder="Add details..." class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-2xl px-4 py-3 text-base focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition resize-none"></textarea>
                 </div>
-                <button onclick="saveTask()" id="taskSaveBtn" class="w-full bg-ios-blue text-white py-4 rounded-2xl font-bold text-base mt-2 hover:bg-blue-600 transition shadow-lg shadow-blue-500/30">Create Task</button>
+            </div>
+            <div class="mt-4 pt-2 border-t border-gray-100 dark:border-gray-800 shrink-0">
+                 <button onclick="saveTask()" id="taskSaveBtn" class="w-full bg-ios-blue text-white py-4 rounded-2xl font-bold text-base hover:bg-blue-600 transition shadow-lg shadow-blue-500/30">Create Task</button>
             </div>
         </div>
     </div>
 
-    <!-- View Task Modal (Read Only) -->
-    <div id="viewTaskModal" class="fixed inset-0 z-[200] hidden flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-all duration-300">
-        <div class="bg-white dark:bg-[#1c1c1e] rounded-3xl w-full max-w-md p-6 shadow-2xl relative animate-fade-in gpu-accel flex flex-col max-h-[85vh]">
+    <!-- View Task Modal (Mobile Optimized) -->
+    <div id="viewTaskModal" class="fixed inset-0 z-[200] hidden flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm transition-all duration-300 pt-10">
+        <div class="bg-white dark:bg-[#1c1c1e] rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 shadow-2xl relative animate-slide-up-mobile md:animate-fade-in gpu-accel flex flex-col max-h-[85vh] pb-safe">
+            <div class="w-12 h-1 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-4 md:hidden"></div>
             <div class="flex justify-between items-start mb-4">
-                <div>
-                    <h2 class="text-xl font-bold dark:text-white pr-2 leading-tight" id="viewTaskTitle">Task Title</h2>
+                <div class="pr-8">
+                    <h2 class="text-xl font-bold dark:text-white leading-tight break-words" id="viewTaskTitle">Task Title</h2>
                     <div class="flex items-center gap-3 mt-2">
                         <span id="viewTaskPriority" class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-gray-100 text-gray-500">Normal</span>
                         <span id="viewTaskDate" class="text-xs text-gray-400 font-medium"><i class="fa-regular fa-calendar mr-1"></i> Date</span>
                     </div>
                 </div>
-                <button onclick="closeViewTaskModal()" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/20 transition shrink-0"><i class="fa-solid fa-xmark"></i></button>
+                <button onclick="closeViewTaskModal()" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/20 transition shrink-0 absolute right-6 top-6"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="w-full h-px bg-gray-100 dark:bg-gray-700 my-2"></div>
             <div class="overflow-y-auto custom-scrollbar flex-grow min-h-[100px] task-desc text-sm dark:text-gray-200" id="viewTaskDesc">
                 <!-- Content injected here -->
             </div>
-             <div class="mt-6 pt-4 border-t border-gray-100 dark:border-gray-800">
-                <button onclick="closeViewTaskModal()" class="w-full bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white py-3 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-white/20 transition">Close</button>
+             <div class="mt-6 pt-4 border-t border-gray-100 dark:border-gray-800 shrink-0">
+                <button onclick="closeViewTaskModal()" class="w-full bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white py-3.5 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-white/20 transition">Close</button>
             </div>
         </div>
     </div>
@@ -466,9 +472,9 @@
             </div>
 
             <!-- TASK BOARD VIEW -->
-            <div id="tasksView" class="hidden space-y-6 animate-fade-in pb-10">
-                <!-- Header & Progress -->
-                <div class="glass rounded-3xl p-6 shadow-sm flex flex-col md:flex-row items-center gap-6 justify-between">
+            <div id="tasksView" class="hidden space-y-6 animate-fade-in pb-20">
+                <!-- Header & Progress (No longer sticky to fix scroll issues) -->
+                <div class="glass rounded-3xl p-6 shadow-sm flex flex-col md:flex-row items-center gap-6 justify-between relative z-20">
                     <div class="w-full md:w-auto">
                         <h2 class="text-2xl font-bold dark:text-white">Task Board</h2>
                         <p class="text-sm text-gray-500 dark:text-gray-400 font-medium" id="taskCurrentDate">Monday, Oct 24</p>
@@ -490,37 +496,37 @@
                 <!-- Kanban Columns -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 h-full min-h-[500px]">
                     <!-- Column: Upcoming -->
-                    <div class="flex flex-col h-full">
+                    <div class="flex flex-col h-full bg-white/40 dark:bg-white/5 rounded-3xl p-4 md:bg-transparent md:p-0">
                         <div class="flex items-center gap-2 mb-3 px-1">
                             <div class="w-3 h-3 rounded-full bg-gray-400"></div>
                             <h3 class="font-bold text-gray-500 uppercase text-xs tracking-wider">Upcoming</h3>
                             <span id="countUpcoming" class="bg-gray-200 dark:bg-gray-800 text-gray-500 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
                         </div>
-                        <div id="col-upcoming" class="flex-grow bg-gray-100/50 dark:bg-white/5 rounded-3xl p-3 space-y-3 transition-colors duration-200 border-2 border-transparent" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'upcoming')" ondragenter="handleDragEnter(event)" ondragleave="handleDragLeave(event)">
+                        <div id="col-upcoming" class="flex-grow bg-gray-100/50 dark:bg-white/5 rounded-3xl p-3 space-y-3 transition-colors duration-200 border-2 border-transparent min-h-[150px]">
                             <!-- Tasks injected here -->
                         </div>
                     </div>
 
                     <!-- Column: In Progress -->
-                    <div class="flex flex-col h-full">
+                    <div class="flex flex-col h-full bg-white/40 dark:bg-white/5 rounded-3xl p-4 md:bg-transparent md:p-0">
                         <div class="flex items-center gap-2 mb-3 px-1">
                             <div class="w-3 h-3 rounded-full bg-ios-blue"></div>
                             <h3 class="font-bold text-ios-blue uppercase text-xs tracking-wider">In Progress</h3>
                              <span id="countInProgress" class="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
                         </div>
-                        <div id="col-inprogress" class="flex-grow bg-blue-50/50 dark:bg-[#1a2b4b] rounded-3xl p-3 space-y-3 transition-colors duration-200 border-2 border-transparent" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'inprogress')" ondragenter="handleDragEnter(event)" ondragleave="handleDragLeave(event)">
+                        <div id="col-inprogress" class="flex-grow bg-blue-50/50 dark:bg-[#1a2b4b] rounded-3xl p-3 space-y-3 transition-colors duration-200 border-2 border-transparent min-h-[150px]">
                             <!-- Tasks injected here -->
                         </div>
                     </div>
 
                     <!-- Column: Done -->
-                    <div class="flex flex-col h-full">
+                    <div class="flex flex-col h-full bg-white/40 dark:bg-white/5 rounded-3xl p-4 md:bg-transparent md:p-0">
                         <div class="flex items-center gap-2 mb-3 px-1">
                             <div class="w-3 h-3 rounded-full bg-ios-green"></div>
                             <h3 class="font-bold text-ios-green uppercase text-xs tracking-wider">Done</h3>
                              <span id="countDone" class="bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
                         </div>
-                        <div id="col-done" class="flex-grow bg-green-100/80 dark:bg-green-900/40 rounded-3xl p-3 space-y-3 transition-colors duration-200 border-2 border-transparent" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'done')" ondragenter="handleDragEnter(event)" ondragleave="handleDragLeave(event)">
+                        <div id="col-done" class="flex-grow bg-green-100/80 dark:bg-green-900/40 rounded-3xl p-3 space-y-3 transition-colors duration-200 border-2 border-transparent min-h-[150px]">
                             <!-- Tasks injected here -->
                         </div>
                     </div>
@@ -530,9 +536,10 @@
         </main>
     </div>
 
-    <!-- Settings Modal -->
-    <div id="settingsModal" class="fixed inset-0 z-[150] hidden flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-all duration-300">
-        <div class="bg-white dark:bg-[#1c1c1e] rounded-3xl w-full max-w-md p-6 shadow-2xl relative animate-fade-in max-h-[90vh] overflow-y-auto custom-scrollbar gpu-accel">
+    <!-- Settings Modal (Mobile Optimized) -->
+    <div id="settingsModal" class="fixed inset-0 z-[150] hidden flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm transition-all duration-300 pt-10">
+        <div class="bg-white dark:bg-[#1c1c1e] rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 shadow-2xl relative animate-slide-up-mobile md:animate-fade-in max-h-[90vh] overflow-y-auto custom-scrollbar gpu-accel pb-safe">
+            <div class="w-12 h-1 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-6 md:hidden"></div>
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-xl font-bold dark:text-white">Settings</h2>
                 <button onclick="closeSettingsModal()" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/20 transition"><i class="fa-solid fa-xmark"></i></button>
@@ -594,7 +601,7 @@
                         <div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-red-100 dark:bg-red-500/20 text-red-500 flex items-center justify-center"><i class="fa-solid fa-trash"></i></div><span class="text-sm font-bold text-red-500">Delete Account</span></div>
                     </button>
                 </div>
-                <p class="text-center text-[10px] text-gray-400 mt-4">App Version 2.6.2 (Tasks)</p>
+                <p class="text-center text-[10px] text-gray-400 mt-4">App Version 2.6.4 (Scroll Fix)</p>
             </div>
         </div>
     </div>
@@ -690,10 +697,12 @@
         let isInitialLoad = true;
         const notifiedIds = new Set(); 
         
-        // Drag and Drop State
-        let dragEl = null;
-        let cloneEl = null;
-        let dragSrcCol = null;
+        // Drag and Drop State (Unified)
+        let dragClone = null;
+        let dragStartPos = { x: 0, y: 0 };
+        let isDragging = false;
+        let currentDragId = null;
+        let dragSourceEl = null;
 
         const currentAppId = typeof __app_id !== 'undefined' ? __app_id : (FIREBASE_CONFIG.appId || 'default-app-id');
 
@@ -890,21 +899,16 @@
             });
 
             // Checkboxes (Subtasks)
-            // Pattern: - [ ] or - [x]
-            // We need to track line index to update the correct line in data
             const lines = html.split('\n');
             const processedLines = lines.map((line, index) => {
-                // Check for unchecked
                 if (/^-\s*\[\s*\]/.test(line)) {
                     const content = line.replace(/^-\s*\[\s*\]/, '').trim();
                     return `<div class="flex items-start"><input type="checkbox" onmousedown="event.stopPropagation()" onclick="toggleSubtask(${taskId}, ${index})" class="mt-1"><span class="${content ? '' : 'text-gray-400 italic'}">${content || 'Empty subtask'}</span></div>`;
                 }
-                // Check for checked
                 if (/^-\s*\[x\]/i.test(line)) {
                     const content = line.replace(/^-\s*\[x\]/i, '').trim();
                     return `<div class="flex items-start"><input type="checkbox" checked onmousedown="event.stopPropagation()" onclick="toggleSubtask(${taskId}, ${index})" class="mt-1"><span class="line-through text-gray-500">${content}</span></div>`;
                 }
-                // Regular line, preserve newlines via join later (or <br>)
                 return line === '' ? '<br>' : `<div>${line}</div>`;
             });
 
@@ -926,7 +930,6 @@
                 task.desc = lines.join('\n');
                 saveData();
                 renderTasks(); 
-                // Also update view modal if open
                 const viewModal = document.getElementById('viewTaskModal');
                 if(!viewModal.classList.contains('hidden')) {
                      document.getElementById('viewTaskDesc').innerHTML = formatTaskDescription(taskId, task.desc);
@@ -952,35 +955,53 @@
             tasks.forEach(task => {
                 const div = document.createElement('div');
                 div.className = "bg-white dark:bg-[#2c2c2e] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow task-card touch-none relative group";
-                div.draggable = true;
                 div.id = `task-${task.id}`;
-                div.ondragstart = (e) => handleDragStart(e, task.id);
-                // Double click to view
-                div.ondblclick = (e) => openViewTaskModal(task.id);
-                // Custom Touch Handlers
-                div.ontouchstart = (e) => handleTouchDragStart(e, div, task.id);
                 
-                // Priority Badge
+                // Unified Drag Listeners
+                div.onmousedown = (e) => startDrag(e, div, task.id);
+                div.ontouchstart = (e) => startDrag(e, div, task.id);
+                
+                div.ondblclick = (e) => openViewTaskModal(task.id);
+                
                 let badgeColor = "bg-gray-100 text-gray-500";
                 if(task.priority === 'high') badgeColor = "bg-red-100 text-red-500 dark:bg-red-500/20";
                 else if(task.priority === 'medium') badgeColor = "bg-orange-100 text-orange-500 dark:bg-orange-500/20";
                 
                 const dateStr = task.date ? new Date(task.date).toLocaleDateString(undefined, {month:'short', day:'numeric'}) : 'No Date';
-                
                 const formattedDesc = formatTaskDescription(task.id, task.desc);
+
+                // Determine Move Buttons
+                let moveBtns = '';
+                if (task.status === 'upcoming') {
+                     moveBtns = `<button onclick="moveTask(${task.id}, 'inprogress')" class="w-6 h-6 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-ios-blue hover:text-white transition flex items-center justify-center text-[10px]" title="Move to In Progress"><i class="fa-solid fa-arrow-right"></i></button>`;
+                } else if (task.status === 'inprogress') {
+                     moveBtns = `
+                        <button onclick="moveTask(${task.id}, 'upcoming')" class="w-6 h-6 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 transition flex items-center justify-center text-[10px]" title="Move Back"><i class="fa-solid fa-arrow-left"></i></button>
+                        <button onclick="moveTask(${task.id}, 'done')" class="w-6 h-6 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-ios-green hover:text-white transition flex items-center justify-center text-[10px]" title="Complete"><i class="fa-solid fa-check"></i></button>
+                     `;
+                } else if (task.status === 'done') {
+                     moveBtns = `<button onclick="moveTask(${task.id}, 'inprogress')" class="w-6 h-6 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-ios-orange hover:text-white transition flex items-center justify-center text-[10px]" title="Undo"><i class="fa-solid fa-rotate-left"></i></button>`;
+                }
 
                 div.innerHTML = `
                     <div class="flex justify-between items-start mb-2 pointer-events-none">
                         <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${badgeColor}">${task.priority}</span>
                         <div class="flex gap-2 pointer-events-auto">
-                            <button class="text-gray-300 hover:text-blue-500 transition px-1 opacity-0 group-hover:opacity-100" onclick="openTaskModal(${task.id})"><i class="fa-solid fa-pen"></i></button>
-                            <button class="text-gray-300 hover:text-red-500 transition px-1" onclick="deleteTask(${task.id})"><i class="fa-solid fa-times"></i></button>
+                            <button class="text-gray-300 hover:text-blue-500 transition px-1 opacity-0 group-hover:opacity-100 md:opacity-0 md:group-hover:opacity-100 opacity-100" onclick="openTaskModal(${task.id})"><i class="fa-solid fa-pen"></i></button>
+                            <button class="text-gray-300 hover:text-red-500 transition px-1 md:opacity-0 md:group-hover:opacity-100 opacity-100" onclick="deleteTask(${task.id})"><i class="fa-solid fa-times"></i></button>
                         </div>
                     </div>
-                    <h4 class="font-bold text-sm dark:text-white mb-1 pointer-events-none">${escapeHtml(task.title)}</h4>
-                    <div class="text-xs text-gray-500 dark:text-gray-400 mb-3 task-desc">${formattedDesc}</div>
-                    <div class="flex items-center gap-2 text-[10px] text-gray-400 font-medium pointer-events-none">
-                        <i class="fa-regular fa-calendar"></i> ${dateStr}
+                    <div onclick="openViewTaskModal(${task.id})" class="cursor-pointer mb-2">
+                        <h4 class="font-bold text-sm dark:text-white mb-1 pointer-events-none">${escapeHtml(task.title)}</h4>
+                        <div class="text-xs text-gray-500 dark:text-gray-400 task-desc pointer-events-none max-h-20 overflow-hidden text-ellipsis">${formattedDesc}</div>
+                    </div>
+                    <div class="flex justify-between items-center pt-2 border-t border-gray-50 dark:border-white/5 pointer-events-auto">
+                        <div class="flex items-center gap-2 text-[10px] text-gray-400 font-medium">
+                            <i class="fa-regular fa-calendar"></i> ${dateStr}
+                        </div>
+                        <div class="flex gap-1.5">
+                            ${moveBtns}
+                        </div>
                     </div>
                 `;
                 
@@ -988,12 +1009,10 @@
                 if (task.status === 'done') completed++;
             });
 
-            // Update Counts
             document.getElementById('countUpcoming').innerText = tasks.filter(t => t.status === 'upcoming').length;
             document.getElementById('countInProgress').innerText = tasks.filter(t => t.status === 'inprogress').length;
             document.getElementById('countDone').innerText = tasks.filter(t => t.status === 'done').length;
 
-            // Update Progress Bar
             const total = tasks.length;
             const pct = total === 0 ? 0 : Math.round((completed / total) * 100);
             document.getElementById('taskProgressBar').style.width = `${pct}%`;
@@ -1026,87 +1045,87 @@
             document.getElementById('viewTaskModal').classList.add('hidden');
         }
 
-        // Drag and Drop Logic
-        function handleDragStart(e, id) {
-            // If dragging started from an input or link, don't drag card
-            if (['INPUT', 'A', 'BUTTON', 'I'].includes(e.target.tagName)) {
-                e.preventDefault();
-                return;
+        // --- NEW UNIFIED DRAG LOGIC ---
+        function startDrag(e, el, id) {
+            // Ignore if touching interactive elements
+            if (['INPUT', 'A', 'BUTTON', 'I', 'TEXTAREA'].includes(e.target.tagName)) return;
+            
+            const evt = e.type === 'touchstart' ? e.touches[0] : e;
+            dragStartPos = { x: evt.clientX, y: evt.clientY };
+            currentDragId = id;
+            dragSourceEl = el;
+            isDragging = false;
+
+            if (e.type === 'mousedown') {
+                document.addEventListener('mousemove', onDragMove);
+                document.addEventListener('mouseup', onDragEnd);
+            } else {
+                document.addEventListener('touchmove', onDragMove, { passive: false });
+                document.addEventListener('touchend', onDragEnd);
             }
-            e.dataTransfer.setData("text/plain", id);
-            e.target.classList.add('dragging');
-            dragEl = e.target;
         }
 
-        function handleDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('drop-zone-active'); }
-        function handleDragEnter(e) { e.preventDefault(); e.currentTarget.classList.add('drop-zone-active'); }
-        function handleDragLeave(e) { e.currentTarget.classList.remove('drop-zone-active'); }
+        function onDragMove(e) {
+            const evt = e.type === 'touchmove' ? e.touches[0] : e;
+            const dx = evt.clientX - dragStartPos.x;
+            const dy = evt.clientY - dragStartPos.y;
 
-        function handleDrop(e, status) {
-            e.preventDefault();
-            e.currentTarget.classList.remove('drop-zone-active');
-            const id = parseInt(e.dataTransfer.getData("text/plain"));
-            if (id) moveTask(id, status);
-            if(dragEl) dragEl.classList.remove('dragging');
-        }
-
-        // Custom Touch Drag Logic
-        function handleTouchDragStart(e, el, id) {
-             // If touching input or link, ignore drag logic
-             if (['INPUT', 'A', 'BUTTON', 'I'].includes(e.target.tagName)) {
-                return;
-            }
-            
-            const touch = e.touches[0];
-            dragEl = el;
-            dragSrcCol = el.parentElement.id;
-            
-            cloneEl = el.cloneNode(true);
-            cloneEl.classList.add('drag-clone');
-            cloneEl.style.left = (touch.clientX - el.offsetWidth/2) + 'px';
-            cloneEl.style.top = (touch.clientY - el.offsetHeight/2) + 'px';
-            cloneEl.style.display = 'none'; // Hidden initially
-            document.body.appendChild(cloneEl);
-
-            let isDragging = false;
-            
-            const moveHandler = (moveEvent) => {
-                const moveTouch = moveEvent.touches[0];
-                if (!isDragging) {
+            if (!isDragging) {
+                // Threshold check to distinguish click vs drag (5px)
+                if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
                     isDragging = true;
-                    cloneEl.style.display = 'block';
-                    el.classList.add('dragging');
-                    if (navigator.vibrate) navigator.vibrate(50);
+                    createDragClone();
+                    dragSourceEl.classList.add('dragging');
                 }
-                
-                cloneEl.style.left = (moveTouch.clientX - el.offsetWidth/2) + 'px';
-                cloneEl.style.top = (moveTouch.clientY - el.offsetHeight/2) + 'px';
-            };
+            }
 
-            const endHandler = (endEvent) => {
-                el.removeEventListener('touchmove', moveHandler);
-                el.removeEventListener('touchend', endHandler);
-                el.classList.remove('dragging');
-                
-                if (isDragging && cloneEl) {
-                    cloneEl.remove();
-                    const changedTouch = endEvent.changedTouches[0];
-                    const targetEl = document.elementFromPoint(changedTouch.clientX, changedTouch.clientY);
-                    const col = targetEl ? targetEl.closest('[id^="col-"]') : null;
-                    
-                    if (col) {
-                        const newStatus = col.id.replace('col-', '');
-                        moveTask(id, newStatus);
-                    }
-                } else if(cloneEl) {
-                    cloneEl.remove(); // Tap, no drag
+            if (isDragging) {
+                if(e.cancelable) e.preventDefault(); // Prevent scrolling while dragging
+                if (dragClone) {
+                    const w = dragSourceEl.offsetWidth;
+                    const h = dragSourceEl.offsetHeight;
+                    dragClone.style.left = (evt.clientX - w/2) + 'px';
+                    dragClone.style.top = (evt.clientY - h/2) + 'px';
                 }
-                cloneEl = null;
-                dragEl = null;
-            };
+            }
+        }
 
-            el.addEventListener('touchmove', moveHandler, {passive: false});
-            el.addEventListener('touchend', endHandler);
+        function createDragClone() {
+            if (dragClone) return;
+            dragClone = dragSourceEl.cloneNode(true);
+            dragClone.classList.add('drag-clone');
+            dragClone.style.display = 'block'; // Ensure visible
+            dragClone.style.width = dragSourceEl.offsetWidth + 'px';
+            document.body.appendChild(dragClone);
+            if (navigator.vibrate) navigator.vibrate(50);
+        }
+
+        function onDragEnd(e) {
+            document.removeEventListener('mousemove', onDragMove);
+            document.removeEventListener('mouseup', onDragEnd);
+            document.removeEventListener('touchmove', onDragMove);
+            document.removeEventListener('touchend', onDragEnd);
+
+            if (isDragging) {
+                const evt = e.type === 'touchend' ? e.changedTouches[0] : e;
+                if(dragClone) dragClone.style.display = 'none'; // Hide to find element below
+                
+                const targetEl = document.elementFromPoint(evt.clientX, evt.clientY);
+                const col = targetEl ? targetEl.closest('[id^="col-"]') : null;
+                
+                if (col) {
+                    const newStatus = col.id.replace('col-', '');
+                    moveTask(currentDragId, newStatus);
+                }
+            }
+
+            if (dragClone) dragClone.remove();
+            if (dragSourceEl) dragSourceEl.classList.remove('dragging');
+            
+            dragClone = null;
+            dragSourceEl = null;
+            isDragging = false;
+            currentDragId = null;
         }
 
         function moveTask(id, status) {
@@ -1115,7 +1134,6 @@
                 appData.tasks[taskIndex].status = status;
                 saveData();
                 renderTasks();
-                // If moved to done, confetti? Maybe later.
                 if(status === 'done') showToast("Task Completed!");
             }
         }
@@ -1149,7 +1167,7 @@
                 descInput.value = '';
             }
             modal.classList.remove('hidden');
-            nameInput.focus();
+            if(window.innerWidth > 768) nameInput.focus();
         }
         
         function closeTaskModal() {
@@ -1940,16 +1958,14 @@
         window.closeTaskModal = closeTaskModal;
         window.saveTask = saveTask;
         window.deleteTask = deleteTask;
-        window.handleDragStart = handleDragStart;
-        window.handleDrop = handleDrop;
-        window.handleDragOver = handleDragOver;
-        window.handleDragEnter = handleDragEnter;
-        window.handleDragLeave = handleDragLeave;
-        window.handleTouchDragStart = handleTouchDragStart;
+        window.startDrag = startDrag;
+        window.onDragMove = onDragMove;
+        window.onDragEnd = onDragEnd;
         window.toggleSubtask = toggleSubtask;
         window.openViewTaskModal = openViewTaskModal;
         window.closeViewTaskModal = closeViewTaskModal;
         window.insertSubtask = insertSubtask;
+        window.moveTask = moveTask;
 
         function handleSearch(val) { searchQuery = val.toLowerCase(); updateUI(); }
         function toggleStatsView() { setStatsView(statsViewMode === 'monthly' ? 'all' : 'monthly'); }
