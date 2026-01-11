@@ -468,7 +468,7 @@
                             <div class="flex justify-between items-start mb-4"><div><h2 class="text-lg font-bold">Assets</h2><p class="text-[10px] text-gray-400">Balances</p></div><span class="text-[10px] bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 px-2 py-1 rounded-full font-medium">Continuous</span></div>
                             <div class="flex flex-col items-center gap-6">
                                 <div class="relative w-48 h-48 flex flex-col items-center justify-center"><canvas id="bankWheel"></canvas><div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"><span class="text-xs text-gray-400 font-bold uppercase tracking-wider">Bank</span><span class="font-bold text-ios-blue text-lg" id="centerBankBalance">0</span></div></div>
-                                <div class="flex items-center justify-center gap-4 w-full bg-gray-5 dark:bg-white/5 p-3 rounded-2xl border border-gray-100 dark:border-gray-800"><div class="relative w-16 h-16 flex-shrink-0"><canvas id="cashWheel"></canvas></div><div class="flex flex-col"><span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Cash Wallet</span><span class="font-bold text-ios-green text-base" id="centerCashBalance">0</span></div></div>
+                                <div class="flex items-center justify-center gap-4 w-full bg-gray-50 dark:bg-white/5 p-3 rounded-2xl border border-gray-100 dark:border-gray-800"><div class="relative w-16 h-16 flex-shrink-0"><canvas id="cashWheel"></canvas></div><div class="flex flex-col"><span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Cash Wallet</span><span class="font-bold text-ios-green text-base" id="centerCashBalance">0</span></div></div>
                             </div>
                             <div class="w-full h-px bg-gray-100 dark:bg-gray-800 my-4"></div>
                             <div class="flex justify-center gap-4 text-xs text-center"><div><span class="block text-gray-400">All Income</span><span class="font-bold text-ios-green" id="footerTotalIncome">0</span></div><div class="w-px bg-gray-200 dark:bg-gray-700"></div><div><span class="block text-gray-400">All Out</span><span class="font-bold text-ios-red" id="footerTotalSpent">0</span></div></div>
@@ -698,6 +698,94 @@
             <p class="text-sm text-gray-500 mb-6">We've added PIN protection. Please create a 4-digit code to secure your existing account.</p>
             <input type="tel" maxlength="4" id="legacyPinInput" placeholder="••••" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-2xl px-5 py-4 text-2xl text-center font-bold tracking-[0.5em] focus:ring-2 focus:ring-ios-orange outline-none dark:text-white mb-6 transition placeholder:tracking-widest">
             <button onclick="saveLegacyPin()" class="w-full bg-ios-orange text-white py-3 rounded-xl font-bold shadow-lg shadow-orange-500/30">Secure Account</button>
+        </div>
+    </div>
+
+    <!-- Sub-Limit Modal -->
+    <div id="subLimitModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-all duration-300">
+        <div class="bg-white dark:bg-[#1c1c1e] rounded-3xl w-full max-w-xs p-6 shadow-2xl relative animate-fade-in">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-lg font-bold dark:text-white" id="subLimitModalTitle">New Sub-Limit</h2>
+                <button onclick="closeSubLimitModal()" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/20 transition"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Name</label>
+                    <input type="text" id="subLimitNameInput" placeholder="e.g. Groceries" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl px-4 py-3 text-base font-bold focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition">
+                </div>
+                <div>
+                    <label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Limit Amount</label>
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold" id="subLimitCurrencySymbol">₫</span>
+                        <input type="text" inputmode="numeric" id="subLimitAmountInput" onkeyup="formatCurrencyInput(this)" placeholder="0" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl pl-8 pr-4 py-3 text-base font-bold focus:ring-2 focus:ring-ios-blue outline-none dark:text-white transition text-right">
+                    </div>
+                </div>
+                
+                <button onclick="saveSubLimit()" id="subLimitSaveBtn" class="w-full bg-ios-purple text-white py-3.5 rounded-xl font-bold hover:bg-purple-600 transition shadow-lg shadow-purple-500/20 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-check"></i> <span>Create Budget</span>
+                </button>
+                
+                <button onclick="deleteSubLimitFromModal()" id="subLimitDeleteBtn" class="w-full bg-red-50 dark:bg-red-500/10 text-red-500 py-3.5 rounded-xl font-bold hover:bg-red-100 dark:hover:bg-red-500/20 transition hidden flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-trash"></i> Delete Budget
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Subscription Modal -->
+    <div id="subscriptionModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-all duration-300">
+        <div class="bg-white dark:bg-[#1c1c1e] rounded-3xl w-full max-w-xs p-6 shadow-2xl relative animate-fade-in">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-lg font-bold dark:text-white" id="subModalTitle">New Subscription</h2>
+                <button onclick="closeSubscriptionModal()" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/20 transition"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Name</label>
+                    <input type="text" id="modalSubName" placeholder="e.g. Netflix" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl px-4 py-3 text-base font-bold focus:ring-2 focus:ring-ios-purple outline-none dark:text-white transition">
+                </div>
+                <div>
+                    <label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Amount</label>
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold" id="modalSubCurrency">₫</span>
+                        <input type="text" inputmode="numeric" id="modalSubAmount" onkeyup="formatCurrencyInput(this)" placeholder="0" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl pl-8 pr-4 py-3 text-base font-bold focus:ring-2 focus:ring-ios-purple outline-none dark:text-white transition text-right">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Frequency</label>
+                        <select id="modalSubFreq" onchange="toggleModalDate()" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl px-3 py-3 text-sm font-bold focus:ring-2 focus:ring-ios-purple outline-none dark:text-white transition appearance-none cursor-pointer">
+                            <option value="monthly">Monthly</option>
+                            <option value="yearly">Yearly</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Start / Due Date</label>
+                        <input type="date" id="modalSubDate" class="w-full bg-gray-100 dark:bg-white/5 border-none rounded-xl px-3 py-3 text-sm font-bold focus:ring-2 focus:ring-ios-purple outline-none dark:text-white transition">
+                    </div>
+                </div>
+
+                <button onclick="saveSubscription()" id="subSaveBtn" class="w-full bg-ios-purple text-white py-3.5 rounded-xl font-bold hover:bg-purple-600 transition shadow-lg shadow-purple-500/20 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-check"></i> <span>Add Subscription</span>
+                </button>
+                
+                <button onclick="deleteSubscriptionFromModal()" id="subDeleteBtn" class="w-full bg-red-50 dark:bg-red-500/10 text-red-500 py-3.5 rounded-xl font-bold hover:bg-red-100 dark:hover:bg-red-500/20 transition hidden flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-trash"></i> Delete
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Manager Modal -->
+    <div id="categoryModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-all duration-300">
+        <div class="bg-white dark:bg-[#1c1c1e] rounded-3xl w-full max-w-xs p-6 shadow-2xl relative animate-fade-in flex flex-col max-h-[80vh]">
+            <button onclick="closeCategoryModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <h2 class="text-lg font-bold mb-4 text-center dark:text-white">Categories</h2>
+            <div id="categoryListContainer" class="flex-grow overflow-y-auto custom-scrollbar space-y-2 pr-1">
+                <!-- Populated by JS -->
+            </div>
         </div>
     </div>
 
@@ -1003,7 +1091,7 @@
                 renderTasks(); 
                 const viewModal = document.getElementById('viewTaskModal');
                 if(!viewModal.classList.contains('hidden')) {
-                     document.getElementById('viewTaskDesc').innerHTML = formatTaskDescription(taskId, task.desc);
+                      document.getElementById('viewTaskDesc').innerHTML = formatTaskDescription(taskId, task.desc);
                 }
             }
         }
