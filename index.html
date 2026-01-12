@@ -1298,10 +1298,9 @@
                     if(navigator.onLine) fetchLiveRate(); 
                     else if (appData.customRate) { exchangeRate = appData.customRate; isManualRate = true; updateRateDisplay(); } 
                     
-                    // Force update ALL views to ensure data is ready when switching tabs
-                    updateUI(); 
-                    renderTasks(); 
-                    renderFitness(); 
+                    if(appMode === 'finance') updateUI(); 
+                    else if(appMode === 'tasks') renderTasks(); 
+                    else if(appMode === 'fitness') renderFitness(); 
                     
                     isInitialLoad = false; 
                 } 
@@ -1399,23 +1398,6 @@
         function initCharts() { const cfg = { type: 'doughnut', options: { responsive: true, maintainAspectRatio: false, cutout: '80%', plugins: { legend: {display:false}, tooltip: {enabled:false} }, animation: { duration: 600 } } }; budgetChart = new Chart(document.getElementById('budgetWheel'), { ...cfg, data: { datasets: [{ data: [100, 0], backgroundColor: ['#007AFF', '#eee'], borderWidth: 0 }] } }); bankChart = new Chart(document.getElementById('bankWheel'), { ...cfg, data: { datasets: [{ data: [50, 50], backgroundColor: ['#007AFF', '#eee'], borderWidth: 0 }] } }); cashChart = new Chart(document.getElementById('cashWheel'), { ...cfg, data: { datasets: [{ data: [50, 50], backgroundColor: ['#34C759', '#eee'], borderWidth: 0 }] } }); calorieChart = new Chart(document.getElementById('calorieWheel'), { ...cfg, data: { datasets: [{ data: [2000, 0], backgroundColor: ['#eee', '#FF3B30'], borderWidth: 0 }] } }); }
 
         window.addEventListener('load', init);
-        
-        // Listen for visibility change to refresh data when app comes to foreground
-        document.addEventListener("visibilitychange", () => { 
-            if (!document.hidden && currentUserDocId) { 
-                fetchLiveRate(); 
-                // Force data refresh on resume
-                if(window.fb && db) {
-                    const userRef = getUserRef(currentUserDocId);
-                    window.fb.getDoc(userRef).then(doc => {
-                        if(doc.exists()) {
-                            appData = { ...appData, ...doc.data() };
-                            updateUI(); renderTasks(); renderFitness();
-                        }
-                    }).catch(console.error);
-                }
-            } 
-        });
     </script>
 </body>
 </html>
