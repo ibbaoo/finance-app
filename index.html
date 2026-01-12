@@ -935,7 +935,7 @@
                 container.appendChild(btn);
             });
             dropdown.appendChild(container);
-            if (isHidden) { dropdown.classList.remove('scale-y-0', 'opacity-0', 'pointer-events-none'); dropdown.classList.add('scale-y-100', 'opacity-100'); } 
+            if (isHidden) { dropdown.classList.remove('scale-y-100', 'opacity-100'); dropdown.classList.add('scale-y-100', 'opacity-100'); } 
             else { dropdown.classList.remove('scale-y-100', 'opacity-100'); dropdown.classList.add('scale-y-0', 'opacity-0', 'pointer-events-none'); }
         }
 
@@ -1224,7 +1224,73 @@
 
         function showRegisterStep() { document.getElementById('authStep1').classList.add('hidden'); document.getElementById('authStepRegister').classList.remove('hidden'); document.getElementById('regUsernameInput').value = ''; document.getElementById('regPinInput').value = ''; document.getElementById('regStepPin').classList.add('hidden'); document.getElementById('regStepUsername').classList.remove('hidden'); }
         function resetAuth() { document.getElementById('authStep1').classList.remove('hidden'); document.getElementById('authStepRegister').classList.add('hidden'); document.getElementById('usernameInput').value = ''; document.getElementById('loginPinInput').value = ''; pendingUsername = ''; }
-        async function loginUser() { if (!window.fb) { showToast("System loading, please wait..."); return; } const usernameInput = document.getElementById('usernameInput'); const pinInput = document.getElementById('loginPinInput'); const username = usernameInput.value.trim().toLowerCase().replace(/[^a-z0-9]/g, ''); const pin = pinInput.value; if (username.length < 3) { showToast("Invalid username"); return; } if (pin.length !== 4) { showToast("Enter 4-digit PIN"); return; } document.getElementById('authLoader').classList.remove('hidden'); document.getElementById('loginBtn').disabled = true; document.getElementById('loginBtn').classList.add('opacity-50'); usernameInput.disabled = true; pinInput.disabled = true; try { const userRef = getUserRef(username); if (!userRef) throw new Error("Initialization failed"); const docSnap = await window.fb.getDoc(userRef); if (docSnap.exists()) { const data = docSnap.data(); if (data.pin) { const inputHash = await sha256(pin); const isStoredHash = data.pin.length === 64; if ((isStoredHash && data.pin === inputHash) || (!isStoredHash && data.pin === pin)) { if (!isStoredHash) { appData = { ...data }; appData.pin = inputHash; currentUserDocId = username; await saveData(); } await completeLogin(username, false); } else { showToast("Incorrect PIN"); usernameInput.disabled = false; pinInput.disabled = false; pinInput.value = ''; pinInput.focus(); } } else { await completeLogin(username, true); } } else { showToast("User not found. Create an account?"); usernameInput.disabled = false; pinInput.disabled = false; } } catch (e) { console.error(e); showToast("Login Error: " + (e.message || "Connection failed")); usernameInput.disabled = false; pinInput.disabled = false; } finally { document.getElementById('authLoader').classList.add('hidden'); document.getElementById('loginBtn').disabled = false; document.getElementById('loginBtn').classList.remove('opacity-50'); } }
+        
+        async function loginUser() { 
+            if (!window.fb) { showToast("System loading, please wait..."); return; } 
+            
+            // RE-INIT FIX: Ensure DB is ready if it was lost during reload/logout flow
+            if (!db && window.fb && FIREBASE_CONFIG) {
+                try {
+                    const app = window.fb.initializeApp(FIREBASE_CONFIG);
+                    auth = window.fb.getAuth(app);
+                    db = window.fb.getFirestore(app);
+                    if (!auth.currentUser) await window.fb.signInAnonymously(auth);
+                } catch(e) { console.error("Self-healing init failed", e); }
+            }
+
+            const usernameInput = document.getElementById('usernameInput'); 
+            const pinInput = document.getElementById('loginPinInput'); 
+            const username = usernameInput.value.trim().toLowerCase().replace(/[^a-z0-9]/g, ''); 
+            const pin = pinInput.value; 
+            
+            if (username.length < 3) { showToast("Invalid username"); return; } 
+            if (pin.length !== 4) { showToast("Enter 4-digit PIN"); return; } 
+            
+            document.getElementById('authLoader').classList.remove('hidden'); 
+            document.getElementById('loginBtn').disabled = true; 
+            document.getElementById('loginBtn').classList.add('opacity-50'); 
+            usernameInput.disabled = true; 
+            pinInput.disabled = true; 
+            
+            try { 
+                const userRef = getUserRef(username); 
+                if (!userRef) throw new Error("Initialization failed (DB unavailable)"); 
+                const docSnap = await window.fb.getDoc(userRef); 
+                if (docSnap.exists()) { 
+                    const data = docSnap.data(); 
+                    if (data.pin) { 
+                        const inputHash = await sha256(pin); 
+                        const isStoredHash = data.pin.length === 64; 
+                        if ((isStoredHash && data.pin === inputHash) || (!isStoredHash && data.pin === pin)) { 
+                            if (!isStoredHash) { appData = { ...data }; appData.pin = inputHash; currentUserDocId = username; await saveData(); } 
+                            await completeLogin(username, false); 
+                        } else { 
+                            showToast("Incorrect PIN"); 
+                            usernameInput.disabled = false; 
+                            pinInput.disabled = false; 
+                            pinInput.value = ''; 
+                            pinInput.focus(); 
+                        } 
+                    } else { 
+                        await completeLogin(username, true); 
+                    } 
+                } else { 
+                    showToast("User not found. Create an account?"); 
+                    usernameInput.disabled = false; 
+                    pinInput.disabled = false; 
+                } 
+            } catch (e) { 
+                console.error(e); 
+                showToast("Login Error: " + (e.message || "Connection failed")); 
+                usernameInput.disabled = false; 
+                pinInput.disabled = false; 
+            } finally { 
+                document.getElementById('authLoader').classList.add('hidden'); 
+                document.getElementById('loginBtn').disabled = false; 
+                document.getElementById('loginBtn').classList.remove('opacity-50'); 
+            } 
+        }
+
         async function checkRegistrationUsername() { if (!window.fb) { showToast("System loading..."); return; } const input = document.getElementById('regUsernameInput'); const username = input.value.trim().toLowerCase().replace(/[^a-z0-9]/g, ''); if (username.length < 3) { showToast("Username too short"); return; } try { const userRef = getUserRef(username); const docSnap = await window.fb.getDoc(userRef); if (docSnap.exists()) { showToast("Username taken"); } else { pendingUsername = username; document.getElementById('regStepUsername').classList.add('hidden'); document.getElementById('regStepPin').classList.remove('hidden'); document.getElementById('regPinInput').focus(); } } catch (e) { showToast("Error checking username"); } }
         async function completeRegistration() { if (!window.fb) return; const pin = document.getElementById('regPinInput').value; if (pin.length !== 4) { showToast("Enter 4 digits"); return; } const userRef = getUserRef(pendingUsername); document.getElementById('createAccBtn').disabled = true; document.getElementById('createAccBtn').classList.add('opacity-50'); try { const pinHash = await sha256(pin); appData.pin = pinHash; appData.securityLogs = [{ timestamp: Date.now(), device: getDeviceModel() }]; const cleanData = JSON.parse(JSON.stringify(appData)); await window.fb.setDoc(userRef, cleanData); await completeLogin(pendingUsername, false); } catch (e) { console.error(e); showToast("Registration failed"); document.getElementById('createAccBtn').disabled = false; document.getElementById('createAccBtn').classList.remove('opacity-50'); } }
         async function completeLogin(username, isLegacyNoPin, skipUI = false) { 
