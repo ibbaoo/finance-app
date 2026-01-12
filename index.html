@@ -1199,7 +1199,32 @@
         async function loginUser() { if (!window.fb) { showToast("System loading, please wait..."); return; } const usernameInput = document.getElementById('usernameInput'); const pinInput = document.getElementById('loginPinInput'); const username = usernameInput.value.trim().toLowerCase().replace(/[^a-z0-9]/g, ''); const pin = pinInput.value; if (username.length < 3) { showToast("Invalid username"); return; } if (pin.length !== 4) { showToast("Enter 4-digit PIN"); return; } document.getElementById('authLoader').classList.remove('hidden'); document.getElementById('loginBtn').disabled = true; document.getElementById('loginBtn').classList.add('opacity-50'); usernameInput.disabled = true; pinInput.disabled = true; try { const userRef = getUserRef(username); if (!userRef) throw new Error("Initialization failed"); const docSnap = await window.fb.getDoc(userRef); if (docSnap.exists()) { const data = docSnap.data(); if (data.pin) { const inputHash = await sha256(pin); const isStoredHash = data.pin.length === 64; if ((isStoredHash && data.pin === inputHash) || (!isStoredHash && data.pin === pin)) { if (!isStoredHash) { appData = { ...data }; appData.pin = inputHash; currentUserDocId = username; await saveData(); } await completeLogin(username, false); } else { showToast("Incorrect PIN"); usernameInput.disabled = false; pinInput.disabled = false; pinInput.value = ''; pinInput.focus(); } } else { await completeLogin(username, true); } } else { showToast("User not found. Create an account?"); usernameInput.disabled = false; pinInput.disabled = false; } } catch (e) { console.error(e); showToast("Login Error: " + (e.message || "Connection failed")); usernameInput.disabled = false; pinInput.disabled = false; } finally { document.getElementById('authLoader').classList.add('hidden'); document.getElementById('loginBtn').disabled = false; document.getElementById('loginBtn').classList.remove('opacity-50'); } }
         async function checkRegistrationUsername() { if (!window.fb) { showToast("System loading..."); return; } const input = document.getElementById('regUsernameInput'); const username = input.value.trim().toLowerCase().replace(/[^a-z0-9]/g, ''); if (username.length < 3) { showToast("Username too short"); return; } try { const userRef = getUserRef(username); const docSnap = await window.fb.getDoc(userRef); if (docSnap.exists()) { showToast("Username taken"); } else { pendingUsername = username; document.getElementById('regStepUsername').classList.add('hidden'); document.getElementById('regStepPin').classList.remove('hidden'); document.getElementById('regPinInput').focus(); } } catch (e) { showToast("Error checking username"); } }
         async function completeRegistration() { if (!window.fb) return; const pin = document.getElementById('regPinInput').value; if (pin.length !== 4) { showToast("Enter 4 digits"); return; } const userRef = getUserRef(pendingUsername); document.getElementById('createAccBtn').disabled = true; document.getElementById('createAccBtn').classList.add('opacity-50'); try { const pinHash = await sha256(pin); appData.pin = pinHash; appData.securityLogs = [{ timestamp: Date.now(), device: getDeviceModel() }]; const cleanData = JSON.parse(JSON.stringify(appData)); await window.fb.setDoc(userRef, cleanData); await completeLogin(pendingUsername, false); } catch (e) { console.error(e); showToast("Registration failed"); document.getElementById('createAccBtn').disabled = false; document.getElementById('createAccBtn').classList.remove('opacity-50'); } }
-        async function completeLogin(username, isLegacyNoPin, skipUI = false) { currentUserDocId = username; localStorage.setItem('finTrack_username', username); try { const userRef = getUserRef(username); const deviceName = getDeviceModel(); const snap = await window.fb.getDoc(userRef); if (snap.exists()) { let logs = snap.data().securityLogs || []; logs = logs.filter(l => l.device !== deviceName); logs.push({ timestamp: Date.now(), device: deviceName }); await window.fb.updateDoc(userRef, { securityLogs: logs }); } } catch(e) { console.error("Log update failed", e); } if (!skipUI) { document.getElementById('authScreen').classList.add('hidden'); document.getElementById('appUI').classList.remove('hidden'); document.getElementById('appUI').classList.add('flex'); } document.getElementById('settingsUsername').innerText = username; if (isLegacyNoPin) document.getElementById('legacyPinModal').classList.remove('hidden'); }
+        async function completeLogin(username, isLegacyNoPin, skipUI = false) { 
+            currentUserDocId = username; 
+            localStorage.setItem('finTrack_username', username); 
+            try { 
+                const userRef = getUserRef(username); 
+                const deviceName = getDeviceModel(); 
+                const snap = await window.fb.getDoc(userRef); 
+                if (snap.exists()) { 
+                    let logs = snap.data().securityLogs || []; 
+                    logs = logs.filter(l => l.device !== deviceName); 
+                    logs.push({ timestamp: Date.now(), device: deviceName }); 
+                    await window.fb.updateDoc(userRef, { securityLogs: logs }); 
+                } 
+            } catch(e) { console.error("Log update failed", e); } 
+            
+            if (!skipUI) { 
+                document.getElementById('authScreen').classList.add('hidden'); 
+                document.getElementById('appUI').classList.remove('hidden'); 
+                document.getElementById('appUI').classList.add('flex'); 
+            } 
+            document.getElementById('settingsUsername').innerText = username; 
+            if (isLegacyNoPin) document.getElementById('legacyPinModal').classList.remove('hidden'); 
+            
+            // Start listening for real-time updates
+            subscribeToData();
+        }
         async function saveLegacyPin() { const pin = document.getElementById('legacyPinInput').value; if (pin.length !== 4) { showToast("Enter 4 digits"); return; } const pinHash = await sha256(pin); appData.pin = pinHash; await saveData(); document.getElementById('legacyPinModal').classList.add('hidden'); showToast("Account Secured!"); }
         
         function openSettingsModal() { document.getElementById('settingsModal').classList.remove('hidden'); const img = document.getElementById('settingsAvatar'); const navImg = document.getElementById('navbarAvatar'); if (appData.avatar) { img.src = appData.avatar; navImg.src = appData.avatar; } else { img.src = "https://img.icons8.com/fluency/96/user-male-circle.png"; } const logList = document.getElementById('securityLogsList'); logList.innerHTML = ''; if (appData.securityLogs && appData.securityLogs.length > 0) { const logs = [...appData.securityLogs].sort((a,b) => b.timestamp - a.timestamp).slice(0, 10); logs.forEach(log => { const d = new Date(log.timestamp); let deviceIcon = "fa-mobile-screen"; if(log.device.includes("Windows") || log.device.includes("Mac")) deviceIcon = "fa-desktop"; logList.innerHTML += `<div class="flex justify-between items-center text-xs p-2 border-b border-gray-100 dark:border-gray-700"><span class="text-gray-600 dark:text-gray-300 font-medium flex items-center gap-2"><i class="fa-solid ${deviceIcon} text-gray-400"></i> ${log.device}</span><span class="text-gray-400">${d.toLocaleDateString()} ${d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span></div>`; }); } else { logList.innerHTML = `<p class="text-xs text-gray-400 text-center">No logs available.</p>`; } const isDark = document.documentElement.classList.contains('dark'); const toggle = document.getElementById('themeToggleIcon'); toggle.className = isDark ? "fa-solid fa-toggle-on text-2xl text-ios-green" : "fa-solid fa-toggle-off text-2xl text-gray-300"; }
@@ -1214,7 +1239,74 @@
         function openChangePinModal() { document.getElementById('pinModalTitle').innerText = "Change PIN"; document.getElementById('pinModalDesc').innerText = "Enter new 4-digit code"; document.getElementById('genericPinInput').value = ''; document.getElementById('pinModal').classList.remove('hidden'); pinCallback = async (newPin) => { const pinHash = await sha256(newPin); appData.pin = pinHash; await saveData(); showToast("PIN Changed Successfully"); closePinModal(); }; }
         function submitGenericPin() { const val = document.getElementById('genericPinInput').value; if (val.length !== 4) { showToast("Must be 4 digits"); return; } if (pinCallback) pinCallback(val); }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); pinCallback = null; }
-        function subscribeToData() { if(!currentUserDocId || !window.fb) return; const userRef = getUserRef(currentUserDocId); unsubscribeSnapshot = window.fb.onSnapshot(userRef, (doc) => { if(doc.exists()) { const newData = doc.data(); if (!isInitialLoad && newData.notifications && newData.notifications.length > 0) { const existingIds = new Set(appData.notifications.map(n => n.id)); newData.notifications.forEach(n => { if (!existingIds.has(n.id) && !notifiedIds.has(n.id)) { const notifTime = new Date(n.date).getTime(); if (Date.now() - notifTime < 60000) { if (Notification.permission === "granted") { new Notification("ProTracker Alert", { body: n.message, icon: "https://img.icons8.com/fluency/512/wallet.png" }); notifiedIds.add(n.id); } } } }); } appData = { ...appData, ...newData }; if (!appData.categories) appData.categories = ['Food', 'Transport', 'Shopping', 'Bill', 'Exchange']; if (!Array.isArray(appData.subLimits)) appData.subLimits = []; if (!Array.isArray(appData.transactions)) appData.transactions = []; if (!Array.isArray(appData.subscriptions)) appData.subscriptions = []; if (!Array.isArray(appData.notifications)) appData.notifications = []; if (!Array.isArray(appData.tasks)) appData.tasks = []; if (!appData.fitness) appData.fitness = { limit: 2000, proteinLimit: 150, hydrationLimit: 2000, logs: [] }; if (!Array.isArray(appData.fitness.logs)) appData.fitness.logs = []; if(appData.avatar) { document.getElementById('navbarAvatar').src = appData.avatar; document.getElementById('navbarAvatar').classList.remove('hidden'); document.getElementById('navbarIcon').classList.add('hidden'); } else { document.getElementById('navbarAvatar').classList.add('hidden'); document.getElementById('navbarIcon').classList.remove('hidden'); } try { localStorage.setItem('finTrack_data', JSON.stringify(appData)); } catch(e) { console.warn("Cache full"); } cleanupNotifications(); checkSubscriptionNotifications(); cleanupFoodLogs(); if(navigator.onLine) fetchLiveRate(); else if (appData.customRate) { exchangeRate = appData.customRate; isManualRate = true; updateRateDisplay(); } if(appMode === 'finance') updateUI(); else if(appMode === 'tasks') renderTasks(); else if(appMode === 'fitness') renderFitness(); isInitialLoad = false; } }); }
+        
+        function subscribeToData() { 
+            if(!currentUserDocId || !window.fb) return; 
+            
+            // Unsubscribe previous listener if exists to prevent duplicates
+            if (unsubscribeSnapshot) {
+                unsubscribeSnapshot();
+                unsubscribeSnapshot = null;
+            }
+
+            const userRef = getUserRef(currentUserDocId); 
+            unsubscribeSnapshot = window.fb.onSnapshot(userRef, (doc) => { 
+                if(doc.exists()) { 
+                    const newData = doc.data(); 
+                    
+                    if (!isInitialLoad && newData.notifications && newData.notifications.length > 0) { 
+                        const existingIds = new Set(appData.notifications.map(n => n.id)); 
+                        newData.notifications.forEach(n => { 
+                            if (!existingIds.has(n.id) && !notifiedIds.has(n.id)) { 
+                                const notifTime = new Date(n.date).getTime(); 
+                                if (Date.now() - notifTime < 60000) { 
+                                    if (Notification.permission === "granted") { 
+                                        new Notification("ProTracker Alert", { body: n.message, icon: "https://img.icons8.com/fluency/512/wallet.png" }); 
+                                        notifiedIds.add(n.id); 
+                                    } 
+                                } 
+                            } 
+                        }); 
+                    } 
+                    
+                    appData = { ...appData, ...newData }; 
+                    
+                    if (!appData.categories) appData.categories = ['Food', 'Transport', 'Shopping', 'Bill', 'Exchange']; 
+                    if (!Array.isArray(appData.subLimits)) appData.subLimits = []; 
+                    if (!Array.isArray(appData.transactions)) appData.transactions = []; 
+                    if (!Array.isArray(appData.subscriptions)) appData.subscriptions = []; 
+                    if (!Array.isArray(appData.notifications)) appData.notifications = []; 
+                    if (!Array.isArray(appData.tasks)) appData.tasks = []; 
+                    if (!appData.fitness) appData.fitness = { limit: 2000, proteinLimit: 150, hydrationLimit: 2000, logs: [] }; 
+                    if (!Array.isArray(appData.fitness.logs)) appData.fitness.logs = []; 
+                    
+                    if(appData.avatar) { 
+                        document.getElementById('navbarAvatar').src = appData.avatar; 
+                        document.getElementById('navbarAvatar').classList.remove('hidden'); 
+                        document.getElementById('navbarIcon').classList.add('hidden'); 
+                    } else { 
+                        document.getElementById('navbarAvatar').classList.add('hidden'); 
+                        document.getElementById('navbarIcon').classList.remove('hidden'); 
+                    } 
+                    
+                    try { localStorage.setItem('finTrack_data', JSON.stringify(appData)); } catch(e) { console.warn("Cache full"); } 
+                    
+                    cleanupNotifications(); 
+                    checkSubscriptionNotifications(); 
+                    cleanupFoodLogs(); 
+                    
+                    if(navigator.onLine) fetchLiveRate(); 
+                    else if (appData.customRate) { exchangeRate = appData.customRate; isManualRate = true; updateRateDisplay(); } 
+                    
+                    if(appMode === 'finance') updateUI(); 
+                    else if(appMode === 'tasks') renderTasks(); 
+                    else if(appMode === 'fitness') renderFitness(); 
+                    
+                    isInitialLoad = false; 
+                } 
+            }); 
+        }
+
         async function saveData() { if(currentUserDocId) { if (!navigator.onLine || !window.fb) { offlineQueue.push(JSON.parse(JSON.stringify(appData))); localStorage.setItem('finTrack_offlineQueue', JSON.stringify(offlineQueue)); localStorage.setItem('finTrack_data', JSON.stringify(appData)); return; } const userRef = getUserRef(currentUserDocId); const cleanData = JSON.parse(JSON.stringify(appData)); try { localStorage.setItem('finTrack_data', JSON.stringify(appData)); } catch(e){} await window.fb.setDoc(userRef, cleanData, { merge: true }); } }
         async function processOfflineQueue() { if(offlineQueue.length > 0 && currentUserDocId && window.fb) { const userRef = getUserRef(currentUserDocId); const finalState = offlineQueue[offlineQueue.length-1]; await window.fb.setDoc(userRef, finalState, { merge: true }); offlineQueue = []; localStorage.removeItem('finTrack_offlineQueue'); showToast("Offline changes synced"); } }
         function requestNotificationPermission() { if (!("Notification" in window)) { showToast("Browser doesn't support notifications"); return; } Notification.requestPermission().then(permission => { if (permission === "granted") { showToast("Notifications Enabled!"); new Notification("ProTracker", { body: "You will now receive subscription alerts.", icon: "https://img.icons8.com/fluency/512/wallet.png" }); } else { showToast("Notifications Denied"); } }); }
