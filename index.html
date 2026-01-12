@@ -168,7 +168,6 @@
         </div>
     </div>
 
-    <!-- Other Modals (CROP, TASK, NOTIF, AUTH - Keep same structure but condensed for brevity in edit, ensuring no loss) -->
     <!-- CROP MODAL -->
     <div id="cropModal" class="fixed inset-0 z-[250] hidden flex items-center justify-center bg-black/95 p-4 transition-all duration-300">
         <div class="w-full max-w-lg flex flex-col h-[90vh] bg-[#1c1c1e] rounded-3xl overflow-hidden relative shadow-2xl border border-white/10 gpu-accel">
@@ -296,7 +295,7 @@
                 <p class="text-xs font-bold text-gray-400 uppercase tracking-widest animate-pulse-slow">Securely Syncing...</p>
             </div>
 
-            <div id="authStep1" class="glass rounded-3xl p-8 shadow-lg border border-white/50 dark:border-white/10 hover-lift gpu-accel">
+            <div id="authStep1" class="glass rounded-3xl p-8 shadow-lg border border-white/50 dark:border-white/10 hover-lift gpu-accel relative z-50">
                 <div class="space-y-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Username</label>
@@ -308,13 +307,13 @@
                     </div>
                 </div>
                 <div id="authLoader" class="hidden flex justify-center mt-4"><div class="loader !border-gray-400 !border-l-ios-blue"></div></div>
-                <button onclick="loginUser()" id="loginBtn" class="w-full bg-ios-blue text-white py-4 rounded-2xl font-bold text-base mt-6 hover:bg-blue-600 transition shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2">Login</button>
+                <button onclick="loginUser()" id="loginBtn" class="w-full bg-ios-blue text-white py-4 rounded-2xl font-bold text-base mt-6 hover:bg-blue-600 transition shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 relative z-50">Login</button>
                 <div class="mt-6 text-center">
-                    <button onclick="showRegisterStep()" class="text-xs font-bold text-gray-500 hover:text-ios-blue dark:text-gray-400 dark:hover:text-white transition">New here? Create Account</button>
+                    <button onclick="showRegisterStep()" class="text-xs font-bold text-gray-500 hover:text-ios-blue dark:text-gray-400 dark:hover:text-white transition relative z-50">New here? Create Account</button>
                 </div>
             </div>
 
-            <div id="authStepRegister" class="hidden glass rounded-3xl p-8 shadow-lg border border-white/50 dark:border-white/10 hover-lift gpu-accel">
+            <div id="authStepRegister" class="hidden glass rounded-3xl p-8 shadow-lg border border-white/50 dark:border-white/10 hover-lift gpu-accel relative z-50">
                 <div class="flex items-center mb-4 cursor-pointer text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition" onclick="resetAuth()">
                     <i class="fa-solid fa-arrow-left mr-2"></i> <span class="text-xs font-bold uppercase">Back to Login</span>
                 </div>
@@ -342,8 +341,8 @@
                     <div class="flex items-center gap-2 animate-float-in relative z-50">
                         <div class="relative group">
                             <!-- Main Button z-[60] to stay on top -->
-                            <button onclick="toggleAppSwitcher(event)" class="w-10 h-10 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center shadow-lg hover:scale-105 transition-transform active:scale-95 z-[60] relative" title="Switch Mode">
-                                <i id="navIconMain" class="fa-solid fa-wallet text-sm"></i>
+                            <button onclick="toggleAppSwitcher(event)" class="w-10 h-10 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center shadow-lg hover:scale-105 transition-transform active:scale-95 z-[60] relative touch-manipulation" title="Switch Mode">
+                                <i id="navIconMain" class="fa-solid fa-wallet text-sm pointer-events-none"></i>
                             </button>
                             
                             <!-- APP SWITCHER DROPDOWN -->
@@ -656,7 +655,7 @@
                         <div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-red-100 dark:bg-red-500/20 text-red-500 flex items-center justify-center"><i class="fa-solid fa-trash"></i></div><span class="text-sm font-bold text-red-500">Delete Account</span></div>
                     </button>
                 </div>
-                <p class="text-center text-[10px] text-gray-400 mt-4">App Version 2.8.7 (Undo Enabled)</p>
+                <p class="text-center text-[10px] text-gray-400 mt-4">App Version 2.9.0 (Sync & Mobile Fixed)</p>
             </div>
         </div>
     </div>
@@ -726,10 +725,15 @@
         
         // Drag State
         let dragClone = null, dragStartPos = { x: 0, y: 0 }, isDragging = false, currentDragId = null, dragSourceEl = null;
-        const currentAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        
+        // --- STABLE APP ID FOR SYNC ---
+        // This ensures mobile browsers use the same collection path as the editor
+        const currentAppId = typeof __app_id !== 'undefined' ? __app_id : 'protracker-stable-v1';
 
         function isCurrentViewMonth() { const now = new Date(); return viewDate.getMonth() === now.getMonth() && viewDate.getFullYear() === now.getFullYear(); }
         function changeMonth(d) { viewDate.setMonth(viewDate.getMonth() + d); if(appMode === 'finance') updateUI(); else if(appMode === 'fitness') renderFitness(); }
+        
+        // Path Helper using stable ID
         function getUserRef(username) { if (!window.fb || !db || !username) return null; return window.fb.doc(db, 'artifacts', currentAppId, 'public', 'data', 'finance_users', username); }
         function getDeviceModel() { const ua = navigator.userAgent; if (/iPhone/.test(ua)) return "iPhone"; if (/iPad/.test(ua)) return "iPad"; if (/Mac/.test(ua)) return "Mac"; if (/Android/.test(ua)) return "Android Device"; if (/Windows/.test(ua)) return "Windows PC"; return "Unknown Device"; }
 
@@ -749,10 +753,12 @@
                         const parsed = JSON.parse(cachedData);
                         if (parsed && typeof parsed === 'object') {
                             appData = { ...appData, ...parsed }; 
+                            // Safety checks for new features
                             if(!Array.isArray(appData.subLimits)) appData.subLimits = [];
                             if(!Array.isArray(appData.transactions)) appData.transactions = [];
                             if(!Array.isArray(appData.subscriptions)) appData.subscriptions = [];
                             if(!Array.isArray(appData.tasks)) appData.tasks = [];
+                            // Ensure fitness object exists even if old data
                             if(!appData.fitness) appData.fitness = { limit: 2000, proteinLimit: 150, hydrationLimit: 2000, logs: [] };
                             if(!Array.isArray(appData.fitness.logs)) appData.fitness.logs = [];
                             
@@ -768,7 +774,7 @@
                                 document.getElementById('navbarIcon').classList.add('hidden');
                             }
                             updateUI(); renderTasks(); renderFitness();
-                            showToast("Syncing...");
+                            showToast("Restored from cache");
                         }
                     } catch(e) { console.error("Cache load failed", e); }
                 } else {
@@ -786,17 +792,45 @@
                 const app = window.fb.initializeApp(FIREBASE_CONFIG);
                 auth = window.fb.getAuth(app);
                 db = window.fb.getFirestore(app);
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await window.fb.signInWithCustomToken(auth, __initial_auth_token);
-                else await window.fb.signInAnonymously(auth);
+                
+                // Robust Auth for Mobile
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await window.fb.signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await window.fb.signInAnonymously(auth);
+                    }
+                } catch(errAuth) {
+                    console.warn("Auth warning:", errAuth); // Continue, might be offline
+                }
 
                 if (storedUser) {
-                    await new Promise(resolve => { const unsub = window.fb.onAuthStateChanged(auth, (user) => { if(user) resolve(); unsub(); }); });
+                    // Short delay for mobile connection stability
+                    if (navigator.userAgent.match(/Mobile/)) await new Promise(r => setTimeout(r, 500));
+                    
+                    await new Promise(resolve => { 
+                        // Set timeout to avoid infinite loader
+                        const tm = setTimeout(() => resolve(), 3000);
+                        const unsub = window.fb.onAuthStateChanged(auth, (user) => { 
+                            if(user) { clearTimeout(tm); resolve(); unsub(); }
+                        }); 
+                    });
+
                     if (db) {
                         const userRef = getUserRef(storedUser);
                         if (userRef) {
-                            const docSnap = await window.fb.getDoc(userRef);
-                            if (docSnap.exists()) { await completeLogin(storedUser, false, true); isAutoLoggedIn = true; } 
-                            else { localStorage.removeItem('finTrack_username'); localStorage.removeItem('finTrack_data'); handleLogout(); }
+                            try {
+                                const docSnap = await window.fb.getDoc(userRef);
+                                if (docSnap.exists()) { await completeLogin(storedUser, false, true); isAutoLoggedIn = true; } 
+                                else { 
+                                    // Don't logout immediately on mobile if offline, allow cache
+                                    if(navigator.onLine) {
+                                        localStorage.removeItem('finTrack_username'); 
+                                        localStorage.removeItem('finTrack_data'); 
+                                        handleLogout(); 
+                                    }
+                                }
+                            } catch(e) { console.log("Offline login"); }
                         }
                     }
                 }
@@ -820,7 +854,6 @@
 
             msgEl.innerText = m;
 
-            // Clear any existing timeout to prevent overlap
             if (window.toastTimeout) clearTimeout(window.toastTimeout);
 
             if (undoFn) {
@@ -828,7 +861,7 @@
                 btn.onclick = () => {
                     undoFn();
                     el.classList.add('opacity-0', 'translate-y-[-10px]');
-                    setTimeout(() => btn.classList.add('hidden'), 300); // Hide button after anim
+                    setTimeout(() => btn.classList.add('hidden'), 300);
                 };
             } else {
                 btn.classList.add('hidden');
@@ -836,10 +869,7 @@
             }
 
             el.classList.remove('opacity-0', 'translate-y-[-10px]');
-
-            // Longer timeout if there is an undo action
             const duration = undoFn ? 4500 : 2500;
-
             window.toastTimeout = setTimeout(() => {
                 el.classList.add('opacity-0', 'translate-y-[-10px]');
             }, duration);
@@ -855,12 +885,11 @@
                     saveData();
                     updateUI();
                     
-                    // Show Toast with Undo Capability
                     showToast("Deleted", () => {
-                        appData.transactions.unshift(tx); // Restore to top
+                        appData.transactions.unshift(tx);
                         saveData();
                         updateUI();
-                        showToast("Transaction Restored");
+                        showToast("Restored");
                     });
                 }
             }); 
@@ -876,12 +905,11 @@
                         saveData();
                         renderFitness();
                         
-                        // Show Toast with Undo
                         showToast("Entry Deleted", () => {
                             appData.fitness.logs.unshift(log);
                             saveData();
                             renderFitness();
-                            showToast("Entry Restored");
+                            showToast("Restored");
                         });
                     }
                 }
@@ -900,7 +928,7 @@
             container.className = "w-10 bg-black dark:bg-white pt-12 pb-2 rounded-full shadow-2xl flex flex-col gap-2 items-center origin-top ring-1 ring-white/10 dark:ring-black/5";
             others.forEach(m => {
                 const btn = document.createElement('button');
-                btn.className = "w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/20 dark:hover:bg-black/10 transition text-white dark:text-black shrink-0";
+                btn.className = "w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/20 dark:hover:bg-black/10 transition text-white dark:text-black shrink-0 touch-manipulation";
                 btn.onclick = () => switchAppMode(m.id);
                 btn.title = m.label;
                 btn.innerHTML = `<i class="fa-solid ${m.icon} text-xs"></i>`;
@@ -924,14 +952,14 @@
             const rateMobile = document.getElementById('rateMobileBadge');
 
             if (mode === 'finance') {
-                views.finance.classList.remove('hidden'); navIcon.className = "fa-solid fa-wallet text-sm"; title.innerText = "ProTracker"; subtitle.innerText = "Dashboard";
+                views.finance.classList.remove('hidden'); navIcon.className = "fa-solid fa-wallet text-sm pointer-events-none"; title.innerText = "ProTracker"; subtitle.innerText = "Dashboard";
                 rateBadge.classList.remove('hidden'); rateMobile.classList.remove('hidden');
                 if(budgetChart) budgetChart.resize(); if(bankChart) bankChart.resize(); if(cashChart) cashChart.resize(); updateUI();
             } else if (mode === 'tasks') {
-                views.tasks.classList.remove('hidden'); navIcon.className = "fa-solid fa-list-check text-sm"; title.innerText = "Tasks"; subtitle.innerText = "Kanban Board";
+                views.tasks.classList.remove('hidden'); navIcon.className = "fa-solid fa-list-check text-sm pointer-events-none"; title.innerText = "Tasks"; subtitle.innerText = "Kanban Board";
                 rateBadge.classList.add('hidden'); rateMobile.classList.add('hidden'); renderTasks();
             } else if (mode === 'fitness') {
-                views.fitness.classList.remove('hidden'); navIcon.className = "fa-solid fa-heart-pulse text-sm"; title.innerText = "FitTracker"; subtitle.innerText = "Calories";
+                views.fitness.classList.remove('hidden'); navIcon.className = "fa-solid fa-heart-pulse text-sm pointer-events-none"; title.innerText = "FitTracker"; subtitle.innerText = "Calories";
                 rateBadge.classList.add('hidden'); rateMobile.classList.add('hidden'); if(calorieChart) calorieChart.resize(); renderFitness();
             }
         }
@@ -1243,7 +1271,6 @@
         function subscribeToData() { 
             if(!currentUserDocId || !window.fb) return; 
             
-            // Unsubscribe previous listener if exists to prevent duplicates
             if (unsubscribeSnapshot) {
                 unsubscribeSnapshot();
                 unsubscribeSnapshot = null;
@@ -1298,10 +1325,10 @@
                     if(navigator.onLine) fetchLiveRate(); 
                     else if (appData.customRate) { exchangeRate = appData.customRate; isManualRate = true; updateRateDisplay(); } 
                     
-                    // Force update ALL views to ensure data is ready when switching tabs
-                    updateUI(); 
-                    renderTasks(); 
-                    renderFitness(); 
+                    // Update whichever view is active
+                    if (appMode === 'finance') updateUI();
+                    else if (appMode === 'tasks') renderTasks();
+                    else if (appMode === 'fitness') renderFitness();
                     
                     isInitialLoad = false; 
                 } 
@@ -1410,7 +1437,10 @@
                     window.fb.getDoc(userRef).then(doc => {
                         if(doc.exists()) {
                             appData = { ...appData, ...doc.data() };
-                            updateUI(); renderTasks(); renderFitness();
+                            // Ensure fitness view is updated correctly if active
+                            if (appMode === 'finance') updateUI();
+                            else if (appMode === 'tasks') renderTasks();
+                            else if (appMode === 'fitness') renderFitness();
                         }
                     }).catch(console.error);
                 }
